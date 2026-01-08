@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// OPLEIDINGEN
+// ============================================
+
+model Opleiding {
+  id                                   String   @id @default(uuid())
+  naam                                 String
+  code                                 String   @unique
+  beschrijving                         String?
+  actief                               Boolean  @default(true)
+  autoGoedkeuringStudentActiviteiten   Boolean  @default(false)
+  createdAt                            DateTime @default(now())
+  updatedAt                            DateTime @updatedAt
+
+  // Relaties
+  studenten           User[]               @relation("StudentOpleiding")
+  docenten            DocentOpleiding[]
+  activiteiten        Activiteit[]
+  duurzaamheidsThemas DuurzaamheidsThema[]
+  rubrics             EvaluatieRubric[]
+  urenTargets         OpleidingUrenTarget[]
+  studentVoortgang    StudentUrenVoortgang[]
+}
+
+// ============================================
+// GEBRUIKERS
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   // 'student' | 'docent' | 'admin'
+  naam         String
+  actief       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Student: gekoppeld aan één opleiding
+  opleidingId String?
+  opleiding   Opleiding? @relation("StudentOpleiding", fields: [opleidingId], references: [id])
+
+  // Docent: gekoppeld aan meerdere opleidingen
+  docentOpleidingen DocentOpleiding[]
+
+  // Relaties
+  activiteiten   Activiteit[]
+  inschrijvingen Inschrijving[]
+
+  // Admin impersonatie
+  impersonationsByAdmin  ImpersonationLog[] @relation("AdminImpersonations")
+  impersonationsAsTarget ImpersonationLog[] @relation("TargetImpersonations")
+
+  // Student voortgang
+  urenVoortgang   StudentUrenVoortgang[]
+  criteriumUren   StudentCriteriumUren[]
+}
+
+model DocentOpleiding {
+  id            String   @id @default(uuid())
+  isCoordinator Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  docentId    String
+  docent      User      @relation(fields: [docentId], references: [id], onDelete: Cascade)
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  @@unique([docentId, opleidingId])
+}
+
+// ============================================
+// IMPERSONATIE AUDIT
+// ============================================
+
+model ImpersonationLog {
+  id        String    @id @default(uuid())
+  actie     String    // 'start' | 'stop' | 'action'
+  details   String?   // JSON string
+  ipAdres   String?
+  userAgent String?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  adminId      String
+  admin        User   @relation("AdminImpersonations", fields: [adminId], references: [id])
+  targetUserId String
+  targetUser   User   @relation("TargetImpersonations", fields: [targetUserId], references: [id])
+}
+
+// ============================================
+// DUURZAAMHEIDSTHEMA'S
+// ============================================
+
+model DuurzaamheidsThema {
+  id           String   @id @default(uuid())
+  naam         String
+  beschrijving String?
+  icoon        String?
+  volgorde     Int      @default(0)
+  actief       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  // Relaties
+  activiteiten ActiviteitDuurzaamheid[]
+}
+
+// ============================================
+// EVALUATIE RUBRICS
+// ============================================
+
+model EvaluatieRubric {
+  id           String   @id @default(uuid())
+  naam         String
+  beschrijving String?
+  schooljaar   String?
+  actief       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  // Relaties
+  secties RubricSectie[]
+  niveaus RubricNiveau[]
+}
+
+model RubricSectie {
+  id                 String   @id @default(uuid())
+  naam               String
+  gewichtPercentage  Float
+  volgorde           Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  rubricId String
+  rubric   EvaluatieRubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+
+  // Relaties
+  criteria RubricCriterium[]
+}
+
+model RubricNiveau {
+  id            String   @id @default(uuid())
+  naam          String
+  scoreWaarde   Float?
+  multiplicator Float?
+  volgorde      Int
+  createdAt     DateTime @default(now())
+
+  rubricId String
+  rubric   EvaluatieRubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+
+  // Relaties
+  beschrijvingen    RubricNiveauBeschrijving[]
+  activiteitEvaluaties ActiviteitEvaluatie[]
+}
+
+model RubricCriterium {
+  id                String   @id @default(uuid())
+  naam              String
+  gewichtPercentage Float
+  volgorde          Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  sectieId String
+  sectie   RubricSectie @relation(fields: [sectieId], references: [id], onDelete: Cascade)
+
+  // Relaties
+  beschrijvingen       RubricNiveauBeschrijving[]
+  activiteitEvaluaties ActiviteitEvaluatie[]
+  studentCriteriumUren StudentCriteriumUren[]
+}
+
+model RubricNiveauBeschrijving {
+  id           String   @id @default(uuid())
+  beschrijving String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  criteriumId String
+  criterium   RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
+  niveauId    String
+  niveau      RubricNiveau    @relation(fields: [niveauId], references: [id], onDelete: Cascade)
+
+  @@unique([criteriumId, niveauId])
+}
+
+// ============================================
+// ACTIVITEITEN
+// ============================================
+
+model Activiteit {
+  id                 String   @id @default(uuid())
+  titel              String
+  typeActiviteit     String
+  aard               String?
+  omschrijving       String?
+  datum              DateTime
+  startuur           String
+  einduur            String
+  locatie            String?
+  weblink            String?
+  organisatorPxl     String?
+  organisatorExtern  String?
+  bewijslink         String?
+  verplichtProfiel   String?
+  maxPlaatsen        Int?
+  aantalIngeschreven Int      @default(0)
+
+  status       String @default("concept") // 'concept' | 'gepubliceerd' | 'in_review' | 'goedgekeurd' | 'afgekeurd' | 'afgerond'
+  opmerkingen  String?
+  typeAanvraag String // 'docent' | 'student'
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaties
+  aangemaaktDoorId String
+  aangemaaktDoor   User      @relation(fields: [aangemaaktDoorId], references: [id])
+  opleidingId      String?
+  opleiding        Opleiding? @relation(fields: [opleidingId], references: [id])
+
+  inschrijvingen   Inschrijving[]
+  duurzaamheid     ActiviteitDuurzaamheid[]
+  evaluaties       ActiviteitEvaluatie[]
+}
+
+model ActiviteitDuurzaamheid {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  activiteitId    String
+  activiteit      Activiteit         @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  duurzaamheidId  String
+  duurzaamheid    DuurzaamheidsThema @relation(fields: [duurzaamheidId], references: [id], onDelete: Cascade)
+
+  @@unique([activiteitId, duurzaamheidId])
+}
+
+model ActiviteitEvaluatie {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activiteitId String
+  activiteit   Activiteit      @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  criteriumId  String
+  criterium    RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
+  niveauId     String?
+  niveau       RubricNiveau?   @relation(fields: [niveauId], references: [id])
+
+  @@unique([activiteitId, criteriumId])
+}
+
+// ============================================
+// INSCHRIJVINGEN
+// ============================================
+
+model Inschrijving {
+  id                  String    @id @default(uuid())
+  inschrijvingsstatus String    @default("ingeschreven") // 'ingeschreven' | 'wachtlijst' | 'uitgeschreven' | 'aanwezig' | 'afwezig' | 'geannuleerd'
+  effectieveDeelname  Boolean   @default(false)
+  pxlBegeleider       String?
+  uitgeschrevenOp     DateTime?
+  uitschrijfReden     String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  activiteitId String
+  activiteit   Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  bewijsstukken Bewijsstuk[]
+
+  @@unique([activiteitId, studentId])
+}
+
+model Bewijsstuk {
+  id            String   @id @default(uuid())
+  type          String   // 'handtekeninglijst' | 'foto_deelnemers' | 'extra_bijlage'
+  bestandsnaam  String
+  bestandspad   String
+  uploadedAt    DateTime @default(now())
+
+  inschrijvingId String
+  inschrijving   Inschrijving @relation(fields: [inschrijvingId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// UREN TARGETS & VOORTGANG
+// ============================================
+
+model OpleidingUrenTarget {
+  id         String @id @default(uuid())
+  schooljaar String
+
+  urenNiveau1      Float @default(5.0)
+  urenNiveau2      Float @default(3.0)
+  urenNiveau3      Float @default(2.0)
+  urenNiveau4      Float @default(1.0)
+  urenDuurzaamheid Float @default(1.0)
+
+  criteriumTargets String? // JSON string voor per-criterium targets
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  @@unique([opleidingId, schooljaar])
+}
+
+model StudentUrenVoortgang {
+  id         String @id @default(uuid())
+  schooljaar String
+
+  urenNiveau1      Float @default(0)
+  urenNiveau2      Float @default(0)
+  urenNiveau3      Float @default(0)
+  urenNiveau4      Float @default(0)
+  urenDuurzaamheid Float @default(0)
+
+  lastCalculated DateTime @default(now())
+
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, schooljaar])
+}
+
+model StudentCriteriumUren {
+  id         String @id @default(uuid())
+  schooljaar String
+
+  urenNiveau1 Float @default(0)
+  urenNiveau2 Float @default(0)
+  urenNiveau3 Float @default(0)
+  urenNiveau4 Float @default(0)
+  urenTotaal  Float @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  studentId   String
+  student     User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  criteriumId String
+  criterium   RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, criteriumId, schooljaar])
+}
+
+// ============================================
+// SYSTEEM INSTELLINGEN
+// ============================================
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // JSON string
+  updatedAt DateTime @updatedAt
+}
