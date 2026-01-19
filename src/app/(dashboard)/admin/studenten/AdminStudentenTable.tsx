@@ -20,6 +20,7 @@ type Student = {
   id: string
   naam: string
   email: string
+  actief: boolean
   createdAt: string
   opleiding: {
     id: string
@@ -34,10 +35,9 @@ type Student = {
 type Opleiding = {
   id: string
   naam: string
-  isCoordinator: boolean
 }
 
-export default function StudentenTable({
+export default function AdminStudentenTable({
   studenten,
   opleidingen,
 }: {
@@ -46,13 +46,24 @@ export default function StudentenTable({
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
 
   const filteredStudenten = useMemo(() => {
     let filtered = studenten
 
     if (opleidingFilter !== 'all') {
-      filtered = filtered.filter((s) => s.opleiding?.id === opleidingFilter)
+      if (opleidingFilter === 'none') {
+        filtered = filtered.filter((s) => !s.opleiding)
+      } else {
+        filtered = filtered.filter((s) => s.opleiding?.id === opleidingFilter)
+      }
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((s) =>
+        statusFilter === 'actief' ? s.actief : !s.actief
+      )
     }
 
     if (searchQuery) {
@@ -65,12 +76,15 @@ export default function StudentenTable({
     }
 
     return filtered
-  }, [studenten, opleidingFilter, searchQuery])
+  }, [studenten, opleidingFilter, statusFilter, searchQuery])
 
   const stats = useMemo(() => {
     const totalStudenten = studenten.length
+    const actiefStudenten = studenten.filter((s) => s.actief).length
     const totalDeelnames = studenten.reduce((sum, s) => sum + s._count.inschrijvingen, 0)
-    return { totalStudenten, totalDeelnames }
+    const zonderOpleiding = studenten.filter((s) => !s.opleiding).length
+
+    return { totalStudenten, actiefStudenten, totalDeelnames, zonderOpleiding }
   }, [studenten])
 
   return (
@@ -78,33 +92,37 @@ export default function StudentenTable({
       {/* Header */}
       <div>
         <h1 className="font-heading font-black text-3xl text-pxl-black gold-underline inline-block">
-          Studenten
+          Alle Studenten
         </h1>
         <p className="text-pxl-black-light mt-4">
-          Overzicht van studenten in jouw opleiding(en)
+          Overzicht van alle studenten in het systeem
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card-flat">
           <div className="text-sm text-pxl-black-light">Totaal Studenten</div>
           <div className="text-2xl font-bold text-pxl-gold">{stats.totalStudenten}</div>
         </div>
         <div className="card-flat">
-          <div className="text-sm text-pxl-black-light">Totaal Deelnames</div>
-          <div className="text-2xl font-bold text-green-600">{stats.totalDeelnames}</div>
+          <div className="text-sm text-pxl-black-light">Actieve Studenten</div>
+          <div className="text-2xl font-bold text-green-600">{stats.actiefStudenten}</div>
         </div>
         <div className="card-flat">
-          <div className="text-sm text-pxl-black-light">Opleidingen</div>
-          <div className="text-2xl font-bold text-blue-600">{opleidingen.length}</div>
+          <div className="text-sm text-pxl-black-light">Totaal Deelnames</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.totalDeelnames}</div>
+        </div>
+        <div className="card-flat">
+          <div className="text-sm text-pxl-black-light">Zonder Opleiding</div>
+          <div className="text-2xl font-bold text-orange-600">{stats.zonderOpleiding}</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="card">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
             <input
               type="text"
               placeholder="Zoek op naam of email..."
@@ -114,31 +132,47 @@ export default function StudentenTable({
             />
           </div>
 
-          {opleidingen.length > 1 && (
-            <div className="flex items-center gap-2">
-              <label htmlFor="opleiding-filter" className="text-sm font-medium text-gray-700">
-                Opleiding:
-              </label>
-              <select
-                id="opleiding-filter"
-                value={opleidingFilter}
-                onChange={(e) => setOpleidingFilter(e.target.value)}
-                className="input-field w-48"
-              >
-                <option value="all">Alle opleidingen</option>
-                {opleidingen.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.naam}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <label htmlFor="opleiding-filter" className="text-sm font-medium text-gray-700">
+              Opleiding:
+            </label>
+            <select
+              id="opleiding-filter"
+              value={opleidingFilter}
+              onChange={(e) => setOpleidingFilter(e.target.value)}
+              className="input-field w-48"
+            >
+              <option value="all">Alle opleidingen</option>
+              <option value="none">Zonder opleiding</option>
+              {opleidingen.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.naam}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {(opleidingFilter !== 'all' || searchQuery) && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
+              Status:
+            </label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="input-field w-36"
+            >
+              <option value="all">Alle</option>
+              <option value="actief">Actief</option>
+              <option value="inactief">Inactief</option>
+            </select>
+          </div>
+
+          {(opleidingFilter !== 'all' || statusFilter !== 'all' || searchQuery) && (
             <button
               onClick={() => {
                 setOpleidingFilter('all')
+                setStatusFilter('all')
                 setSearchQuery('')
               }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -146,6 +180,10 @@ export default function StudentenTable({
               Reset filters
             </button>
           )}
+        </div>
+
+        <div className="mt-3 text-sm text-gray-500">
+          {filteredStudenten.length} van {studenten.length} studenten
         </div>
       </div>
 
@@ -163,6 +201,9 @@ export default function StudentenTable({
                     Opleiding
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Deelnames
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -177,13 +218,26 @@ export default function StudentenTable({
                 {filteredStudenten.map((student) => {
                   const laatsteInschrijving = student.inschrijvingen[0]
                   return (
-                    <tr key={student.id}>
+                    <tr key={student.id} className={!student.actief ? 'bg-gray-50' : ''}>
                       <td className="px-4 py-4">
                         <div className="font-medium text-gray-900">{student.naam}</div>
                         <div className="text-sm text-gray-500">{student.email}</div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.opleiding?.naam || '-'}
+                        {student.opleiding?.naam || (
+                          <span className="text-orange-600">Geen opleiding</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {student.actief ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                            Actief
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                            Inactief
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-green-600">
@@ -213,10 +267,16 @@ export default function StudentenTable({
                             Details
                           </button>
                           <Link
-                            href={`/docent/studenten/${student.id}/scorekaart`}
+                            href={`/admin/users/${student.id}/scorekaart`}
                             className="inline-flex items-center px-3 py-1.5 border border-blue-600 text-blue-600 rounded hover:bg-blue-50 font-medium transition-colors"
                           >
                             Scorekaart
+                          </Link>
+                          <Link
+                            href={`/admin/users/${student.id}`}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium transition-colors"
+                          >
+                            Bewerken
                           </Link>
                         </div>
                       </td>
@@ -235,7 +295,7 @@ export default function StudentenTable({
           </h3>
           <p className="text-pxl-black-light">
             {studenten.length === 0
-              ? 'Er zijn nog geen studenten in jouw opleiding(en)'
+              ? 'Er zijn nog geen studenten in het systeem'
               : 'Geen studenten gevonden met de huidige filters'}
           </p>
         </div>
@@ -262,11 +322,26 @@ export default function StudentenTable({
             <div className="px-6 py-4 space-y-6">
               {/* Student Info */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <div className="font-medium text-lg text-gray-900">{selectedStudent.naam}</div>
-                <div className="text-sm text-gray-500">{selectedStudent.email}</div>
-                {selectedStudent.opleiding && (
-                  <div className="text-sm text-gray-500 mt-1">{selectedStudent.opleiding.naam}</div>
-                )}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium text-lg text-gray-900">{selectedStudent.naam}</div>
+                    <div className="text-sm text-gray-500">{selectedStudent.email}</div>
+                    {selectedStudent.opleiding ? (
+                      <div className="text-sm text-gray-500 mt-1">{selectedStudent.opleiding.naam}</div>
+                    ) : (
+                      <div className="text-sm text-orange-600 mt-1">Geen opleiding toegewezen</div>
+                    )}
+                  </div>
+                  {selectedStudent.actief ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                      Actief
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                      Inactief
+                    </span>
+                  )}
+                </div>
                 <div className="mt-3 flex gap-4">
                   <div>
                     <div className="text-xs text-gray-500">Deelnames</div>
@@ -275,6 +350,12 @@ export default function StudentenTable({
                   <div>
                     <div className="text-xs text-gray-500">Inschrijvingen</div>
                     <div className="font-bold text-blue-600">{selectedStudent.inschrijvingen.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Aangemaakt</div>
+                    <div className="font-medium text-gray-600">
+                      {new Date(selectedStudent.createdAt).toLocaleDateString('nl-BE')}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -323,12 +404,20 @@ export default function StudentenTable({
 
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-between">
-              <Link
-                href={`/docent/studenten/${selectedStudent.id}/scorekaart`}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors"
-              >
-                Bekijk Scorekaart
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  href={`/admin/users/${selectedStudent.id}/scorekaart`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors"
+                >
+                  Bekijk Scorekaart
+                </Link>
+                <Link
+                  href={`/admin/users/${selectedStudent.id}`}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100 font-medium transition-colors"
+                >
+                  Bewerken
+                </Link>
+              </div>
               <button
                 onClick={() => setSelectedStudent(null)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100 font-medium transition-colors"

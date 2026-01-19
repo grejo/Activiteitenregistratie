@@ -1,7 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
+
+type Bewijsstuk = {
+  id: string
+  type: string
+  bestandsnaam: string
+  bestandspad: string
+  uploadedAt: string
+}
 
 type Aanvraag = {
   id: string
@@ -67,6 +76,8 @@ export default function AanvragenTable({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState(initialFormData)
+  const [bewijsstukken, setBewijsstukken] = useState<Bewijsstuk[]>([])
+  const [loadingBewijsstukken, setLoadingBewijsstukken] = useState(false)
 
   const filteredAanvragen = useMemo(() => {
     let filtered = aanvragen
@@ -94,6 +105,38 @@ export default function AanvragenTable({
 
     return { totaal: aanvragen.length, inReview, goedgekeurd, afgekeurd }
   }, [aanvragen])
+
+  // Fetch bewijsstukken when a aanvraag is selected
+  const fetchBewijsstukken = useCallback(async (activiteitId: string) => {
+    setLoadingBewijsstukken(true)
+    try {
+      const response = await fetch(`/api/bewijsstukken?activiteitId=${activiteitId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setBewijsstukken(data)
+      } else {
+        setBewijsstukken([])
+      }
+    } catch {
+      setBewijsstukken([])
+    } finally {
+      setLoadingBewijsstukken(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedAanvraag) {
+      fetchBewijsstukken(selectedAanvraag.id)
+    } else {
+      setBewijsstukken([])
+    }
+  }, [selectedAanvraag, fetchBewijsstukken])
+
+  const handleBewijsstukkenUpdate = () => {
+    if (selectedAanvraag) {
+      fetchBewijsstukken(selectedAanvraag.id)
+    }
+  }
 
   const openNewModal = () => {
     setFormData(initialFormData)
@@ -438,6 +481,27 @@ export default function AanvragenTable({
                       </a>
                     )}
                   </div>
+                )}
+              </div>
+
+              {/* Bewijsstukken Section */}
+              <div className="border-t pt-6">
+                <h4 className="font-heading font-bold text-lg text-pxl-black mb-4">
+                  Bewijsstukken
+                </h4>
+                {loadingBewijsstukken ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin inline-block w-6 h-6 border-2 border-pxl-gold border-t-transparent rounded-full" />
+                    <p className="text-sm text-gray-500 mt-2">Bewijsstukken laden...</p>
+                  </div>
+                ) : (
+                  <BewijsstukkenUpload
+                    activiteitId={selectedAanvraag.id}
+                    bewijsstukken={bewijsstukken}
+                    canUpload={selectedAanvraag.status !== 'afgekeurd'}
+                    canDelete={selectedAanvraag.status !== 'afgekeurd'}
+                    onUpdate={handleBewijsstukkenUpdate}
+                  />
                 )}
               </div>
             </div>

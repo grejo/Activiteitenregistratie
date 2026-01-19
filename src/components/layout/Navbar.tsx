@@ -23,6 +23,7 @@ export function Navbar() {
         return [
           { href: '/admin', label: 'Dashboard' },
           { href: '/admin/users', label: 'Gebruikers' },
+          { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
         ]
