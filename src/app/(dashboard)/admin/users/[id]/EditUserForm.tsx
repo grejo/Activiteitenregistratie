@@ -48,10 +48,8 @@ export default function EditUserForm({
 
     try {
       // Alleen wachtwoord meesturen als het is ingevuld
-      const dataToSend = { ...formData }
-      if (!dataToSend.password) {
-        delete dataToSend.password
-      }
+      const { password, ...rest } = formData
+      const dataToSend = password ? { ...rest, password } : rest
 
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',

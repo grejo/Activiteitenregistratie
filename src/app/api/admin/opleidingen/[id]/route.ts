@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -14,6 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { naam, code, beschrijving, actief, autoGoedkeuringStudentActiviteiten } = body
 
@@ -27,7 +28,7 @@ export async function PATCH(
 
     // Check if opleiding exists
     const existingOpleiding = await prisma.opleiding.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingOpleiding) {
@@ -42,7 +43,7 @@ export async function PATCH(
       const codeInUse = await prisma.opleiding.findFirst({
         where: {
           code,
-          id: { not: params.id },
+          id: { not: id },
         },
       })
 
@@ -56,7 +57,7 @@ export async function PATCH(
 
     // Update opleiding
     const opleiding = await prisma.opleiding.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         naam,
         code,
@@ -85,7 +86,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -95,9 +96,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
+
     // Check if opleiding exists
     const opleiding = await prisma.opleiding.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -133,7 +136,7 @@ export async function DELETE(
 
     // Delete opleiding
     await prisma.opleiding.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({
