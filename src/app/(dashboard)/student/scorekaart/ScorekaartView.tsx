@@ -35,6 +35,7 @@ type UrenVoortgang = {
   urenNiveau2: number
   urenNiveau3: number
   urenNiveau4: number
+  urenNiveau5: number
   urenDuurzaamheid: number
   lastCalculated: string
 }
@@ -44,6 +45,7 @@ type UrenTargets = {
   urenNiveau2: number
   urenNiveau3: number
   urenNiveau4: number
+  urenNiveau5: number
   urenDuurzaamheid: number
 }
 
@@ -76,6 +78,7 @@ type CriteriumUren = {
   urenNiveau2: number
   urenNiveau3: number
   urenNiveau4: number
+  urenNiveau5: number
   urenTotaal: number
   criterium: {
     naam: string
@@ -153,15 +156,17 @@ export default function ScorekaartView({
     (urenVoortgang?.urenNiveau1 || 0) +
     (urenVoortgang?.urenNiveau2 || 0) +
     (urenVoortgang?.urenNiveau3 || 0) +
-    (urenVoortgang?.urenNiveau4 || 0)
+    (urenVoortgang?.urenNiveau4 || 0) +
+    (urenVoortgang?.urenNiveau5 || 0)
 
   const totaalTarget =
     (urenTargets?.urenNiveau1 || 0) +
     (urenTargets?.urenNiveau2 || 0) +
     (urenTargets?.urenNiveau3 || 0) +
-    (urenTargets?.urenNiveau4 || 0)
+    (urenTargets?.urenNiveau4 || 0) +
+    (urenTargets?.urenNiveau5 || 0)
 
-  const totaalPercentage = totaalTarget > 0 ? Math.round((totaalUren / totaalTarget) * 100) : 0
+  const totaalPercentage = totaalTarget > 0 ? Math.min(Math.round((totaalUren / totaalTarget) * 100), 100) : 0
 
   // Calculate duration of an activity in hours
   const calculateDuration = (startuur: string, einduur: string): number => {
@@ -204,7 +209,7 @@ export default function ScorekaartView({
                 className={`h-6 rounded-full transition-all duration-500 flex items-center justify-center text-white text-sm font-semibold ${
                   totaalPercentage >= 100 ? 'bg-green-500' : 'bg-pxl-gold'
                 }`}
-                style={{ width: `${Math.max(totaalPercentage, 10)}%` }}
+                style={{ width: `${Math.min(Math.max(totaalPercentage, 10), 100)}%` }}
               >
                 {totaalPercentage}%
               </div>
@@ -249,6 +254,12 @@ export default function ScorekaartView({
             target={urenTargets?.urenNiveau4 || 0}
             label="Niveau 4 - Integreren"
             color="purple"
+          />
+          <ProgressBar
+            current={urenVoortgang?.urenNiveau5 || 0}
+            target={urenTargets?.urenNiveau5 || 0}
+            label="Niveau 5 - Creëren"
+            color="pxl-gold"
           />
         </div>
       </div>
@@ -309,6 +320,11 @@ export default function ScorekaartView({
                           {cu.urenNiveau4 > 0 && (
                             <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
                               N4: {cu.urenNiveau4.toFixed(1)}u
+                            </span>
+                          )}
+                          {cu.urenNiveau5 > 0 && (
+                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                              N5: {cu.urenNiveau5.toFixed(1)}u
                             </span>
                           )}
                         </div>

@@ -23,13 +23,14 @@ export async function POST(request: Request) {
       weblink,
       organisatorPxl,
       organisatorExtern,
-      bewijslink,
+      niveau,
+      duurzaamheidId,
     } = body
 
     // Validation
-    if (!titel || !typeActiviteit || !datum || !startuur || !einduur) {
+    if (!titel || !typeActiviteit || !datum || !startuur || !einduur || !niveau) {
       return NextResponse.json(
-        { error: 'Titel, type, datum, startuur en einduur zijn verplicht' },
+        { error: 'Titel, type, datum, startuur, einduur en niveau zijn verplicht' },
         { status: 400 }
       )
     }
@@ -60,11 +61,19 @@ export async function POST(request: Request) {
         weblink: weblink || null,
         organisatorPxl: organisatorPxl || null,
         organisatorExtern: organisatorExtern || null,
-        bewijslink: bewijslink || null,
+        niveau: parseInt(niveau),
         typeAanvraag: 'student',
         status: initialStatus,
         aangemaaktDoorId: session.user.id,
         opleidingId: student?.opleidingId || null,
+        // Duurzaamheid wordt apart toegevoegd
+        ...(duurzaamheidId && {
+          duurzaamheid: {
+            create: {
+              duurzaamheidId,
+            },
+          },
+        }),
       },
     })
 

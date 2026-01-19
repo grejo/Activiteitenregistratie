@@ -47,6 +47,31 @@ async function getOpleidingen(userId: string) {
   })
 }
 
+async function getDuurzaamheidsThemas(userId: string) {
+  // Get opleidingen the docent is linked to
+  const docentOpleidingen = await prisma.docentOpleiding.findMany({
+    where: { docentId: userId },
+    select: { opleidingId: true },
+  })
+
+  // Get duurzaamheidsthemas for docent's opleidingen (or all if no specific opleidingen)
+  const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
+
+  const duurzaamheidsThemas = await prisma.duurzaamheidsThema.findMany({
+    where: {
+      actief: true,
+      ...(opleidingIds.length > 0 && { opleidingId: { in: opleidingIds } }),
+    },
+    select: {
+      id: true,
+      naam: true,
+    },
+    orderBy: { volgorde: 'asc' },
+  })
+
+  return duurzaamheidsThemas
+}
+
 export default async function DocentActiviteitenPage() {
   const session = await auth()
 
@@ -54,10 +79,17 @@ export default async function DocentActiviteitenPage() {
     redirect('/dashboard')
   }
 
-  const [activiteiten, opleidingen] = await Promise.all([
+  const [activiteiten, opleidingen, duurzaamheidsThemas] = await Promise.all([
     getDocentActiviteiten(session.user.id),
     getOpleidingen(session.user.id),
+    getDuurzaamheidsThemas(session.user.id),
   ])
 
-  return <DocentActiviteitenTable activiteiten={activiteiten} opleidingen={opleidingen} />
+  return (
+    <DocentActiviteitenTable
+      activiteiten={activiteiten}
+      opleidingen={opleidingen}
+      duurzaamheidsThemas={duurzaamheidsThemas}
+    />
+  )
 }

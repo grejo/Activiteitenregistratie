@@ -35,11 +35,12 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
     })
   }
 
-  // Get all completed activities (effectieve deelname)
+  // Get all completed activities (effectieve deelname + bewijsstukken goedgekeurd)
   const inschrijvingen = await prisma.inschrijving.findMany({
     where: {
       studentId,
       effectieveDeelname: true,
+      bewijsStatus: 'goedgekeurd',
     },
     include: {
       activiteit: {

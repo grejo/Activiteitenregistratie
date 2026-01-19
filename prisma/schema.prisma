@@ -219,10 +219,12 @@ model Activiteit {
   verplichtProfiel   String?
   maxPlaatsen        Int?
   aantalIngeschreven Int      @default(0)
+  niveau             Int?     // 1-4 voor student aanvragen
 
-  status       String @default("concept") // 'concept' | 'gepubliceerd' | 'in_review' | 'goedgekeurd' | 'afgekeurd' | 'afgerond'
-  opmerkingen  String?
-  typeAanvraag String // 'docent' | 'student'
+  status              String    @default("concept") // 'concept' | 'gepubliceerd' | 'in_review' | 'goedgekeurd' | 'afgekeurd' | 'afgerond'
+  opmerkingen         String?
+  typeAanvraag        String // 'docent' | 'student'
+  afgekeurdBekekenOp  DateTime? // Wanneer student de afkeuring heeft bekeken
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -279,6 +281,13 @@ model Inschrijving {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
+  // Bewijsstukken flow
+  bewijsStatus              String    @default("niet_ingediend") // 'niet_ingediend' | 'ingediend' | 'goedgekeurd' | 'afgekeurd'
+  bewijsIngediendOp         DateTime?
+  bewijsBeoordeeldOp        DateTime?
+  bewijsFeedback            String?   // Feedback van docent bij afkeuring
+  bewijsAfgekeurdBekekenOp  DateTime? // Wanneer student de afkeuring heeft bekeken
+
   activiteitId String
   activiteit   Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
   studentId    String
@@ -312,6 +321,7 @@ model OpleidingUrenTarget {
   urenNiveau2      Float @default(3.0)
   urenNiveau3      Float @default(2.0)
   urenNiveau4      Float @default(1.0)
+  urenNiveau5      Float @default(1.0)
   urenDuurzaamheid Float @default(1.0)
 
   criteriumTargets String? // JSON string voor per-criterium targets
@@ -333,6 +343,7 @@ model StudentUrenVoortgang {
   urenNiveau2      Float @default(0)
   urenNiveau3      Float @default(0)
   urenNiveau4      Float @default(0)
+  urenNiveau5      Float @default(0)
   urenDuurzaamheid Float @default(0)
 
   lastCalculated DateTime @default(now())
@@ -353,6 +364,7 @@ model StudentCriteriumUren {
   urenNiveau2 Float @default(0)
   urenNiveau3 Float @default(0)
   urenNiveau4 Float @default(0)
+  urenNiveau5 Float @default(0)
   urenTotaal  Float @default(0)
 
   updatedAt DateTime @updatedAt

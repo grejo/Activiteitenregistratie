@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
 
 type Bewijsstuk = {
@@ -10,6 +10,15 @@ type Bewijsstuk = {
   bestandsnaam: string
   bestandspad: string
   uploadedAt: string
+}
+
+type Inschrijving = {
+  id: string
+  bewijsStatus: string
+  bewijsIngediendOp: string | null
+  bewijsBeoordeeldOp: string | null
+  bewijsFeedback: string | null
+  effectieveDeelname: boolean
 }
 
 type Aanvraag = {
@@ -32,6 +41,7 @@ type Aanvraag = {
   opleiding: {
     naam: string
   } | null
+  inschrijving: Inschrijving | null
 }
 
 const statusLabels: Record<string, string> = {
@@ -48,6 +58,20 @@ const statusColors: Record<string, string> = {
   afgekeurd: 'bg-red-100 text-red-800',
 }
 
+const bewijsStatusLabels: Record<string, string> = {
+  niet_ingediend: 'Niet ingediend',
+  ingediend: 'Ingediend',
+  goedgekeurd: 'Goedgekeurd',
+  afgekeurd: 'Afgekeurd',
+}
+
+const bewijsStatusColors: Record<string, string> = {
+  niet_ingediend: 'bg-gray-100 text-gray-800',
+  ingediend: 'bg-blue-100 text-blue-800',
+  goedgekeurd: 'bg-green-100 text-green-800',
+  afgekeurd: 'bg-red-100 text-red-800',
+}
+
 const initialFormData = {
   titel: '',
   typeActiviteit: 'workshop',
@@ -60,24 +84,44 @@ const initialFormData = {
   weblink: '',
   organisatorPxl: '',
   organisatorExtern: '',
-  bewijslink: '',
+  niveau: '',
+  duurzaamheidId: '',
+}
+
+type DuurzaamheidsThema = {
+  id: string
+  naam: string
 }
 
 export default function AanvragenTable({
   aanvragen,
+  duurzaamheidsThemas = [],
 }: {
   aanvragen: Aanvraag[]
+  duurzaamheidsThemas?: DuurzaamheidsThema[]
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAanvraag, setSelectedAanvraag] = useState<Aanvraag | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
+
+  // Check for openNew query parameter to auto-open the modal
+  useEffect(() => {
+    if (searchParams.get('openNew') === 'true') {
+      setShowNewModal(true)
+      // Remove the query parameter from URL without refresh
+      router.replace('/student/aanvragen', { scroll: false })
+    }
+  }, [searchParams, router])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState(initialFormData)
   const [bewijsstukken, setBewijsstukken] = useState<Bewijsstuk[]>([])
   const [loadingBewijsstukken, setLoadingBewijsstukken] = useState(false)
+  const [submittingBewijs, setSubmittingBewijs] = useState(false)
+  const [currentInschrijving, setCurrentInschrijving] = useState<Inschrijving | null>(null)
 
   const filteredAanvragen = useMemo(() => {
     let filtered = aanvragen
@@ -127,14 +171,51 @@ export default function AanvragenTable({
   useEffect(() => {
     if (selectedAanvraag) {
       fetchBewijsstukken(selectedAanvraag.id)
+      setCurrentInschrijving(selectedAanvraag.inschrijving)
     } else {
       setBewijsstukken([])
+      setCurrentInschrijving(null)
     }
   }, [selectedAanvraag, fetchBewijsstukken])
 
   const handleBewijsstukkenUpdate = () => {
     if (selectedAanvraag) {
       fetchBewijsstukken(selectedAanvraag.id)
+    }
+  }
+
+  const handleSubmitBewijs = async () => {
+    if (!currentInschrijving) return
+
+    setSubmittingBewijs(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/student/bewijsstukken/indienen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inschrijvingId: currentInschrijving.id }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Er is iets misgegaan')
+      }
+
+      // Update local state
+      setCurrentInschrijving({
+        ...currentInschrijving,
+        bewijsStatus: 'ingediend',
+        bewijsIngediendOp: new Date().toISOString(),
+      })
+
+      // Refresh the page to get updated data
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Er is iets misgegaan')
+    } finally {
+      setSubmittingBewijs(false)
     }
   }
 
@@ -485,25 +566,129 @@ export default function AanvragenTable({
               </div>
 
               {/* Bewijsstukken Section */}
-              <div className="border-t pt-6">
-                <h4 className="font-heading font-bold text-lg text-pxl-black mb-4">
-                  Bewijsstukken
-                </h4>
-                {loadingBewijsstukken ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin inline-block w-6 h-6 border-2 border-pxl-gold border-t-transparent rounded-full" />
-                    <p className="text-sm text-gray-500 mt-2">Bewijsstukken laden...</p>
+              {selectedAanvraag.status === 'goedgekeurd' && (
+                <div className="border-t pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-heading font-bold text-lg text-pxl-black">
+                      Bewijsstukken
+                    </h4>
+                    {currentInschrijving && (
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          bewijsStatusColors[currentInschrijving.bewijsStatus] || 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {bewijsStatusLabels[currentInschrijving.bewijsStatus] || currentInschrijving.bewijsStatus}
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <BewijsstukkenUpload
-                    activiteitId={selectedAanvraag.id}
-                    bewijsstukken={bewijsstukken}
-                    canUpload={selectedAanvraag.status !== 'afgekeurd'}
-                    canDelete={selectedAanvraag.status !== 'afgekeurd'}
-                    onUpdate={handleBewijsstukkenUpdate}
-                  />
-                )}
-              </div>
+
+                  {/* Bewijs feedback bij afkeuring */}
+                  {currentInschrijving?.bewijsStatus === 'afgekeurd' && currentInschrijving.bewijsFeedback && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                      <div className="text-sm font-medium text-red-800 mb-1">Feedback docent:</div>
+                      <p className="text-red-700">{currentInschrijving.bewijsFeedback}</p>
+                      <p className="text-sm text-red-600 mt-2">
+                        Je kunt opnieuw bewijsstukken uploaden en indienen.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Bewijs goedgekeurd melding */}
+                  {currentInschrijving?.bewijsStatus === 'goedgekeurd' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600 text-xl">&#10003;</span>
+                        <div>
+                          <div className="font-medium text-green-800">Bewijsstukken goedgekeurd!</div>
+                          <p className="text-sm text-green-700">
+                            De uren van deze activiteit tellen nu mee voor je scorekaart.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bewijs ingediend melding */}
+                  {currentInschrijving?.bewijsStatus === 'ingediend' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-600 text-xl">&#8987;</span>
+                        <div>
+                          <div className="font-medium text-blue-800">Bewijsstukken ingediend</div>
+                          <p className="text-sm text-blue-700">
+                            Wacht op goedkeuring van je docent.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {loadingBewijsstukken ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin inline-block w-6 h-6 border-2 border-pxl-gold border-t-transparent rounded-full" />
+                      <p className="text-sm text-gray-500 mt-2">Bewijsstukken laden...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <BewijsstukkenUpload
+                        activiteitId={selectedAanvraag.id}
+                        bewijsstukken={bewijsstukken}
+                        canUpload={currentInschrijving?.bewijsStatus !== 'ingediend' && currentInschrijving?.bewijsStatus !== 'goedgekeurd'}
+                        canDelete={currentInschrijving?.bewijsStatus !== 'ingediend' && currentInschrijving?.bewijsStatus !== 'goedgekeurd'}
+                        onUpdate={handleBewijsstukkenUpdate}
+                      />
+
+                      {/* Indienen knop */}
+                      {currentInschrijving &&
+                       bewijsstukken.length > 0 &&
+                       (currentInschrijving.bewijsStatus === 'niet_ingediend' || currentInschrijving.bewijsStatus === 'afgekeurd') && (
+                        <div className="mt-4 pt-4 border-t">
+                          {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                              {error}
+                            </div>
+                          )}
+                          <button
+                            onClick={handleSubmitBewijs}
+                            disabled={submittingBewijs}
+                            className="w-full px-4 py-3 bg-pxl-gold text-white rounded-lg hover:bg-pxl-gold-dark font-medium transition-colors disabled:opacity-50"
+                          >
+                            {submittingBewijs ? 'Bezig met indienen...' : 'Bewijsstukken Indienen ter Goedkeuring'}
+                          </button>
+                          <p className="text-xs text-gray-500 mt-2 text-center">
+                            Na indienen worden je bewijsstukken beoordeeld door een docent.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Nog geen bewijsstukken */}
+                      {bewijsstukken.length === 0 && currentInschrijving?.bewijsStatus === 'niet_ingediend' && (
+                        <p className="text-sm text-gray-500 mt-4">
+                          Upload minimaal 1 bewijsstuk (foto, certificaat, etc.) en dien deze in ter goedkeuring.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Info voor niet-goedgekeurde aanvragen */}
+              {selectedAanvraag.status !== 'goedgekeurd' && selectedAanvraag.status !== 'afgekeurd' && (
+                <div className="border-t pt-6">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-600 text-xl">&#9432;</span>
+                      <div>
+                        <div className="font-medium text-yellow-800">Wacht op goedkeuring</div>
+                        <p className="text-sm text-yellow-700">
+                          Je kunt bewijsstukken uploaden nadat je aanvraag is goedgekeurd.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -734,23 +919,54 @@ export default function AanvragenTable({
                 </div>
               </div>
 
-              {/* Bewijslink */}
-              <div>
-                <label htmlFor="bewijslink" className="block text-sm font-medium text-gray-700">
-                  Bewijslink (optioneel)
-                </label>
-                <input
-                  type="url"
-                  id="bewijslink"
-                  name="bewijslink"
-                  value={formData.bewijslink}
-                  onChange={handleChange}
-                  className="input-field mt-1 w-full"
-                  placeholder="Link naar bewijs (foto, certificaat, etc.)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Voeg een link toe naar bewijs van je deelname (bv. foto, certificaat, LinkedIn post)
-                </p>
+              {/* Niveau & Duurzaamheid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="niveau" className="block text-sm font-medium text-gray-700">
+                    Niveau *
+                  </label>
+                  <select
+                    id="niveau"
+                    name="niveau"
+                    required
+                    value={formData.niveau}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    <option value="">Selecteer niveau</option>
+                    <option value="1">Niveau 1 - Orienteren</option>
+                    <option value="2">Niveau 2 - Kennen</option>
+                    <option value="3">Niveau 3 - Toepassen</option>
+                    <option value="4">Niveau 4 - Integreren</option>
+                    <option value="5">Niveau 5 - Creëren</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Op welk niveau zit deze vorming/activiteit?
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="duurzaamheidId" className="block text-sm font-medium text-gray-700">
+                    Duurzaamheid (SDG)
+                  </label>
+                  <select
+                    id="duurzaamheidId"
+                    name="duurzaamheidId"
+                    value={formData.duurzaamheidId}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    <option value="">Geen / Niet van toepassing</option>
+                    {duurzaamheidsThemas.map((thema) => (
+                      <option key={thema.id} value={thema.id}>
+                        {thema.naam}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Welk Sustainable Development Goal is van toepassing?
+                  </p>
+                </div>
               </div>
 
               {/* Modal Footer */}

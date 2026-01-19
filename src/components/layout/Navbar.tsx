@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
@@ -8,12 +8,67 @@ import { usePathname } from 'next/navigation'
 interface NavLink {
   href: string
   label: string
+  badgeKey?: 'aanvragen' | 'bewijsstukken'
+}
+
+interface PendingCounts {
+  aanvragen: number
+  bewijsstukken: number
 }
 
 export function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [pendingCounts, setPendingCounts] = useState<PendingCounts>({
+    aanvragen: 0,
+    bewijsstukken: 0,
+  })
+
+  const fetchPendingCounts = useCallback(async () => {
+    if (!session?.user.role) return
+
+    try {
+      // Bepaal de juiste API endpoint op basis van rol
+      let endpoint = ''
+      if (session.user.role === 'docent' || session.user.role === 'admin') {
+        endpoint = '/api/docent/counts'
+      } else if (session.user.role === 'student') {
+        endpoint = '/api/student/counts'
+      } else {
+        return
+      }
+
+      const response = await fetch(endpoint)
+      if (response.ok) {
+        const data = await response.json()
+        setPendingCounts(data)
+      }
+    } catch (error) {
+      console.error('Error fetching pending counts:', error)
+    }
+  }, [session?.user.role])
+
+  useEffect(() => {
+    fetchPendingCounts()
+    // Refresh counts every 30 seconds
+    const interval = setInterval(fetchPendingCounts, 30000)
+    return () => clearInterval(interval)
+  }, [fetchPendingCounts])
+
+  // Refresh counts when navigating
+  useEffect(() => {
+    fetchPendingCounts()
+  }, [pathname, fetchPendingCounts])
+
+  // Listen for refresh-counts event (triggered after bewijsstukken/aanvragen actions)
+  useEffect(() => {
+    const handleRefreshCounts = () => {
+      fetchPendingCounts()
+    }
+    window.addEventListener('refresh-counts', handleRefreshCounts)
+    return () => window.removeEventListener('refresh-counts', handleRefreshCounts)
+  }, [fetchPendingCounts])
 
   const getNavLinks = (): NavLink[] => {
     if (!session) return []
@@ -31,7 +86,8 @@ export function Navbar() {
         return [
           { href: '/docent', label: 'Dashboard' },
           { href: '/docent/activiteiten', label: 'Mijn Activiteiten' },
-          { href: '/docent/aanvragen', label: 'Aanvragen' },
+          { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
+          { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
           { href: '/docent/studenten', label: 'Studenten' },
         ]
       case 'student':
@@ -40,7 +96,8 @@ export function Navbar() {
           { href: '/student', label: 'Dashboard' },
           { href: '/student/prikbord', label: 'Prikbord' },
           { href: '/student/inschrijvingen', label: 'Mijn Inschrijvingen' },
-          { href: '/student/aanvragen', label: 'Mijn Aanvragen' },
+          { href: '/student/aanvragen', label: 'Mijn Aanvragen', badgeKey: 'aanvragen' },
+          { href: '/student/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
         ]
     }
   }
@@ -87,17 +144,25 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`nav-link ${
-                  isActive(link.href) ? 'nav-link-active' : 'nav-link-inactive'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const badgeCount = link.badgeKey ? pendingCounts[link.badgeKey] : 0
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`nav-link relative ${
+                    isActive(link.href) ? 'nav-link-active' : 'nav-link-inactive'
+                  }`}
+                >
+                  {link.label}
+                  {badgeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
           </div>
 
           {/* User info & Logout */}
@@ -160,20 +225,28 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-pxl-black border-t border-gray-800">
           <div className="px-2 pt-2 pb-3 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  isActive(link.href)
-                    ? 'bg-pxl-gold text-pxl-black'
-                    : 'hover:bg-gray-800 hover:text-pxl-gold'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const badgeCount = link.badgeKey ? pendingCounts[link.badgeKey] : 0
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-md text-base font-medium ${
+                    isActive(link.href)
+                      ? 'bg-pxl-gold text-pxl-black'
+                      : 'hover:bg-gray-800 hover:text-pxl-gold'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.label}
+                  {badgeCount > 0 && (
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
 
             {session && (
               <>

@@ -29,6 +29,11 @@ type Opleiding = {
   naam: string
 }
 
+type DuurzaamheidsThema = {
+  id: string
+  naam: string
+}
+
 const statusLabels: Record<string, string> = {
   concept: 'Concept',
   gepubliceerd: 'Gepubliceerd',
@@ -64,14 +69,18 @@ const initialFormData = {
   maxPlaatsen: null as number | null,
   status: 'gepubliceerd',
   opleidingId: '',
+  niveau: '',
+  duurzaamheidId: '',
 }
 
 export default function DocentActiviteitenTable({
   activiteiten,
   opleidingen,
+  duurzaamheidsThemas = [],
 }: {
   activiteiten: Activiteit[]
   opleidingen: Opleiding[]
+  duurzaamheidsThemas?: DuurzaamheidsThema[]
 }) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -156,6 +165,8 @@ export default function DocentActiviteitenTable({
           ...formData,
           maxPlaatsen: formData.maxPlaatsen ? Number(formData.maxPlaatsen) : null,
           opleidingId: formData.opleidingId || null,
+          niveau: formData.niveau || null,
+          duurzaamheidId: formData.duurzaamheidId || null,
         }),
       })
 
@@ -637,6 +648,52 @@ export default function DocentActiviteitenTable({
                     className="input-field mt-1 w-full"
                     placeholder="Laat leeg voor onbeperkt"
                   />
+                </div>
+              </div>
+
+              {/* Niveau & Duurzaamheid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="niveau" className="block text-sm font-medium text-gray-700">
+                    Niveau
+                  </label>
+                  <select
+                    id="niveau"
+                    name="niveau"
+                    value={formData.niveau}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    <option value="">Selecteer niveau</option>
+                    <option value="1">Niveau 1 - Orienteren</option>
+                    <option value="2">Niveau 2 - Kennen</option>
+                    <option value="3">Niveau 3 - Toepassen</option>
+                    <option value="4">Niveau 4 - Integreren</option>
+                    <option value="5">Niveau 5 - Creëren</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="duurzaamheidId"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Duurzaamheid (SDG)
+                  </label>
+                  <select
+                    id="duurzaamheidId"
+                    name="duurzaamheidId"
+                    value={formData.duurzaamheidId}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    <option value="">Geen duurzaamheidsthema</option>
+                    {duurzaamheidsThemas.map((thema) => (
+                      <option key={thema.id} value={thema.id}>
+                        {thema.naam}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

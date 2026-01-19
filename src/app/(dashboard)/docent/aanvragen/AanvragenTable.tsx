@@ -95,6 +95,10 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
 
       setSelectedAanvraag(null)
       setOpmerkingen('')
+
+      // Trigger event om navbar counts te refreshen
+      window.dispatchEvent(new CustomEvent('refresh-counts'))
+
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er is een fout opgetreden')

@@ -3,6 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+type UrenTargets = {
+  urenNiveau1: number
+  urenNiveau2: number
+  urenNiveau3: number
+  urenNiveau4: number
+  urenNiveau5: number
+  urenDuurzaamheid: number
+}
+
 type Opleiding = {
   id: string
   naam: string
@@ -10,6 +19,7 @@ type Opleiding = {
   beschrijving: string | null
   actief: boolean
   autoGoedkeuringStudentActiviteiten: boolean
+  urenTargets: UrenTargets | null
   _count: {
     studenten: number
     docenten: number
@@ -17,7 +27,13 @@ type Opleiding = {
   }
 }
 
-export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding }) {
+export default function EditOpleidingForm({
+  opleiding,
+  schooljaar,
+}: {
+  opleiding: Opleiding
+  schooljaar: string
+}) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -30,6 +46,14 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
     actief: opleiding.actief,
     autoGoedkeuringStudentActiviteiten: opleiding.autoGoedkeuringStudentActiviteiten,
   })
+  const [urenTargets, setUrenTargets] = useState<UrenTargets>({
+    urenNiveau1: opleiding.urenTargets?.urenNiveau1 ?? 5,
+    urenNiveau2: opleiding.urenTargets?.urenNiveau2 ?? 3,
+    urenNiveau3: opleiding.urenTargets?.urenNiveau3 ?? 2,
+    urenNiveau4: opleiding.urenTargets?.urenNiveau4 ?? 1,
+    urenNiveau5: opleiding.urenTargets?.urenNiveau5 ?? 1,
+    urenDuurzaamheid: opleiding.urenTargets?.urenDuurzaamheid ?? 1,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +64,11 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
       const response = await fetch(`/api/admin/opleidingen/${opleiding.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          urenTargets,
+          schooljaar,
+        }),
       })
 
       const data = await response.json()
@@ -58,14 +86,19 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
     }
   }
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+    }))
+  }
+
+  const handleUrenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setUrenTargets((prev) => ({
+      ...prev,
+      [name]: parseFloat(value) || 0,
     }))
   }
 
@@ -98,6 +131,13 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
     opleiding._count.studenten === 0 &&
     opleiding._count.docenten === 0 &&
     opleiding._count.activiteiten === 0
+
+  const totaalUren =
+    urenTargets.urenNiveau1 +
+    urenTargets.urenNiveau2 +
+    urenTargets.urenNiveau3 +
+    urenTargets.urenNiveau4 +
+    urenTargets.urenNiveau5
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -143,10 +183,7 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
       </div>
 
       <div>
-        <label
-          htmlFor="beschrijving"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="beschrijving" className="block text-sm font-medium text-gray-700">
           Beschrijving
         </label>
         <textarea
@@ -193,28 +230,162 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
         </div>
       </div>
 
+      {/* Uren Targets Section */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Uren Targets</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Stel de minimale uren in die studenten moeten behalen per niveau voor schooljaar{' '}
+          <strong>{schooljaar}</strong>.
+        </p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="urenNiveau1" className="block text-sm font-medium text-gray-700">
+              Niveau 1 - Orienteren
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenNiveau1"
+                name="urenNiveau1"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenNiveau1}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="urenNiveau2" className="block text-sm font-medium text-gray-700">
+              Niveau 2 - Kennen
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenNiveau2"
+                name="urenNiveau2"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenNiveau2}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="urenNiveau3" className="block text-sm font-medium text-gray-700">
+              Niveau 3 - Toepassen
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenNiveau3"
+                name="urenNiveau3"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenNiveau3}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="urenNiveau4" className="block text-sm font-medium text-gray-700">
+              Niveau 4 - Integreren
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenNiveau4"
+                name="urenNiveau4"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenNiveau4}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="urenNiveau5" className="block text-sm font-medium text-gray-700">
+              Niveau 5 - Creëren
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenNiveau5"
+                name="urenNiveau5"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenNiveau5}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="urenDuurzaamheid" className="block text-sm font-medium text-gray-700">
+              Duurzaamheidsuren
+            </label>
+            <div className="mt-1 relative">
+              <input
+                type="number"
+                id="urenDuurzaamheid"
+                name="urenDuurzaamheid"
+                min="0"
+                step="0.5"
+                value={urenTargets.urenDuurzaamheid}
+                onChange={handleUrenChange}
+                className="input-field pr-12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 text-sm">
+                uur
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-700">Totaal uren (niveau 1-5):</span>
+            <span className="text-lg font-bold text-pxl-gold">{totaalUren} uur</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-4 pt-4">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary flex-1"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary flex-1">
           {isLoading ? 'Bezig...' : 'Wijzigingen Opslaan'}
         </button>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="btn-secondary flex-1"
-        >
+        <button type="button" onClick={() => router.back()} className="btn-secondary flex-1">
           Annuleren
         </button>
       </div>
 
       {/* Delete Section */}
       <div className="border-t pt-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Gevaarlijke Zone
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Gevaarlijke Zone</h3>
         <p className="text-sm text-gray-600 mb-4">
           {canDelete
             ? 'Deze opleiding kan worden verwijderd omdat er geen studenten, docenten of activiteiten aan gekoppeld zijn.'
@@ -223,12 +394,8 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
 
         {!canDelete && (
           <ul className="text-sm text-gray-600 mb-4 list-disc list-inside">
-            {opleiding._count.studenten > 0 && (
-              <li>{opleiding._count.studenten} student(en)</li>
-            )}
-            {opleiding._count.docenten > 0 && (
-              <li>{opleiding._count.docenten} docent(en)</li>
-            )}
+            {opleiding._count.studenten > 0 && <li>{opleiding._count.studenten} student(en)</li>}
+            {opleiding._count.docenten > 0 && <li>{opleiding._count.docenten} docent(en)</li>}
             {opleiding._count.activiteiten > 0 && (
               <li>{opleiding._count.activiteiten} activiteit(en)</li>
             )}
@@ -238,8 +405,8 @@ export default function EditOpleidingForm({ opleiding }: { opleiding: Opleiding 
         {showDeleteConfirm ? (
           <div className="bg-red-50 border border-red-200 p-4 rounded">
             <p className="text-sm text-red-800 mb-4">
-              Weet je zeker dat je <strong>{opleiding.naam}</strong> wilt
-              verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+              Weet je zeker dat je <strong>{opleiding.naam}</strong> wilt verwijderen? Deze actie kan
+              niet ongedaan worden gemaakt.
             </p>
             <div className="flex gap-3">
               <button

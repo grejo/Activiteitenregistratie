@@ -61,6 +61,8 @@ export async function POST(request: Request) {
       maxPlaatsen,
       status,
       opleidingId,
+      niveau,
+      duurzaamheidId,
     } = body
 
     // Validate required fields
@@ -88,10 +90,19 @@ export async function POST(request: Request) {
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
+        niveau: niveau ? parseInt(niveau) : null,
         status: status || 'gepubliceerd',
         typeAanvraag: 'docent',
         aangemaaktDoorId: session.user.id,
         opleidingId: opleidingId || null,
+        // Duurzaamheid wordt apart toegevoegd
+        ...(duurzaamheidId && {
+          duurzaamheid: {
+            create: {
+              duurzaamheidId,
+            },
+          },
+        }),
       },
     })
 
