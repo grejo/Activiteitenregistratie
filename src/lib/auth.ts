@@ -54,6 +54,7 @@ const azureProviders =
     : []
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   providers: [
     ...azureProviders,
     Credentials({
