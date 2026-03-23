@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import type { NextAuthConfig } from 'next-auth'
 
 const prisma = new PrismaClient()
@@ -38,8 +39,23 @@ declare module '@auth/core/jwt' {
   }
 }
 
+const azureProviders =
+  process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET && process.env.AZURE_AD_TENANT_ID
+    ? [
+        MicrosoftEntraId({
+          clientId: process.env.AZURE_AD_CLIENT_ID,
+          clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+          issuer: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/v2.0`,
+          authorization: {
+            params: { scope: 'openid email profile User.Read' },
+          },
+        }),
+      ]
+    : []
+
 export const authConfig: NextAuthConfig = {
   providers: [
+    ...azureProviders,
     Credentials({
       name: 'credentials',
       credentials: {
@@ -56,12 +72,10 @@ export const authConfig: NextAuthConfig = {
 
         const user = await prisma.user.findUnique({
           where: { email },
-          include: {
-            opleiding: true,
-          },
+          include: { opleiding: true },
         })
 
-        if (!user || !user.actief) {
+        if (!user || !user.actief || !user.passwordHash) {
           return null
         }
 
@@ -83,7 +97,52 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ account, profile }) {
+      if (account?.provider === 'microsoft-entra-id' && profile) {
+        const email = profile.email as string | undefined
+        const azureAdId = ((profile as Record<string, unknown>).oid as string | undefined) || profile.sub
+        const naam = (profile.name as string | undefined) || email || 'Onbekend'
+
+        if (!email) return false
+
+        const existing = await prisma.user.findUnique({ where: { email } })
+
+        if (!existing) {
+          await prisma.user.create({
+            data: {
+              email,
+              naam,
+              role: 'student',
+              azureAdId: azureAdId ?? null,
+            },
+          })
+        } else if (!existing.azureAdId && azureAdId) {
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: { azureAdId },
+          })
+        }
+      }
+      return true
+    },
+    async jwt({ token, user, account, profile }) {
+      // SSO login: haal user op via email
+      if (account?.provider === 'microsoft-entra-id' && profile) {
+        const email = profile.email as string
+        const dbUser = await prisma.user.findUnique({
+          where: { email },
+          include: { opleiding: true },
+        })
+        if (dbUser) {
+          token.id = dbUser.id
+          token.role = dbUser.role as UserRole
+          token.naam = dbUser.naam
+          token.opleidingId = dbUser.opleidingId
+          token.opleidingNaam = dbUser.opleiding?.naam || null
+        }
+      }
+
+      // Credentials login
       if (user) {
         token.id = user.id
         token.role = user.role

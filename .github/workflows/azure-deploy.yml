@@ -1,0 +1,174 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: activiteiten-xfactor-app
+  NODE_VERSION: '22.x'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install production dependencies
+        run: |
+          echo "Installing production dependencies..."
+          rm -rf node_modules
+          npm install --production
+          echo "✓ Production dependencies installed"
+
+      - name: Prepare deployment package
+        run: |
+          set -e
+
+          echo "Preparing Next.js deployment package..."
+          mkdir -p deployment
+
+          cp -r .next deployment/.next
+          echo "Copying node_modules directory..."
+          cp -r node_modules deployment/node_modules
+          echo "✓ node_modules copied"
+
+          cp server.js deployment/server.js
+          cp package.json deployment/package.json
+          cp package-lock.json deployment/package-lock.json
+          cp -r public deployment/public
+          cp web.config deployment/
+
+          mkdir -p deployment/prisma
+          cp prisma/schema.prisma deployment/prisma/
+          cp -r prisma/migrations deployment/prisma/ 2>/dev/null || echo "No migrations to copy"
+          cp prisma.config.ts deployment/prisma.config.ts 2>/dev/null || echo "No prisma.config.ts to copy"
+
+          cp -r scripts deployment/scripts 2>/dev/null || echo "No scripts directory to copy"
+
+          test -f deployment/server.js || (echo "ERROR: server.js missing" && exit 1)
+          test -d deployment/.next || (echo "ERROR: .next directory missing" && exit 1)
+          test -d deployment/.next/server || (echo "ERROR: .next/server missing" && exit 1)
+          test -d deployment/node_modules || (echo "ERROR: node_modules missing" && exit 1)
+          test -d deployment/node_modules/.prisma || (echo "ERROR: .prisma directory missing" && exit 1)
+          test -d deployment/node_modules/.prisma/client || (echo "ERROR: Prisma Client missing" && exit 1)
+
+          echo "Deployment package prepared successfully"
+
+      - name: Verify deployment package
+        run: |
+          echo "Verifying deployment package..."
+
+          test -f deployment/server.js || (echo "ERROR: server.js missing" && exit 1)
+          test -f deployment/package.json || (echo "ERROR: package.json missing" && exit 1)
+          test -d deployment/.next || (echo "ERROR: .next/ missing" && exit 1)
+          test -d deployment/.next/server || (echo "ERROR: .next/server/ missing" && exit 1)
+          test -d deployment/.next/static || (echo "ERROR: .next/static/ missing" && exit 1)
+          test -f deployment/.next/build-manifest.json || (echo "ERROR: build-manifest.json missing" && exit 1)
+          test -f deployment/prisma/schema.prisma || (echo "ERROR: Prisma schema missing" && exit 1)
+          test -d deployment/public || (echo "ERROR: public/ missing" && exit 1)
+          test -d deployment/node_modules || (echo "ERROR: node_modules missing" && exit 1)
+          test -d deployment/node_modules/.prisma || (echo "ERROR: .prisma missing" && exit 1)
+          test -d deployment/node_modules/.prisma/client || (echo "ERROR: Prisma Client missing" && exit 1)
+
+          echo "✓ All required files present"
+          ls -la deployment/
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: deployment
+          include-hidden-files: true
+
+  deploy:
+    permissions:
+      contents: none
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+
+      - name: Verify downloaded artifact
+        run: |
+          ls -la
+          if [ -d ".next" ]; then
+            echo "✓ .next directory found"
+          else
+            echo "❌ ERROR: .next directory NOT found!"
+            exit 1
+          fi
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
+
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for app to start..."
+          sleep 30
+
+          HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health"
+          response=$(curl -s -w "\n%{http_code}" "$HEALTH_URL" || echo "000")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Status: $http_code"
+          echo "Response Body: $body"
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✓ Health check passed"
+          else
+            echo "❌ Health check failed — check Azure App Service logs"
+            exit 1
+          fi
+
+      - name: Log Deployment Summary
+        if: always()
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "App Name: ${{ env.AZURE_WEBAPP_NAME }}"
+          echo "URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "Branch: $BRANCH_NAME"
+          echo "Commit: $COMMIT_SHA"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          echo "=========================="

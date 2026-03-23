@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -38,7 +38,8 @@ model Opleiding {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String
+  passwordHash String?  // null voor SSO-gebruikers
+  azureAdId    String?  @unique
   role         String   // 'student' | 'docent' | 'admin'
   naam         String
   actief       Boolean  @default(true)
