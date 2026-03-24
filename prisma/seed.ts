@@ -29,7 +29,7 @@ async function main() {
       naam: 'Informatica',
       code: 'IT',
       beschrijving: 'Opleiding Informatica - Software development, AI en cybersecurity',
-      autoGoedkeuringStudentActiviteiten: true, // Auto-goedkeuring aan voor IT
+      autoGoedkeuringStudentActiviteiten: true,
     },
   })
 
@@ -83,129 +83,28 @@ async function main() {
   console.log('✅ Duurzaamheidsthemas aangemaakt')
 
   // ============================================
-  // EVALUATIE RUBRIC (voor Bouwkunde)
+  // OPLEIDING TARGETS (beentje × niveau)
   // ============================================
-  console.log('📊 Creating evaluatie rubric...')
+  console.log('🎯 Creating opleiding targets...')
+  const schooljaar = '2024-2025'
 
-  const rubric = await prisma.evaluatieRubric.upsert({
-    where: { id: 'seed-rubric-bouw' },
-    update: {},
-    create: {
-      id: 'seed-rubric-bouw',
-      naam: 'Talent@work Evaluatie 2024-2025',
-      beschrijving: 'Evaluatiecriteria voor Talent@work activiteiten',
-      schooljaar: '2024-2025',
-      actief: true,
-      opleidingId: bouw.id,
-    },
-  })
-
-  // Niveaus (kolommen)
-  const niveaus = [
-    { naam: 'Niveau 4', scoreWaarde: 4.0, volgorde: 1 },
-    { naam: 'Niveau 3', scoreWaarde: 3.0, volgorde: 2 },
-    { naam: 'Niveau 2', scoreWaarde: 2.0, volgorde: 3 },
-    { naam: 'Niveau 1', scoreWaarde: 1.0, volgorde: 4 },
-  ]
-
-  const createdNiveaus: Record<string, string> = {}
-  for (const niveau of niveaus) {
-    const created = await prisma.rubricNiveau.upsert({
-      where: { id: `seed-niveau-${niveau.volgorde}` },
-      update: {},
-      create: {
-        id: `seed-niveau-${niveau.volgorde}`,
-        naam: niveau.naam,
-        scoreWaarde: niveau.scoreWaarde,
-        volgorde: niveau.volgorde,
-        rubricId: rubric.id,
-      },
-    })
-    createdNiveaus[niveau.naam] = created.id
+  // Standaard targets: N1=3, N2=2, N3=1, N4=1 per beentje
+  const defaultTargets = {
+    aantalPassieN1: 3, aantalPassieN2: 2, aantalPassieN3: 1, aantalPassieN4: 1,
+    aantalOndernemendN1: 3, aantalOndernemendN2: 2, aantalOndernemendN3: 1, aantalOndernemendN4: 1,
+    aantalSamenwerkingN1: 3, aantalSamenwerkingN2: 2, aantalSamenwerkingN3: 1, aantalSamenwerkingN4: 1,
+    aantalMultidisciplinairN1: 3, aantalMultidisciplinairN2: 2, aantalMultidisciplinairN3: 1, aantalMultidisciplinairN4: 1,
+    aantalReflectieN1: 3, aantalReflectieN2: 2, aantalReflectieN3: 1, aantalReflectieN4: 1,
   }
 
-  // Sectie met criteria
-  const sectie = await prisma.rubricSectie.upsert({
-    where: { id: 'seed-sectie-criteria' },
-    update: {},
-    create: {
-      id: 'seed-sectie-criteria',
-      naam: 'Evaluatiecriteria',
-      gewichtPercentage: 100,
-      volgorde: 1,
-      rubricId: rubric.id,
-    },
-  })
-
-  // Criteria (rijen)
-  const criteria = [
-    { naam: '(Em)passie', gewicht: 0.25 },
-    { naam: 'Ondernemend en innovatief', gewicht: 0.25 },
-    { naam: '(Internationaal) samen(net)werking', gewicht: 0.25 },
-    { naam: 'Multi- & disciplinariteit', gewicht: 0.25 },
-  ]
-
-  for (let index = 0; index < criteria.length; index++) {
-    const criterium = criteria[index]
-    await prisma.rubricCriterium.upsert({
-      where: { id: `seed-criterium-${index}` },
-      update: {},
-      create: {
-        id: `seed-criterium-${index}`,
-        naam: criterium.naam,
-        gewichtPercentage: criterium.gewicht,
-        volgorde: index,
-        sectieId: sectie.id,
-      },
+  for (const opleiding of [bouw, it, elek]) {
+    await prisma.opleidingTarget.upsert({
+      where: { opleidingId_schooljaar: { opleidingId: opleiding.id, schooljaar } },
+      create: { opleidingId: opleiding.id, schooljaar, ...defaultTargets },
+      update: defaultTargets,
     })
   }
-
-  console.log('✅ Evaluatie rubric aangemaakt')
-
-  // ============================================
-  // UREN TARGETS
-  // ============================================
-  console.log('⏱️ Creating uren targets...')
-
-  await prisma.opleidingUrenTarget.upsert({
-    where: {
-      opleidingId_schooljaar: {
-        opleidingId: bouw.id,
-        schooljaar: '2024-2025',
-      },
-    },
-    update: {},
-    create: {
-      opleidingId: bouw.id,
-      schooljaar: '2024-2025',
-      urenNiveau1: 5.0,
-      urenNiveau2: 3.0,
-      urenNiveau3: 2.0,
-      urenNiveau4: 1.0,
-      urenDuurzaamheid: 1.0,
-    },
-  })
-
-  await prisma.opleidingUrenTarget.upsert({
-    where: {
-      opleidingId_schooljaar: {
-        opleidingId: it.id,
-        schooljaar: '2024-2025',
-      },
-    },
-    update: {},
-    create: {
-      opleidingId: it.id,
-      schooljaar: '2024-2025',
-      urenNiveau1: 4.0,
-      urenNiveau2: 3.0,
-      urenNiveau3: 2.0,
-      urenNiveau4: 1.0,
-      urenDuurzaamheid: 2.0,
-    },
-  })
-
-  console.log('✅ Uren targets aangemaakt')
+  console.log('✅ Opleiding targets aangemaakt')
 
   // ============================================
   // GEBRUIKERS
@@ -376,12 +275,13 @@ async function main() {
       aantalIngeschreven: 2,
       status: 'gepubliceerd',
       typeAanvraag: 'docent',
+      beentje: 'MULTIDISCIPLINAIR',
+      niveau: 2,
       aangemaaktDoorId: docentBouw.id,
       opleidingId: bouw.id,
     },
   })
 
-  // Voeg inschrijvingen toe
   await prisma.inschrijving.upsert({
     where: {
       activiteitId_studentId: {
@@ -417,6 +317,8 @@ async function main() {
       aantalIngeschreven: 0,
       status: 'gepubliceerd',
       typeAanvraag: 'docent',
+      beentje: 'SAMENWERKING',
+      niveau: 1,
       aangemaaktDoorId: docentBouw.id,
       opleidingId: bouw.id,
     },
@@ -434,13 +336,15 @@ async function main() {
         '24-uurs hackathon waar je in teams werkt aan AI-oplossingen voor maatschappelijke problemen. Prijzen voor de beste projecten!',
       datum: new Date('2025-03-15'),
       startuur: '10:00',
-      einduur: '10:00', // 24 uur later
+      einduur: '10:00',
       locatie: 'PXL Innovation Lab',
       organisatorPxl: 'Piet Coordinator',
       maxPlaatsen: 50,
       aantalIngeschreven: 1,
       status: 'gepubliceerd',
       typeAanvraag: 'docent',
+      beentje: 'ONDERNEMEND',
+      niveau: 3,
       aangemaaktDoorId: docentMulti.id,
       opleidingId: it.id,
     },
@@ -465,12 +369,14 @@ async function main() {
       bewijslink: 'https://jeugdwerkgenk.be/bouwkamp2025',
       status: 'in_review',
       typeAanvraag: 'student',
+      beentje: 'PASSIE',
+      niveau: 2,
       aangemaaktDoorId: studentBouw.id,
       opleidingId: bouw.id,
     },
   })
 
-  // Student aanvraag (goedgekeurd - IT heeft auto-goedkeuring)
+  // Student aanvraag (goedgekeurd)
   await prisma.activiteit.upsert({
     where: { id: 'seed-activiteit-5' },
     update: {},
@@ -487,6 +393,8 @@ async function main() {
       bewijslink: 'https://udemy.com/certificate/xxx',
       status: 'goedgekeurd',
       typeAanvraag: 'student',
+      beentje: 'REFLECTIE',
+      niveau: 1,
       aangemaaktDoorId: studentIT.id,
       opleidingId: it.id,
     },
@@ -512,10 +420,6 @@ async function main() {
         'Project',
         'Anders',
       ]),
-    },
-    {
-      key: 'evaluation_levels',
-      value: JSON.stringify(['Kennismaking', 'Verdieping', 'Expert']),
     },
     {
       key: 'activity_aard',
