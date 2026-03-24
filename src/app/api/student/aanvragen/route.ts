@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { Beentje } from '@prisma/client'
 
 export async function POST(request: Request) {
   try {
@@ -24,13 +25,29 @@ export async function POST(request: Request) {
       organisatorPxl,
       organisatorExtern,
       niveau,
+      beentje,
       duurzaamheidId,
     } = body
 
     // Validation
-    if (!titel || !typeActiviteit || !datum || !startuur || !einduur || !niveau) {
+    if (!titel || !typeActiviteit || !datum || !startuur || !einduur) {
       return NextResponse.json(
-        { error: 'Titel, type, datum, startuur, einduur en niveau zijn verplicht' },
+        { error: 'Titel, type, datum, startuur en einduur zijn verplicht' },
+        { status: 400 }
+      )
+    }
+
+    const geldigeBeentjes = ['PASSIE', 'ONDERNEMEND', 'SAMENWERKING', 'MULTIDISCIPLINAIR', 'REFLECTIE']
+    if (!beentje || !geldigeBeentjes.includes(beentje)) {
+      return NextResponse.json(
+        { error: 'Beentje is verplicht (PASSIE, ONDERNEMEND, SAMENWERKING, MULTIDISCIPLINAIR, of REFLECTIE)' },
+        { status: 400 }
+      )
+    }
+
+    if (!niveau || parseInt(niveau) < 1 || parseInt(niveau) > 4) {
+      return NextResponse.json(
+        { error: 'Niveau moet 1, 2, 3 of 4 zijn' },
         { status: 400 }
       )
     }
@@ -61,6 +78,7 @@ export async function POST(request: Request) {
         weblink: weblink || null,
         organisatorPxl: organisatorPxl || null,
         organisatorExtern: organisatorExtern || null,
+        beentje: beentje as Beentje,
         niveau: parseInt(niveau),
         typeAanvraag: 'student',
         status: initialStatus,

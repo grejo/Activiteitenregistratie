@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { recalculateStudentUren } from '@/lib/recalculateStudentUren'
+import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 // Docent beoordeelt bewijsstukken
 export async function PATCH(
@@ -101,9 +101,9 @@ export async function PATCH(
       },
     })
 
-    // Bij goedkeuring: herbereken student uren
+    // Bij goedkeuring: herbereken student voortgang
     if (actie === 'goedkeuren') {
-      await recalculateStudentUren(inschrijving.studentId)
+      await recalculateStudentVoortgang(inschrijving.studentId)
     }
 
     return NextResponse.json(updatedInschrijving)

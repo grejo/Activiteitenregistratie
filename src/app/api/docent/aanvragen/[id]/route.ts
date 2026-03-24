@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { Beentje } from '@prisma/client'
+import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 export async function PATCH(
   request: Request,
@@ -39,7 +41,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, opmerkingen } = body
+    const { status, opmerkingen, beentje, niveau } = body
 
     if (!['goedgekeurd', 'afgekeurd'].includes(status)) {
       return NextResponse.json(
@@ -48,13 +50,42 @@ export async function PATCH(
       )
     }
 
+    // Bouw updateData op
+    const updateData: Record<string, unknown> = {
+      status,
+      opmerkingen: opmerkingen || null,
+    }
+
+    if (beentje !== undefined) {
+      const geldig = ['PASSIE', 'ONDERNEMEND', 'SAMENWERKING', 'MULTIDISCIPLINAIR', 'REFLECTIE']
+      if (!geldig.includes(beentje)) {
+        return NextResponse.json({ error: 'Ongeldig beentje' }, { status: 400 })
+      }
+      updateData.beentje = beentje as Beentje
+    }
+
+    if (niveau !== undefined) {
+      const n = parseInt(niveau)
+      if (![1, 2, 3, 4].includes(n)) {
+        return NextResponse.json({ error: 'Niveau moet 1-4 zijn' }, { status: 400 })
+      }
+      updateData.niveau = n
+    }
+
     const updatedAanvraag = await prisma.activiteit.update({
       where: { id },
-      data: {
-        status,
-        opmerkingen: opmerkingen || null,
+      data: updateData,
+      include: {
+        inschrijvingen: { select: { studentId: true } },
       },
     })
+
+    // Herbereken voortgang voor alle ingeschreven studenten bij goedkeuring of aanpassing beentje/niveau
+    if (status === 'goedgekeurd' || beentje !== undefined || niveau !== undefined) {
+      for (const inschrijving of updatedAanvraag.inschrijvingen) {
+        await recalculateStudentVoortgang(inschrijving.studentId)
+      }
+    }
 
     return NextResponse.json({
       success: true,
