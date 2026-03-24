@@ -12,30 +12,16 @@ export const metadata = {
 async function getScorekaartData(studentId: string, opleidingId: string | null) {
   const schooljaar = getCurrentSchooljaar()
 
-  // Get student's uren voortgang
-  const urenVoortgang = await prisma.studentUrenVoortgang.findUnique({
-    where: {
-      studentId_schooljaar: {
-        studentId,
-        schooljaar,
-      },
-    },
+  const voortgang = await prisma.studentVoortgang.findUnique({
+    where: { studentId_schooljaar: { studentId, schooljaar } },
   })
 
-  // Get opleiding uren targets
-  let urenTargets = null
-  if (opleidingId) {
-    urenTargets = await prisma.opleidingUrenTarget.findUnique({
-      where: {
-        opleidingId_schooljaar: {
-          opleidingId,
-          schooljaar,
-        },
-      },
-    })
-  }
+  const target = opleidingId
+    ? await prisma.opleidingTarget.findUnique({
+        where: { opleidingId_schooljaar: { opleidingId, schooljaar } },
+      })
+    : null
 
-  // Get all completed activities (effectieve deelname + bewijsstukken goedgekeurd)
   const inschrijvingen = await prisma.inschrijving.findMany({
     where: {
       studentId,
@@ -47,76 +33,18 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
         include: {
           opleiding: true,
           duurzaamheid: {
-            include: {
-              duurzaamheid: true,
-            },
-          },
-          evaluaties: {
-            include: {
-              criterium: {
-                include: {
-                  sectie: true,
-                },
-              },
-              niveau: true,
-            },
+            include: { duurzaamheid: true },
           },
         },
       },
     },
-    orderBy: {
-      activiteit: {
-        datum: 'desc',
-      },
-    },
-  })
-
-  // Get rubric for this opleiding (if exists)
-  let rubric = null
-  if (opleidingId) {
-    rubric = await prisma.evaluatieRubric.findFirst({
-      where: {
-        opleidingId,
-        actief: true,
-      },
-      include: {
-        secties: {
-          include: {
-            criteria: true,
-          },
-          orderBy: { volgorde: 'asc' },
-        },
-        niveaus: {
-          orderBy: { volgorde: 'asc' },
-        },
-      },
-    })
-  }
-
-  // Get student criterium uren
-  const criteriumUren = await prisma.studentCriteriumUren.findMany({
-    where: {
-      studentId,
-      schooljaar,
-    },
-    include: {
-      criterium: {
-        include: {
-          sectie: true,
-        },
-      },
-    },
+    orderBy: { activiteit: { datum: 'desc' } },
   })
 
   return {
     schooljaar,
-    urenVoortgang: urenVoortgang
-      ? {
-          ...urenVoortgang,
-          lastCalculated: urenVoortgang.lastCalculated.toISOString(),
-        }
-      : null,
-    urenTargets,
+    voortgang: voortgang as Record<string, number> | null,
+    target: target as Record<string, number> | null,
     inschrijvingen: inschrijvingen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),
@@ -129,24 +57,12 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
         updatedAt: i.activiteit.updatedAt.toISOString(),
       },
     })),
-    rubric: rubric
-      ? {
-          ...rubric,
-          createdAt: rubric.createdAt.toISOString(),
-          updatedAt: rubric.updatedAt.toISOString(),
-        }
-      : null,
-    criteriumUren: criteriumUren.map((cu) => ({
-      ...cu,
-      updatedAt: cu.updatedAt.toISOString(),
-    })),
   }
 }
 
 async function canViewStudent(docentId: string, studentId: string, isAdmin: boolean) {
   if (isAdmin) return true
 
-  // Get student's opleiding
   const student = await prisma.user.findUnique({
     where: { id: studentId },
     select: { opleidingId: true },
@@ -154,7 +70,6 @@ async function canViewStudent(docentId: string, studentId: string, isAdmin: bool
 
   if (!student?.opleidingId) return false
 
-  // Check if docent is linked to student's opleiding
   const docentOpleiding = await prisma.docentOpleiding.findUnique({
     where: {
       docentId_opleidingId: {
@@ -180,7 +95,6 @@ export default async function DocentStudentScorekaartPage({
 
   const { id: studentId } = await params
 
-  // Check permissions
   const canView = await canViewStudent(
     session.user.id,
     studentId,
@@ -191,7 +105,6 @@ export default async function DocentStudentScorekaartPage({
     redirect('/docent/studenten')
   }
 
-  // Get student info
   const student = await prisma.user.findUnique({
     where: { id: studentId, role: 'student' },
     include: { opleiding: true },
@@ -205,7 +118,6 @@ export default async function DocentStudentScorekaartPage({
 
   return (
     <div className="space-y-6">
-      {/* Back link */}
       <Link
         href="/docent/studenten"
         className="text-pxl-gold hover:text-pxl-gold-dark font-medium inline-block"
@@ -213,7 +125,6 @@ export default async function DocentStudentScorekaartPage({
         &larr; Terug naar studenten
       </Link>
 
-      {/* Info banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-blue-800 text-sm">
           Je bekijkt de scorekaart van <strong>{student.naam}</strong>
@@ -221,7 +132,6 @@ export default async function DocentStudentScorekaartPage({
         </p>
       </div>
 
-      {/* Scorekaart */}
       <ScorekaartView
         data={data}
         studentNaam={student.naam}

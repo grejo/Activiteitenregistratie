@@ -11,30 +11,19 @@ export const metadata = {
 async function getScorekaartData(userId: string, opleidingId: string | null) {
   const schooljaar = getCurrentSchooljaar()
 
-  // Get student's uren voortgang
-  const urenVoortgang = await prisma.studentUrenVoortgang.findUnique({
-    where: {
-      studentId_schooljaar: {
-        studentId: userId,
-        schooljaar,
-      },
-    },
+  // Haal studentvoortgang op
+  const voortgang = await prisma.studentVoortgang.findUnique({
+    where: { studentId_schooljaar: { studentId: userId, schooljaar } },
   })
 
-  // Get opleiding uren targets
-  let urenTargets = null
-  if (opleidingId) {
-    urenTargets = await prisma.opleidingUrenTarget.findUnique({
-      where: {
-        opleidingId_schooljaar: {
-          opleidingId,
-          schooljaar,
-        },
-      },
-    })
-  }
+  // Haal opleiding targets op
+  const target = opleidingId
+    ? await prisma.opleidingTarget.findUnique({
+        where: { opleidingId_schooljaar: { opleidingId, schooljaar } },
+      })
+    : null
 
-  // Get all completed activities (effectieve deelname + bewijsstukken goedgekeurd)
+  // Haal goedgekeurde inschrijvingen op voor de activiteiten lijst
   const inschrijvingen = await prisma.inschrijving.findMany({
     where: {
       studentId: userId,
@@ -50,72 +39,18 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
               duurzaamheid: true,
             },
           },
-          evaluaties: {
-            include: {
-              criterium: {
-                include: {
-                  sectie: true,
-                },
-              },
-              niveau: true,
-            },
-          },
         },
       },
     },
     orderBy: {
-      activiteit: {
-        datum: 'desc',
-      },
-    },
-  })
-
-  // Get rubric for this opleiding (if exists)
-  let rubric = null
-  if (opleidingId) {
-    rubric = await prisma.evaluatieRubric.findFirst({
-      where: {
-        opleidingId,
-        actief: true,
-      },
-      include: {
-        secties: {
-          include: {
-            criteria: true,
-          },
-          orderBy: { volgorde: 'asc' },
-        },
-        niveaus: {
-          orderBy: { volgorde: 'asc' },
-        },
-      },
-    })
-  }
-
-  // Get student criterium uren
-  const criteriumUren = await prisma.studentCriteriumUren.findMany({
-    where: {
-      studentId: userId,
-      schooljaar,
-    },
-    include: {
-      criterium: {
-        include: {
-          sectie: true,
-        },
-      },
+      activiteit: { datum: 'desc' },
     },
   })
 
   return {
     schooljaar,
-    urenVoortgang: urenVoortgang
-      ? {
-          ...urenVoortgang,
-          lastCalculated: urenVoortgang.lastCalculated.toISOString(),
-        }
-      : null,
-    urenTargets,
+    voortgang: voortgang as Record<string, number> | null,
+    target: target as Record<string, number> | null,
     inschrijvingen: inschrijvingen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),
@@ -127,17 +62,6 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
         createdAt: i.activiteit.createdAt.toISOString(),
         updatedAt: i.activiteit.updatedAt.toISOString(),
       },
-    })),
-    rubric: rubric
-      ? {
-          ...rubric,
-          createdAt: rubric.createdAt.toISOString(),
-          updatedAt: rubric.updatedAt.toISOString(),
-        }
-      : null,
-    criteriumUren: criteriumUren.map((cu) => ({
-      ...cu,
-      updatedAt: cu.updatedAt.toISOString(),
     })),
   }
 }
