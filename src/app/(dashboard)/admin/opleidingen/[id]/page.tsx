@@ -26,28 +26,14 @@ async function getOpleiding(id: string) {
 
   if (!opleiding) return null
 
-  // Haal uren targets op voor huidig schooljaar
-  const urenTargets = await prisma.opleidingUrenTarget.findUnique({
-    where: {
-      opleidingId_schooljaar: {
-        opleidingId: id,
-        schooljaar,
-      },
-    },
+  // Haal beentje/niveau targets op voor huidig schooljaar
+  const targets = await prisma.opleidingTarget.findUnique({
+    where: { opleidingId_schooljaar: { opleidingId: id, schooljaar } },
   })
 
   return {
     ...opleiding,
-    urenTargets: urenTargets
-      ? {
-          urenNiveau1: urenTargets.urenNiveau1,
-          urenNiveau2: urenTargets.urenNiveau2,
-          urenNiveau3: urenTargets.urenNiveau3,
-          urenNiveau4: urenTargets.urenNiveau4,
-          urenNiveau5: urenTargets.urenNiveau5,
-          urenDuurzaamheid: urenTargets.urenDuurzaamheid,
-        }
-      : null,
+    targets: targets ?? null,
     schooljaar,
   }
 }
