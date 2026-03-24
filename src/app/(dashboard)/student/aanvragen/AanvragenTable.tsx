@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
+import { BEENTJES, BEENTJE_LABELS } from '@/lib/beentjes'
 
 type Bewijsstuk = {
   id: string
@@ -84,6 +85,7 @@ const initialFormData = {
   weblink: '',
   organisatorPxl: '',
   organisatorExtern: '',
+  beentje: '',
   niveau: '',
   duurzaamheidId: '',
 }
@@ -919,8 +921,30 @@ export default function AanvragenTable({
                 </div>
               </div>
 
-              {/* Niveau & Duurzaamheid */}
+              {/* Beentje, Niveau & Duurzaamheid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="beentje" className="block text-sm font-medium text-gray-700">
+                    Beentje *
+                  </label>
+                  <select
+                    id="beentje"
+                    name="beentje"
+                    required
+                    value={formData.beentje}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  >
+                    <option value="">Kies een beentje...</option>
+                    {BEENTJES.map((b) => (
+                      <option key={b} value={b}>{BEENTJE_LABELS[b]}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Binnen welk X-factor beentje telt deze activiteit?
+                  </p>
+                </div>
+
                 <div>
                   <label htmlFor="niveau" className="block text-sm font-medium text-gray-700">
                     Niveau *
@@ -934,14 +958,13 @@ export default function AanvragenTable({
                     className="input-field mt-1 w-full"
                   >
                     <option value="">Selecteer niveau</option>
-                    <option value="1">Niveau 1 - Orienteren</option>
-                    <option value="2">Niveau 2 - Kennen</option>
-                    <option value="3">Niveau 3 - Toepassen</option>
-                    <option value="4">Niveau 4 - Integreren</option>
-                    <option value="5">Niveau 5 - Creëren</option>
+                    <option value="1">Niveau 1</option>
+                    <option value="2">Niveau 2</option>
+                    <option value="3">Niveau 3</option>
+                    <option value="4">Niveau 4</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Op welk niveau zit deze vorming/activiteit?
+                    Op welk niveau zit deze activiteit?
                   </p>
                 </div>
 

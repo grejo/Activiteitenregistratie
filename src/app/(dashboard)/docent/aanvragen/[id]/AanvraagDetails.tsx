@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BEENTJES, BEENTJE_LABELS } from '@/lib/beentjes'
 
 type Aanvraag = {
   id: string
@@ -19,6 +20,8 @@ type Aanvraag = {
   organisatorExtern: string | null
   bewijslink: string | null
   status: string
+  beentje: string | null
+  niveau: number | null
   aangemaaktDoor: {
     id: string
     naam: string
@@ -54,6 +57,8 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [opmerkingen, setOpmerkingen] = useState('')
+  const [beentjeOverride, setBeentjeOverride] = useState(aanvraag.beentje ?? '')
+  const [niveauOverride, setNiveauOverride] = useState(aanvraag.niveau?.toString() ?? '')
 
   const handleAction = async (action: 'goedkeuren' | 'afkeuren') => {
     setProcessing(true)
@@ -65,7 +70,12 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
       const response = await fetch(`/api/docent/aanvragen/${aanvraag.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, opmerkingen }),
+        body: JSON.stringify({
+          status: newStatus,
+          opmerkingen,
+          beentje: beentjeOverride || undefined,
+          niveau: niveauOverride ? parseInt(niveauOverride) : undefined,
+        }),
       })
 
       if (!response.ok) {
@@ -144,8 +154,25 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
             )}
           </div>
 
+          {/* Beentje & Niveau (door student gekozen) */}
+          <div className="border-t pt-4 mt-4">
+            <div className="text-sm text-gray-500 mb-2">Beentje &amp; Niveau (door student gekozen)</div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="font-medium">
+                  {aanvraag.beentje ? BEENTJE_LABELS[aanvraag.beentje] ?? aanvraag.beentje : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="font-medium">
+                  {aanvraag.niveau ? `Niveau ${aanvraag.niveau}` : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {aanvraag.omschrijving && (
-            <div className="mb-6">
+            <div className="border-t pt-4 mt-4">
               <div className="text-sm text-gray-500 mb-1">Omschrijving</div>
               <p className="text-gray-700 whitespace-pre-wrap">{aanvraag.omschrijving}</p>
             </div>
@@ -246,6 +273,40 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
                 {error}
               </div>
             )}
+
+            {/* Beentje/Niveau aanpassen */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Beentje aanpassen
+                </label>
+                <select
+                  value={beentjeOverride}
+                  onChange={(e) => setBeentjeOverride(e.target.value)}
+                  className="input-field w-full text-sm"
+                >
+                  <option value="">— geen —</option>
+                  {BEENTJES.map((b) => (
+                    <option key={b} value={b}>{BEENTJE_LABELS[b]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Niveau aanpassen
+                </label>
+                <select
+                  value={niveauOverride}
+                  onChange={(e) => setNiveauOverride(e.target.value)}
+                  className="input-field w-full text-sm"
+                >
+                  <option value="">— geen —</option>
+                  {[1, 2, 3, 4].map((n) => (
+                    <option key={n} value={n}>Niveau {n}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="mb-4">
               <label htmlFor="opmerkingen" className="block text-sm font-medium text-gray-700 mb-1">
