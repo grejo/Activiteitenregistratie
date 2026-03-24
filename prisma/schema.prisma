@@ -7,28 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Beentje {
+  PASSIE
+  ONDERNEMEND
+  SAMENWERKING
+  MULTIDISCIPLINAIR
+  REFLECTIE
+}
+
 // ============================================
 // OPLEIDINGEN
 // ============================================
 
 model Opleiding {
-  id                                   String   @id @default(uuid())
-  naam                                 String
-  code                                 String   @unique
-  beschrijving                         String?
-  actief                               Boolean  @default(true)
-  autoGoedkeuringStudentActiviteiten   Boolean  @default(false)
-  createdAt                            DateTime @default(now())
-  updatedAt                            DateTime @updatedAt
+  id                                 String   @id @default(uuid())
+  naam                               String
+  code                               String   @unique
+  beschrijving                       String?
+  actief                             Boolean  @default(true)
+  autoGoedkeuringStudentActiviteiten Boolean  @default(false)
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime @updatedAt
 
-  // Relaties
   studenten           User[]               @relation("StudentOpleiding")
   docenten            DocentOpleiding[]
   activiteiten        Activiteit[]
   duurzaamheidsThemas DuurzaamheidsThema[]
-  rubrics             EvaluatieRubric[]
-  urenTargets         OpleidingUrenTarget[]
-  studentVoortgang    StudentUrenVoortgang[]
+  targets             OpleidingTarget[]
+  studentVoortgang    StudentVoortgang[]
 }
 
 // ============================================
@@ -38,32 +44,24 @@ model Opleiding {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String?  // null voor SSO-gebruikers
+  passwordHash String?
   azureAdId    String?  @unique
-  role         String   // 'student' | 'docent' | 'admin'
+  role         String
   naam         String
   actief       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Student: gekoppeld aan één opleiding
   opleidingId String?
   opleiding   Opleiding? @relation("StudentOpleiding", fields: [opleidingId], references: [id])
 
-  // Docent: gekoppeld aan meerdere opleidingen
   docentOpleidingen DocentOpleiding[]
+  activiteiten      Activiteit[]
+  inschrijvingen    Inschrijving[]
+  voortgang         StudentVoortgang[]
 
-  // Relaties
-  activiteiten   Activiteit[]
-  inschrijvingen Inschrijving[]
-
-  // Admin impersonatie
   impersonationsByAdmin  ImpersonationLog[] @relation("AdminImpersonations")
   impersonationsAsTarget ImpersonationLog[] @relation("TargetImpersonations")
-
-  // Student voortgang
-  urenVoortgang   StudentUrenVoortgang[]
-  criteriumUren   StudentCriteriumUren[]
 }
 
 model DocentOpleiding {
@@ -85,17 +83,17 @@ model DocentOpleiding {
 
 model ImpersonationLog {
   id        String    @id @default(uuid())
-  actie     String    // 'start' | 'stop' | 'action'
-  details   String?   // JSON string
+  actie     String
+  details   String?
   ipAdres   String?
   userAgent String?
   startedAt DateTime  @default(now())
   endedAt   DateTime?
 
   adminId      String
-  admin        User   @relation("AdminImpersonations", fields: [adminId], references: [id])
+  admin        User @relation("AdminImpersonations", fields: [adminId], references: [id])
   targetUserId String
-  targetUser   User   @relation("TargetImpersonations", fields: [targetUserId], references: [id])
+  targetUser   User @relation("TargetImpersonations", fields: [targetUserId], references: [id])
 }
 
 // ============================================
@@ -114,89 +112,7 @@ model DuurzaamheidsThema {
   opleidingId String
   opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
 
-  // Relaties
   activiteiten ActiviteitDuurzaamheid[]
-}
-
-// ============================================
-// EVALUATIE RUBRICS
-// ============================================
-
-model EvaluatieRubric {
-  id           String   @id @default(uuid())
-  naam         String
-  beschrijving String?
-  schooljaar   String?
-  actief       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  opleidingId String
-  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
-
-  // Relaties
-  secties RubricSectie[]
-  niveaus RubricNiveau[]
-}
-
-model RubricSectie {
-  id                 String   @id @default(uuid())
-  naam               String
-  gewichtPercentage  Float
-  volgorde           Int      @default(0)
-  createdAt          DateTime @default(now())
-
-  rubricId String
-  rubric   EvaluatieRubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
-
-  // Relaties
-  criteria RubricCriterium[]
-}
-
-model RubricNiveau {
-  id            String   @id @default(uuid())
-  naam          String
-  scoreWaarde   Float?
-  multiplicator Float?
-  volgorde      Int
-  createdAt     DateTime @default(now())
-
-  rubricId String
-  rubric   EvaluatieRubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
-
-  // Relaties
-  beschrijvingen    RubricNiveauBeschrijving[]
-  activiteitEvaluaties ActiviteitEvaluatie[]
-}
-
-model RubricCriterium {
-  id                String   @id @default(uuid())
-  naam              String
-  gewichtPercentage Float
-  volgorde          Int      @default(0)
-  createdAt         DateTime @default(now())
-
-  sectieId String
-  sectie   RubricSectie @relation(fields: [sectieId], references: [id], onDelete: Cascade)
-
-  // Relaties
-  beschrijvingen       RubricNiveauBeschrijving[]
-  activiteitEvaluaties ActiviteitEvaluatie[]
-  studentCriteriumUren StudentCriteriumUren[]
-}
-
-model RubricNiveauBeschrijving {
-  id           String   @id @default(uuid())
-  beschrijving String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  criteriumId String
-  criterium   RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
-  niveauId    String
-  niveau      RubricNiveau    @relation(fields: [niveauId], references: [id], onDelete: Cascade)
-
-  @@unique([criteriumId, niveauId])
 }
 
 // ============================================
@@ -204,68 +120,53 @@ model RubricNiveauBeschrijving {
 // ============================================
 
 model Activiteit {
-  id                 String   @id @default(uuid())
-  titel              String
-  typeActiviteit     String
-  aard               String?
-  omschrijving       String?
-  datum              DateTime
-  startuur           String
-  einduur            String
-  locatie            String?
-  weblink            String?
-  organisatorPxl     String?
-  organisatorExtern  String?
-  bewijslink         String?
-  verplichtProfiel   String?
-  maxPlaatsen        Int?
-  aantalIngeschreven Int      @default(0)
-  niveau             Int?     // 1-4 voor student aanvragen
+  id                String   @id @default(uuid())
+  titel             String
+  typeActiviteit    String
+  aard              String?
+  omschrijving      String?
+  datum             DateTime
+  startuur          String
+  einduur           String
+  locatie           String?
+  weblink           String?
+  organisatorPxl    String?
+  organisatorExtern String?
+  bewijslink        String?
+  verplichtProfiel  String?
+  maxPlaatsen       Int?
+  aantalIngeschreven Int     @default(0)
 
-  status              String    @default("concept") // 'concept' | 'gepubliceerd' | 'in_review' | 'goedgekeurd' | 'afgekeurd' | 'afgerond'
-  opmerkingen         String?
-  typeAanvraag        String // 'docent' | 'student'
-  afgekeurdBekekenOp  DateTime? // Wanneer student de afkeuring heeft bekeken
+  beentje Beentje?
+  niveau  Int?     // 1-4
+
+  status             String    @default("concept")
+  opmerkingen        String?
+  typeAanvraag       String
+  afgekeurdBekekenOp DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relaties
   aangemaaktDoorId String
-  aangemaaktDoor   User      @relation(fields: [aangemaaktDoorId], references: [id])
+  aangemaaktDoor   User       @relation(fields: [aangemaaktDoorId], references: [id])
   opleidingId      String?
   opleiding        Opleiding? @relation(fields: [opleidingId], references: [id])
 
-  inschrijvingen   Inschrijving[]
-  duurzaamheid     ActiviteitDuurzaamheid[]
-  evaluaties       ActiviteitEvaluatie[]
+  inschrijvingen Inschrijving[]
+  duurzaamheid   ActiviteitDuurzaamheid[]
 }
 
 model ActiviteitDuurzaamheid {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
 
-  activiteitId    String
-  activiteit      Activiteit         @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
-  duurzaamheidId  String
-  duurzaamheid    DuurzaamheidsThema @relation(fields: [duurzaamheidId], references: [id], onDelete: Cascade)
+  activiteitId   String
+  activiteit     Activiteit         @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  duurzaamheidId String
+  duurzaamheid   DuurzaamheidsThema @relation(fields: [duurzaamheidId], references: [id], onDelete: Cascade)
 
   @@unique([activiteitId, duurzaamheidId])
-}
-
-model ActiviteitEvaluatie {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activiteitId String
-  activiteit   Activiteit      @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
-  criteriumId  String
-  criterium    RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
-  niveauId     String?
-  niveau       RubricNiveau?   @relation(fields: [niveauId], references: [id])
-
-  @@unique([activiteitId, criteriumId])
 }
 
 // ============================================
@@ -274,7 +175,7 @@ model ActiviteitEvaluatie {
 
 model Inschrijving {
   id                  String    @id @default(uuid())
-  inschrijvingsstatus String    @default("ingeschreven") // 'ingeschreven' | 'wachtlijst' | 'uitgeschreven' | 'aanwezig' | 'afwezig' | 'geannuleerd'
+  inschrijvingsstatus String    @default("ingeschreven")
   effectieveDeelname  Boolean   @default(false)
   pxlBegeleider       String?
   uitgeschrevenOp     DateTime?
@@ -282,12 +183,11 @@ model Inschrijving {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  // Bewijsstukken flow
-  bewijsStatus              String    @default("niet_ingediend") // 'niet_ingediend' | 'ingediend' | 'goedgekeurd' | 'afgekeurd'
-  bewijsIngediendOp         DateTime?
-  bewijsBeoordeeldOp        DateTime?
-  bewijsFeedback            String?   // Feedback van docent bij afkeuring
-  bewijsAfgekeurdBekekenOp  DateTime? // Wanneer student de afkeuring heeft bekeken
+  bewijsStatus             String    @default("niet_ingediend")
+  bewijsIngediendOp        DateTime?
+  bewijsBeoordeeldOp       DateTime?
+  bewijsFeedback           String?
+  bewijsAfgekeurdBekekenOp DateTime?
 
   activiteitId String
   activiteit   Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
@@ -300,32 +200,44 @@ model Inschrijving {
 }
 
 model Bewijsstuk {
-  id            String   @id @default(uuid())
-  type          String   // 'handtekeninglijst' | 'foto_deelnemers' | 'extra_bijlage'
-  bestandsnaam  String
-  bestandspad   String
-  uploadedAt    DateTime @default(now())
+  id           String   @id @default(uuid())
+  type         String
+  bestandsnaam String
+  bestandspad  String
+  uploadedAt   DateTime @default(now())
 
   inschrijvingId String
   inschrijving   Inschrijving @relation(fields: [inschrijvingId], references: [id], onDelete: Cascade)
 }
 
 // ============================================
-// UREN TARGETS & VOORTGANG
+// BEENTJE TARGETS & VOORTGANG
 // ============================================
 
-model OpleidingUrenTarget {
+model OpleidingTarget {
   id         String @id @default(uuid())
   schooljaar String
 
-  urenNiveau1      Float @default(5.0)
-  urenNiveau2      Float @default(3.0)
-  urenNiveau3      Float @default(2.0)
-  urenNiveau4      Float @default(1.0)
-  urenNiveau5      Float @default(1.0)
-  urenDuurzaamheid Float @default(1.0)
-
-  criteriumTargets String? // JSON string voor per-criterium targets
+  aantalPassieN1            Int @default(0)
+  aantalPassieN2            Int @default(0)
+  aantalPassieN3            Int @default(0)
+  aantalPassieN4            Int @default(0)
+  aantalOndernemendN1       Int @default(0)
+  aantalOndernemendN2       Int @default(0)
+  aantalOndernemendN3       Int @default(0)
+  aantalOndernemendN4       Int @default(0)
+  aantalSamenwerkingN1      Int @default(0)
+  aantalSamenwerkingN2      Int @default(0)
+  aantalSamenwerkingN3      Int @default(0)
+  aantalSamenwerkingN4      Int @default(0)
+  aantalMultidisciplinairN1 Int @default(0)
+  aantalMultidisciplinairN2 Int @default(0)
+  aantalMultidisciplinairN3 Int @default(0)
+  aantalMultidisciplinairN4 Int @default(0)
+  aantalReflectieN1         Int @default(0)
+  aantalReflectieN2         Int @default(0)
+  aantalReflectieN3         Int @default(0)
+  aantalReflectieN4         Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -336,16 +248,30 @@ model OpleidingUrenTarget {
   @@unique([opleidingId, schooljaar])
 }
 
-model StudentUrenVoortgang {
+model StudentVoortgang {
   id         String @id @default(uuid())
   schooljaar String
 
-  urenNiveau1      Float @default(0)
-  urenNiveau2      Float @default(0)
-  urenNiveau3      Float @default(0)
-  urenNiveau4      Float @default(0)
-  urenNiveau5      Float @default(0)
-  urenDuurzaamheid Float @default(0)
+  aantalPassieN1            Int @default(0)
+  aantalPassieN2            Int @default(0)
+  aantalPassieN3            Int @default(0)
+  aantalPassieN4            Int @default(0)
+  aantalOndernemendN1       Int @default(0)
+  aantalOndernemendN2       Int @default(0)
+  aantalOndernemendN3       Int @default(0)
+  aantalOndernemendN4       Int @default(0)
+  aantalSamenwerkingN1      Int @default(0)
+  aantalSamenwerkingN2      Int @default(0)
+  aantalSamenwerkingN3      Int @default(0)
+  aantalSamenwerkingN4      Int @default(0)
+  aantalMultidisciplinairN1 Int @default(0)
+  aantalMultidisciplinairN2 Int @default(0)
+  aantalMultidisciplinairN3 Int @default(0)
+  aantalMultidisciplinairN4 Int @default(0)
+  aantalReflectieN1         Int @default(0)
+  aantalReflectieN2         Int @default(0)
+  aantalReflectieN3         Int @default(0)
+  aantalReflectieN4         Int @default(0)
 
   lastCalculated DateTime @default(now())
 
@@ -357,27 +283,6 @@ model StudentUrenVoortgang {
   @@unique([studentId, schooljaar])
 }
 
-model StudentCriteriumUren {
-  id         String @id @default(uuid())
-  schooljaar String
-
-  urenNiveau1 Float @default(0)
-  urenNiveau2 Float @default(0)
-  urenNiveau3 Float @default(0)
-  urenNiveau4 Float @default(0)
-  urenNiveau5 Float @default(0)
-  urenTotaal  Float @default(0)
-
-  updatedAt DateTime @updatedAt
-
-  studentId   String
-  student     User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  criteriumId String
-  criterium   RubricCriterium @relation(fields: [criteriumId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, criteriumId, schooljaar])
-}
-
 // ============================================
 // SYSTEEM INSTELLINGEN
 // ============================================
@@ -385,6 +290,6 @@ model StudentCriteriumUren {
 model SystemSetting {
   id        String   @id @default(uuid())
   key       String   @unique
-  value     String   // JSON string
+  value     String
   updatedAt DateTime @updatedAt
 }
