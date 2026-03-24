@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import { getCurrentSchooljaar } from '@/lib/utils'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
 
 export const metadata = {
   title: 'Student Dashboard - Activiteitenregistratie',
@@ -11,61 +12,45 @@ export const metadata = {
 async function getStudentStats(userId: string, opleidingId: string | null) {
   const schooljaar = getCurrentSchooljaar()
 
-  const [
-    mijnInschrijvingen,
-    mijnAanvragen,
-    beschikbareActiviteiten,
-    urenVoortgang,
-  ] = await Promise.all([
-    prisma.inschrijving.count({
-      where: {
-        studentId: userId,
-        inschrijvingsstatus: 'ingeschreven',
-      },
-    }),
-    prisma.activiteit.count({
-      where: {
-        aangemaaktDoorId: userId,
-        typeAanvraag: 'student',
-      },
-    }),
-    prisma.activiteit.count({
-      where: {
-        status: 'gepubliceerd',
-        typeAanvraag: 'docent',
-        opleidingId: opleidingId,
-        datum: { gte: new Date() },
-      },
-    }),
-    prisma.studentUrenVoortgang.findUnique({
-      where: {
-        studentId_schooljaar: {
+  const [mijnInschrijvingen, mijnAanvragen, beschikbareActiviteiten, voortgang] =
+    await Promise.all([
+      prisma.inschrijving.count({
+        where: {
           studentId: userId,
-          schooljaar,
+          inschrijvingsstatus: 'ingeschreven',
         },
-      },
-    }),
-  ])
+      }),
+      prisma.activiteit.count({
+        where: {
+          aangemaaktDoorId: userId,
+          typeAanvraag: 'student',
+        },
+      }),
+      prisma.activiteit.count({
+        where: {
+          status: 'gepubliceerd',
+          typeAanvraag: 'docent',
+          opleidingId: opleidingId,
+          datum: { gte: new Date() },
+        },
+      }),
+      prisma.studentVoortgang.findUnique({
+        where: { studentId_schooljaar: { studentId: userId, schooljaar } },
+      }),
+    ])
 
-  // Haal uren targets op
-  let urenTargets = null
-  if (opleidingId) {
-    urenTargets = await prisma.opleidingUrenTarget.findUnique({
-      where: {
-        opleidingId_schooljaar: {
-          opleidingId,
-          schooljaar,
-        },
-      },
-    })
-  }
+  const target = opleidingId
+    ? await prisma.opleidingTarget.findUnique({
+        where: { opleidingId_schooljaar: { opleidingId, schooljaar } },
+      })
+    : null
 
   return {
     mijnInschrijvingen,
     mijnAanvragen,
     beschikbareActiviteiten,
-    urenVoortgang,
-    urenTargets,
+    voortgang: voortgang as Record<string, number> | null,
+    target: target as Record<string, number> | null,
   }
 }
 
@@ -78,20 +63,27 @@ export default async function StudentDashboard() {
 
   const stats = await getStudentStats(session.user.id, session.user.opleidingId || null)
 
-  // Bereken totale uren
-  const totaalUren =
-    (stats.urenVoortgang?.urenNiveau1 || 0) +
-    (stats.urenVoortgang?.urenNiveau2 || 0) +
-    (stats.urenVoortgang?.urenNiveau3 || 0) +
-    (stats.urenVoortgang?.urenNiveau4 || 0)
+  // Bereken totaal behaalde activiteiten op scorekaart
+  const totaalBehaald = stats.voortgang
+    ? BEENTJES.reduce(
+        (sum, b) =>
+          sum + NIVEAUS.reduce((s2, n) => s2 + (stats.voortgang?.[getVeldNaam(b, n)] ?? 0), 0),
+        0
+      )
+    : 0
 
-  const totaalTarget =
-    (stats.urenTargets?.urenNiveau1 || 0) +
-    (stats.urenTargets?.urenNiveau2 || 0) +
-    (stats.urenTargets?.urenNiveau3 || 0) +
-    (stats.urenTargets?.urenNiveau4 || 0)
-
-  const voortgangPercentage = totaalTarget > 0 ? Math.round((totaalUren / totaalTarget) * 100) : 0
+  // Bereken behaalde beentjes
+  const behaaldBeentjes = BEENTJES.filter((beentje) => {
+    const niveausMetTarget = NIVEAUS.filter(
+      (n) => (stats.target?.[getVeldNaam(beentje, n)] ?? 0) > 0
+    )
+    if (niveausMetTarget.length === 0) return false
+    return niveausMetTarget.every(
+      (n) =>
+        (stats.voortgang?.[getVeldNaam(beentje, n)] ?? 0) >=
+        (stats.target?.[getVeldNaam(beentje, n)] ?? 0)
+    )
+  })
 
   return (
     <div className="space-y-8">
@@ -110,22 +102,27 @@ export default async function StudentDashboard() {
         )}
       </div>
 
-      {/* Voortgang Balk */}
+      {/* Voortgang samenvatting */}
       <div className="card-flat">
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold">Totale Voortgang</span>
-          <span className="text-pxl-gold font-bold">{voortgangPercentage}%</span>
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-semibold">X-Factor Voortgang</span>
+          <Link href="/student/scorekaart" className="text-sm text-pxl-gold hover:underline font-medium">
+            Volledig overzicht →
+          </Link>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-4">
-          <div
-            className={`h-4 rounded-full transition-all duration-500 ${
-              voortgangPercentage >= 100 ? 'bg-green-500' : 'bg-pxl-gold'
-            }`}
-            style={{ width: `${Math.min(voortgangPercentage, 100)}%` }}
-          />
-        </div>
-        <div className="text-sm text-pxl-black-light mt-2">
-          {totaalUren.toFixed(1)} van {totaalTarget.toFixed(1)} uren behaald
+        {behaaldBeentjes.length > 0 ? (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {behaaldBeentjes.map((b) => (
+              <span key={b} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                ✓ {BEENTJE_LABELS[b]}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-pxl-black-light mb-3">Nog geen beentjes volledig behaald.</p>
+        )}
+        <div className="text-sm text-pxl-black-light">
+          {totaalBehaald} goedgekeurde activiteiten • {behaaldBeentjes.length} / {BEENTJES.length} beentjes
         </div>
       </div>
 
@@ -150,9 +147,9 @@ export default async function StudentDashboard() {
         </div>
 
         <div className="card">
-          <div className="text-4xl mb-2">⏱️</div>
-          <div className="text-3xl font-bold text-pxl-gold">{totaalUren.toFixed(1)}</div>
-          <div className="text-pxl-black-light">Uren Behaald</div>
+          <div className="text-4xl mb-2">🏆</div>
+          <div className="text-3xl font-bold text-pxl-gold">{totaalBehaald}</div>
+          <div className="text-pxl-black-light">Activiteiten Behaald</div>
         </div>
       </div>
 

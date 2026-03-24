@@ -21,7 +21,6 @@ async function getActiviteiten() {
           duurzaamheid: true,
         },
       },
-      evaluaties: true,
       inschrijvingen: {
         include: {
           student: true,

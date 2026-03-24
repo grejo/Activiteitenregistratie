@@ -27,13 +27,20 @@ async function getOpleiding(id: string) {
   if (!opleiding) return null
 
   // Haal beentje/niveau targets op voor huidig schooljaar
-  const targets = await prisma.opleidingTarget.findUnique({
+  const targetsRaw = await prisma.opleidingTarget.findUnique({
     where: { opleidingId_schooljaar: { opleidingId: id, schooljaar } },
   })
 
+  // Extraheer alleen de numerieke aantalXxx velden
+  let targets: Record<string, number> | null = null
+  if (targetsRaw) {
+    const { id: _id, createdAt: _c, updatedAt: _u, opleidingId: _o, schooljaar: _s, ...numericFields } = targetsRaw
+    targets = numericFields
+  }
+
   return {
     ...opleiding,
-    targets: targets ?? null,
+    targets,
     schooljaar,
   }
 }
