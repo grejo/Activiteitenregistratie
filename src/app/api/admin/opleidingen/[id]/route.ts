@@ -16,7 +16,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { naam, code, beschrijving, actief, autoGoedkeuringStudentActiviteiten, urenTargets, schooljaar } = body
+    const { naam, code, beschrijving, actief, autoGoedkeuringStudentActiviteiten, targets, schooljaar } = body
 
     // Validate required fields
     if (!naam || !code) {
@@ -67,33 +67,12 @@ export async function PATCH(
       },
     })
 
-    // Update uren targets if provided
-    if (urenTargets && schooljaar) {
-      await prisma.opleidingUrenTarget.upsert({
-        where: {
-          opleidingId_schooljaar: {
-            opleidingId: id,
-            schooljaar,
-          },
-        },
-        create: {
-          opleidingId: id,
-          schooljaar,
-          urenNiveau1: urenTargets.urenNiveau1 ?? 5,
-          urenNiveau2: urenTargets.urenNiveau2 ?? 3,
-          urenNiveau3: urenTargets.urenNiveau3 ?? 2,
-          urenNiveau4: urenTargets.urenNiveau4 ?? 1,
-          urenNiveau5: urenTargets.urenNiveau5 ?? 1,
-          urenDuurzaamheid: urenTargets.urenDuurzaamheid ?? 1,
-        },
-        update: {
-          urenNiveau1: urenTargets.urenNiveau1 ?? 5,
-          urenNiveau2: urenTargets.urenNiveau2 ?? 3,
-          urenNiveau3: urenTargets.urenNiveau3 ?? 2,
-          urenNiveau4: urenTargets.urenNiveau4 ?? 1,
-          urenNiveau5: urenTargets.urenNiveau5 ?? 1,
-          urenDuurzaamheid: urenTargets.urenDuurzaamheid ?? 1,
-        },
+    // Update beentje/niveau targets if provided
+    if (targets && schooljaar) {
+      await prisma.opleidingTarget.upsert({
+        where: { opleidingId_schooljaar: { opleidingId: id, schooljaar } },
+        create: { opleidingId: id, schooljaar, ...targets },
+        update: targets,
       })
     }
 
