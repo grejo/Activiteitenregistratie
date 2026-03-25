@@ -7,23 +7,32 @@ export const metadata = {
   title: 'Prikbord - Student',
 }
 
-async function getActiviteiten(opleidingId: string | null) {
+async function getActiviteiten(opleidingId: string | null, userId: string) {
   const activiteiten = await prisma.activiteit.findMany({
     where: {
-      status: 'gepubliceerd',
-      typeAanvraag: 'docent',
       datum: { gte: new Date() },
       OR: [
-        { opleidingId: null },
-        { opleidingId: opleidingId || undefined },
+        {
+          status: 'gepubliceerd',
+          typeAanvraag: 'docent',
+          OR: [
+            { opleidingId: null },
+            { opleidingId: opleidingId || undefined },
+          ],
+        },
+        {
+          status: 'gepubliceerd',
+          typeAanvraag: 'student',
+          openVoorMedestudenten: true,
+          opleidingId: opleidingId || undefined,
+          aangemaaktDoorId: { not: userId },
+        },
       ],
     },
     include: {
       opleiding: true,
       aangemaaktDoor: {
-        select: {
-          naam: true,
-        },
+        select: { naam: true },
       },
       _count: {
         select: {
@@ -66,7 +75,7 @@ export default async function PrikbordPage() {
   }
 
   const [activiteiten, mijnInschrijvingen] = await Promise.all([
-    getActiviteiten(session.user.opleidingId || null),
+    getActiviteiten(session.user.opleidingId || null, session.user.id),
     getMijnInschrijvingen(session.user.id),
   ])
 
