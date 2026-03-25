@@ -119,6 +119,58 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const session = await auth()
+
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, openVoorMedestudenten } = body
+
+    if (!id || typeof openVoorMedestudenten !== 'boolean') {
+      return NextResponse.json(
+        { error: 'id en openVoorMedestudenten zijn verplicht' },
+        { status: 400 }
+      )
+    }
+
+    const aanvraag = await prisma.activiteit.findFirst({
+      where: {
+        id,
+        aangemaaktDoorId: session.user.id,
+        typeAanvraag: 'student',
+      },
+    })
+
+    if (!aanvraag) {
+      return NextResponse.json(
+        { error: 'Aanvraag niet gevonden of geen toegang' },
+        { status: 404 }
+      )
+    }
+
+    if (!['concept', 'in_review'].includes(aanvraag.status)) {
+      return NextResponse.json(
+        { error: 'Aanvraag kan niet meer aangepast worden' },
+        { status: 400 }
+      )
+    }
+
+    const updated = await prisma.activiteit.update({
+      where: { id },
+      data: { openVoorMedestudenten },
+    })
+
+    return NextResponse.json({ success: true, openVoorMedestudenten: updated.openVoorMedestudenten })
+  } catch (error) {
+    console.error('Error updating aanvraag:', error)
+    return NextResponse.json({ error: 'Er is een fout opgetreden' }, { status: 500 })
+  }
+}
+
 export async function GET() {
   try {
     const session = await auth()
