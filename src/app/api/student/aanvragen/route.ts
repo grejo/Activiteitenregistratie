@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       niveau,
       beentje,
       duurzaamheidId,
+      openVoorMedestudenten,  // NIEUW
     } = body
 
     // Validation
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     // Determine initial status based on opleiding settings
     let initialStatus = 'in_review'
     if (student?.opleiding?.autoGoedkeuringStudentActiviteiten) {
-      initialStatus = 'goedgekeurd'
+      initialStatus = openVoorMedestudenten ? 'gepubliceerd' : 'goedgekeurd'
     }
 
     // Create the aanvraag (activiteit with typeAanvraag = 'student')
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
         status: initialStatus,
         aangemaaktDoorId: session.user.id,
         opleidingId: student?.opleidingId || null,
+        openVoorMedestudenten: openVoorMedestudenten === true,
         // Duurzaamheid wordt apart toegevoegd
         ...(duurzaamheidId && {
           duurzaamheid: {
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
     })
 
     // If auto-approved, also create the inschrijving
-    if (initialStatus === 'goedgekeurd') {
+    if (initialStatus === 'goedgekeurd' || initialStatus === 'gepubliceerd') {
       await prisma.inschrijving.create({
         data: {
           activiteitId: aanvraag.id,
