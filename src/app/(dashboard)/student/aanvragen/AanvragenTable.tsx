@@ -36,6 +36,7 @@ type Aanvraag = {
   status: string
   opmerkingen: string | null
   bewijslink: string | null
+  openVoorMedestudenten: boolean
   organisatorPxl: string | null
   organisatorExtern: string | null
   createdAt: string
@@ -88,6 +89,7 @@ const initialFormData = {
   beentje: '',
   niveau: '',
   duurzaamheidId: '',
+  openVoorMedestudenten: false,
 }
 
 type DuurzaamheidsThema = {
@@ -267,6 +269,20 @@ export default function AanvragenTable({
     }
   }
 
+  const handleToggleOpenVoorMedestudenten = async (id: string, huidig: boolean) => {
+    try {
+      const response = await fetch('/api/student/aanvragen', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, openVoorMedestudenten: !huidig }),
+      })
+      if (!response.ok) throw new Error('Aanpassen mislukt')
+      router.refresh()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -397,12 +413,26 @@ export default function AanvragenTable({
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => setSelectedAanvraag(aanvraag)}
-                        className="inline-flex items-center px-3 py-1.5 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium transition-colors"
-                      >
-                        Details
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {(aanvraag.status === 'concept' || aanvraag.status === 'in_review') && (
+                          <button
+                            onClick={() => handleToggleOpenVoorMedestudenten(aanvraag.id, aanvraag.openVoorMedestudenten)}
+                            className={`text-xs px-2 py-1 rounded transition-colors ${
+                              aanvraag.openVoorMedestudenten
+                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {aanvraag.openVoorMedestudenten ? '👩‍🎓 Open voor medestudenten' : '🔒 Alleen voor mij'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setSelectedAanvraag(aanvraag)}
+                          className="inline-flex items-center px-3 py-1.5 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium transition-colors"
+                        >
+                          Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -990,6 +1020,28 @@ export default function AanvragenTable({
                     Welk Sustainable Development Goal is van toepassing?
                   </p>
                 </div>
+              </div>
+
+              {/* Openstellen voor medestudenten */}
+              <div className="border-t pt-4 mt-2">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.openVoorMedestudenten as boolean}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, openVoorMedestudenten: e.target.checked }))
+                    }
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-pxl-gold focus:ring-pxl-gold"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">
+                      Openstellen voor medestudenten van mijn opleiding
+                    </span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Andere studenten van jouw opleiding kunnen zich dan inschrijven zodra je aanvraag goedgekeurd is.
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {/* Modal Footer */}
