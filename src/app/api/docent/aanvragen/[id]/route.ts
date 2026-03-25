@@ -50,9 +50,15 @@ export async function PATCH(
       )
     }
 
+    // Bepaal finale status: open aanvragen worden gepubliceerd
+    const finaleStatus =
+      status === 'goedgekeurd' && aanvraag.openVoorMedestudenten
+        ? 'gepubliceerd'
+        : status
+
     // Bouw updateData op
     const updateData: Record<string, unknown> = {
-      status,
+      status: finaleStatus,
       opmerkingen: opmerkingen || null,
     }
 
@@ -77,11 +83,31 @@ export async function PATCH(
       data: updateData,
       include: {
         inschrijvingen: { select: { studentId: true } },
+        aangemaaktDoor: { select: { id: true } },  // NIEUW
       },
     })
 
+    // Bij publicatie: maak auto-inschrijving voor indiener (idempotent via upsert)
+    if (finaleStatus === 'gepubliceerd') {
+      await prisma.inschrijving.upsert({
+        where: {
+          activiteitId_studentId: {
+            activiteitId: id,
+            studentId: updatedAanvraag.aangemaaktDoor.id,
+          },
+        },
+        create: {
+          activiteitId: id,
+          studentId: updatedAanvraag.aangemaaktDoor.id,
+          inschrijvingsstatus: 'ingeschreven',
+          effectieveDeelname: true,
+        },
+        update: {},
+      })
+    }
+
     // Herbereken voortgang voor alle ingeschreven studenten bij goedkeuring of aanpassing beentje/niveau
-    if (status === 'goedgekeurd' || beentje !== undefined || niveau !== undefined) {
+    if (finaleStatus === 'goedgekeurd' || finaleStatus === 'gepubliceerd' || beentje !== undefined || niveau !== undefined) {
       for (const inschrijving of updatedAanvraag.inschrijvingen) {
         await recalculateStudentVoortgang(inschrijving.studentId)
       }
