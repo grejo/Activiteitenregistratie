@@ -140,6 +140,8 @@ model Activiteit {
   beentje Beentje?
   niveau  Int?     // 1-4
 
+  openVoorMedestudenten Boolean  @default(false)
+
   status             String    @default("concept")
   opmerkingen        String?
   typeAanvraag       String
