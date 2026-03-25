@@ -157,6 +157,8 @@ model Activiteit {
 
   inschrijvingen Inschrijving[]
   duurzaamheid   ActiviteitDuurzaamheid[]
+
+  @@index([opleidingId, status, openVoorMedestudenten])
 }
 
 model ActiviteitDuurzaamheid {
