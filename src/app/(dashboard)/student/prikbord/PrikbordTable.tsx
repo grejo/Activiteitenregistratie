@@ -13,6 +13,7 @@ type Activiteit = {
   locatie: string | null
   weblink: string | null
   typeActiviteit: string
+  typeAanvraag: string
   maxPlaatsen: number | null
   opleiding: {
     naam: string
@@ -35,6 +36,7 @@ export default function PrikbordTable({
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [bronFilter, setBronFilter] = useState<string>('all')
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedActiviteit, setSelectedActiviteit] = useState<Activiteit | null>(null)
@@ -44,6 +46,12 @@ export default function PrikbordTable({
 
     if (typeFilter !== 'all') {
       filtered = filtered.filter((a) => a.typeActiviteit === typeFilter)
+    }
+
+    if (bronFilter !== 'all') {
+      filtered = filtered.filter((a) =>
+        bronFilter === 'docent' ? a.typeAanvraag === 'docent' : a.typeAanvraag === 'student'
+      )
     }
 
     if (searchQuery) {
@@ -57,7 +65,7 @@ export default function PrikbordTable({
     }
 
     return filtered
-  }, [activiteiten, typeFilter, searchQuery])
+  }, [activiteiten, typeFilter, bronFilter, searchQuery])
 
   const uniqueTypes = useMemo(() => {
     const types = new Set(activiteiten.map((a) => a.typeActiviteit))
@@ -160,10 +168,34 @@ export default function PrikbordTable({
             </select>
           </div>
 
-          {(typeFilter !== 'all' || searchQuery) && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Bron:</label>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {[
+                { value: 'all', label: 'Alle' },
+                { value: 'docent', label: '👨‍🏫 Docent' },
+                { value: 'student', label: '👩‍🎓 Medestudent' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setBronFilter(value)}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    bronFilter === value
+                      ? 'bg-pxl-gold text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {(typeFilter !== 'all' || bronFilter !== 'all' || searchQuery) && (
             <button
               onClick={() => {
                 setTypeFilter('all')
+                setBronFilter('all')
                 setSearchQuery('')
               }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -182,22 +214,42 @@ export default function PrikbordTable({
             const vol = isVol(activiteit)
 
             return (
-              <div key={activiteit.id} className="card flex flex-col">
+              <div
+                key={activiteit.id}
+                className={`flex flex-col rounded-lg border-2 p-5 shadow-sm ${
+                  activiteit.typeAanvraag === 'student'
+                    ? 'border-amber-300 bg-amber-50'
+                    : 'border-gray-100 bg-white'
+                }`}
+              >
                 {/* Header */}
                 <div className="flex justify-between items-start mb-3">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium capitalize">
-                    {activiteit.typeActiviteit}
-                  </span>
-                  {ingeschreven && (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                      Ingeschreven
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium capitalize">
+                      {activiteit.typeActiviteit}
                     </span>
-                  )}
-                  {!ingeschreven && vol && (
-                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
-                      Volzet
-                    </span>
-                  )}
+                    {activiteit.typeAanvraag === 'student' ? (
+                      <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-medium">
+                        👩‍🎓 Medestudent
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                        👨‍🏫 Docent
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {ingeschreven && (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                        Ingeschreven
+                      </span>
+                    )}
+                    {!ingeschreven && vol && (
+                      <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+                        Volzet
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -299,10 +351,19 @@ export default function PrikbordTable({
             {/* Modal Content */}
             <div className="px-6 py-4 space-y-6">
               {/* Status badges */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium capitalize">
                   {selectedActiviteit.typeActiviteit}
                 </span>
+                {selectedActiviteit.typeAanvraag === 'student' ? (
+                  <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-sm font-medium">
+                    👩‍🎓 Medestudent
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-sm font-medium">
+                    👨‍🏫 Docent
+                  </span>
+                )}
                 {isIngeschreven(selectedActiviteit.id) && (
                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
                     Ingeschreven
@@ -348,6 +409,14 @@ export default function PrikbordTable({
                 <div>
                   <div className="text-sm text-gray-500">Organisator</div>
                   <div className="font-medium">{selectedActiviteit.aangemaaktDoor.naam}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Type</div>
+                  <div className="font-medium">
+                    {selectedActiviteit.typeAanvraag === 'student'
+                      ? '👩‍🎓 Door medestudent georganiseerd'
+                      : '👨‍🏫 Door docent georganiseerd'}
+                  </div>
                 </div>
                 {selectedActiviteit.opleiding && (
                   <div>
