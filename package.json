@@ -1,7 +1,7 @@
 {
   "name": "pxl-factortool",
   "version": "1.0.0",
-  "description": "PXL-FactorTool webapp voor PXL Hogeschool",
+  "description": "X-FactorTool webapp voor PXL Hogeschool",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import prisma from '@/lib/prisma'
 
 export const metadata = {
-  title: 'Admin Dashboard - PXL-FactorTool',
+  title: 'Admin Dashboard - X-FactorTool',
 }
 
 async function getStats() {

@@ -139,7 +139,7 @@ export function Navbar() {
               href={session ? `/${session.user.role}` : '/'}
               className="font-heading font-black text-xl hover:text-pxl-gold transition-colors"
             >
-              PXL-FactorTool
+              X-FactorTool
             </Link>
           </div>
 

@@ -2,7 +2,20 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, BEENTJE_VEREIST_VELD } from '@/lib/beentjes'
+
+type OpleidingTargets = {
+  doelNiveau1: number
+  doelNiveau2: number
+  doelNiveau3: number
+  doelNiveau4: number
+  passieVereist: boolean
+  ondernemendVereist: boolean
+  samenwerkingVereist: boolean
+  multidisciplinairVereist: boolean
+  reflectieVereist: boolean
+  duurzaamheidVereist: boolean
+}
 
 type Opleiding = {
   id: string
@@ -11,7 +24,7 @@ type Opleiding = {
   beschrijving: string | null
   actief: boolean
   autoGoedkeuringStudentActiviteiten: boolean
-  targets: Record<string, number> | null
+  targets: OpleidingTargets | null
   _count: {
     studenten: number
     docenten: number
@@ -39,15 +52,18 @@ export default function EditOpleidingForm({
     autoGoedkeuringStudentActiviteiten: opleiding.autoGoedkeuringStudentActiviteiten,
   })
 
-  // Initialiseer targets (20 velden)
-  const initTargets: Record<string, number> = {}
-  for (const b of BEENTJES) {
-    for (const n of NIVEAUS) {
-      const veld = getVeldNaam(b, n)
-      initTargets[veld] = opleiding.targets?.[veld] ?? 0
-    }
-  }
-  const [targets, setTargets] = useState(initTargets)
+  const [targets, setTargets] = useState<OpleidingTargets>({
+    doelNiveau1: opleiding.targets?.doelNiveau1 ?? 0,
+    doelNiveau2: opleiding.targets?.doelNiveau2 ?? 0,
+    doelNiveau3: opleiding.targets?.doelNiveau3 ?? 0,
+    doelNiveau4: opleiding.targets?.doelNiveau4 ?? 0,
+    passieVereist: opleiding.targets?.passieVereist ?? false,
+    ondernemendVereist: opleiding.targets?.ondernemendVereist ?? false,
+    samenwerkingVereist: opleiding.targets?.samenwerkingVereist ?? false,
+    multidisciplinairVereist: opleiding.targets?.multidisciplinairVereist ?? false,
+    reflectieVereist: opleiding.targets?.reflectieVereist ?? false,
+    duurzaamheidVereist: opleiding.targets?.duurzaamheidVereist ?? false,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -209,54 +225,73 @@ export default function EditOpleidingForm({
         </div>
       </div>
 
-      {/* Activiteiten Targets per Beentje */}
+      {/* Activiteiten Targets */}
       <div className="border-t pt-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Activiteiten Targets per Beentje</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Minimum aantal activiteiten per beentje en niveau voor schooljaar{' '}
-          <strong>{schooljaar}</strong>. Vul 0 in om een balk niet te tonen op de scorekaart.
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Activiteiten Targets</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Targets voor schooljaar <strong>{schooljaar}</strong>.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <th className="text-left py-2 pr-4 font-medium text-gray-700 w-48">Beentje</th>
-                {NIVEAUS.map((n) => (
-                  <th key={n} className="text-center py-2 px-3 font-medium text-gray-700">
-                    N{n}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {BEENTJES.map((beentje) => (
-                <tr key={beentje} className="border-t">
-                  <td className="py-2 pr-4 font-medium text-gray-800 text-xs">
-                    {BEENTJE_LABELS[beentje]}
-                  </td>
-                  {NIVEAUS.map((niveau) => {
-                    const veld = getVeldNaam(beentje, niveau)
-                    return (
-                      <td key={niveau} className="py-2 px-3">
-                        <input
-                          type="number"
-                          min="0"
-                          value={targets[veld]}
-                          onChange={(e) =>
-                            setTargets((prev) => ({
-                              ...prev,
-                              [veld]: parseInt(e.target.value) || 0,
-                            }))
-                          }
-                          className="w-16 text-center input-field py-1 px-2 text-sm"
-                        />
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Doelen per niveau */}
+        <div className="mb-6">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+            Totaal vereiste activiteiten per niveau <span className="font-normal text-gray-500">(over alle beentjes heen)</span>
+          </h4>
+          <div className="grid grid-cols-4 gap-3 max-w-sm">
+            {NIVEAUS.map((n) => {
+              const veld = `doelNiveau${n}` as keyof OpleidingTargets
+              return (
+                <div key={n} className="text-center">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Niveau {n}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={targets[veld] as number}
+                    onChange={(e) =>
+                      setTargets((prev) => ({ ...prev, [veld]: parseInt(e.target.value) || 0 }))
+                    }
+                    className="w-full text-center input-field py-1 px-2 text-sm"
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Vereiste beentjes */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+            Vereiste beentjes <span className="font-normal text-gray-500">(student moet minstens 1 activiteit behalen)</span>
+          </h4>
+          <div className="space-y-2">
+            {BEENTJES.map((beentje) => {
+              const veld = BEENTJE_VEREIST_VELD[beentje] as keyof OpleidingTargets
+              return (
+                <label key={beentje} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={targets[veld] as boolean}
+                    onChange={(e) =>
+                      setTargets((prev) => ({ ...prev, [veld]: e.target.checked }))
+                    }
+                    className="w-4 h-4 text-pxl-gold focus:ring-pxl-gold border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">{BEENTJE_LABELS[beentje]}</span>
+                </label>
+              )
+            })}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={targets.duurzaamheidVereist}
+                onChange={(e) =>
+                  setTargets((prev) => ({ ...prev, duurzaamheidVereist: e.target.checked }))
+                }
+                className="w-4 h-4 text-pxl-gold focus:ring-pxl-gold border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Duurzaamheid</span>
+            </label>
+          </div>
         </div>
       </div>
 

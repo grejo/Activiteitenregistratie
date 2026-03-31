@@ -50,7 +50,7 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
   return {
     schooljaar,
     voortgang: voortgang as Record<string, number> | null,
-    target: target as Record<string, number> | null,
+    target: target as import('@/app/(dashboard)/student/scorekaart/ScorekaartView').OpleidingTarget | null,
     inschrijvingen: inschrijvingen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),

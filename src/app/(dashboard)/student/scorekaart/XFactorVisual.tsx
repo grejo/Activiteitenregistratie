@@ -1,6 +1,7 @@
 'use client'
 
-import { NIVEAUS, getVeldNaam } from '@/lib/beentjes'
+import { NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD, BEENTJES_MET_NIVEAU } from '@/lib/beentjes'
+import type { OpleidingTarget } from './ScorekaartView'
 
 const GOLD = '#C8973B'
 const GREEN = '#16a34a'
@@ -19,22 +20,17 @@ const CIRCLE_R = 120
 
 interface Props {
   voortgang: Record<string, number> | null
-  target: Record<string, number> | null
+  target: OpleidingTarget | null
   heeftDuurzaamheid: boolean
 }
 
 // ---------- helpers ----------
 
-function isBehaald(
-  beentje: string,
-  voortgang: Record<string, number> | null,
-  target: Record<string, number> | null
-): boolean {
-  const niveausMetTarget = NIVEAUS.filter((n) => (target?.[getVeldNaam(beentje, n)] ?? 0) > 0)
-  if (niveausMetTarget.length === 0) return false
-  return niveausMetTarget.every(
-    (n) => (voortgang?.[getVeldNaam(beentje, n)] ?? 0) >= (target?.[getVeldNaam(beentje, n)] ?? 0)
-  )
+function isBehaald(beentje: string, voortgang: Record<string, number> | null, target: OpleidingTarget | null): boolean {
+  const vereistVeld = BEENTJE_VEREIST_VELD[beentje] as keyof OpleidingTarget
+  if (!target?.[vereistVeld]) return false
+  const totaal = NIVEAUS.reduce((sum, n) => sum + (voortgang?.[getVeldNaam(beentje, n)] ?? 0), 0)
+  return totaal >= 1
 }
 
 function Checkmark({ cx, cy, r = 9 }: { cx: number; cy: number; r?: number }) {
@@ -53,17 +49,15 @@ function Checkmark({ cx, cy, r = 9 }: { cx: number; cy: number; r?: number }) {
   )
 }
 
-// 4 horizontal bars (one per niveau) centred at (cx, cy)
+// 4 horizontal bars (one per niveau) — shows actual count, gold if > 0
 function ProgressBars({
   beentje,
   voortgang,
-  target,
   cx,
   cy,
 }: {
   beentje: string
   voortgang: Record<string, number> | null
-  target: Record<string, number> | null
   cx: number
   cy: number
 }) {
@@ -78,20 +72,13 @@ function ProgressBars({
       {NIVEAUS.map((niveau, i) => {
         const veld = getVeldNaam(beentje, niveau)
         const behaald = voortgang?.[veld] ?? 0
-        const doel = target?.[veld] ?? 0
-        const pct = doel > 0 ? Math.min(1, behaald / doel) : 0
-        const done = doel > 0 && behaald >= doel
+        const hasActivities = behaald > 0
         const bx = sx + i * (W + GAP)
         return (
           <g key={niveau}>
-            <rect
-              x={bx} y={cy} width={W} height={H} rx={2.5}
-              fill={doel === 0 ? '#f3f4f6' : GRAY}
-              stroke={doel === 0 ? GRAY : 'none'}
-              strokeWidth={0.5}
-            />
-            {pct > 0 && (
-              <rect x={bx} y={cy} width={W * pct} height={H} rx={2.5} fill={done ? GREEN : GOLD} />
+            <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GRAY} />
+            {hasActivities && (
+              <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GOLD} />
             )}
           </g>
         )
@@ -112,7 +99,7 @@ function BeentjeLabel({
   lines: string[]
   beentje: string
   voortgang: Record<string, number> | null
-  target: Record<string, number> | null
+  target: OpleidingTarget | null
 }) {
   const achieved = isBehaald(beentje, voortgang, target)
   const lh = 14
@@ -140,14 +127,15 @@ function BeentjeLabel({
       ))}
       {/* Checkmark overlay */}
       {achieved && <Checkmark cx={x + w - 12} cy={y + 12} r={9} />}
-      {/* Bars below box */}
-      <ProgressBars
-        beentje={beentje}
-        voortgang={voortgang}
-        target={target}
-        cx={x + w / 2}
-        cy={y + h + 5}
-      />
+      {/* Bars below box — only for beentjes with niveau breakdown */}
+      {BEENTJES_MET_NIVEAU.includes(beentje as typeof BEENTJES_MET_NIVEAU[number]) && (
+        <ProgressBars
+          beentje={beentje}
+          voortgang={voortgang}
+          cx={x + w / 2}
+          cy={y + h + 5}
+        />
+      )}
     </g>
   )
 }
@@ -155,7 +143,6 @@ function BeentjeLabel({
 // ---------- main component ----------
 
 export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: Props) {
-  // Pre-computed positions for each beentje
   const boxes = [
     // REFLECTIE – top centre
     { beentje: 'REFLECTIE',       lines: ['REFLECTIE'],                            x: 254, y: 10,  w: 212, h: 42 },
@@ -169,24 +156,17 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
     { beentje: 'MULTIDISCIPLINAIR', lines: ['multi- &', 'disciplinariteit'],        x: 502, y: 368, w: 208, h: 54 },
   ]
 
-  // Connector endpoints: [label-side x, y] → [circle-ring x, y]
-  // Connector runs from the nearest label edge to the outer ring point.
   const connectors: [number, number, number, number][] = [
-    // REFLECTIE: bottom of label → top of ring
     [CX,            10 + 42,   CX,            CY - RING_R],
-    // PASSIE: right of label → left of ring
     [10 + 158,      218 + 21,  CX - RING_R,  CY],
-    // ONDERNEMEND: left of label → right of ring
     [552,           210 + 27,  CX + RING_R,  CY],
-    // SAMENWERKING: top-right corner → bottom-left of ring (≈ 135°)
     [10 + 208,      368,       CX - 0.707 * RING_R, CY + 0.707 * RING_R],
-    // MULTIDISCIPLINAIR: top-left corner → bottom-right of ring (≈ 45°)
     [502,           368,       CX + 0.707 * RING_R, CY + 0.707 * RING_R],
-    // DUURZAAM: bottom of ring → duurzaam label
     [CX,            CY + RING_R, CX, 443],
   ]
 
   const duurzX = 290, duurzY = 443, duurzW = 140, duurzH = 34
+  const duurzaamheidBehaald = (target?.duurzaamheidVereist ?? false) && heeftDuurzaamheid
 
   return (
     <div className="w-full">
@@ -196,20 +176,18 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
         aria-label="X-Factor voortgang visualisatie"
       >
         <defs>
-          {/* Bidirectionele pijlpunt */}
           <marker id="xf-arrow-end" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
             <path d="M0,0 L5,2.5 L0,5 z" fill="#888" />
           </marker>
           <marker id="xf-arrow-start" markerWidth="5" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
             <path d="M0,0 L5,2.5 L0,5 z" fill="#888" />
           </marker>
-          {/* Clip voor X-logo binnen de cirkel */}
           <clipPath id="xf-clip">
             <circle cx={CX} cy={CY} r={CIRCLE_R} />
           </clipPath>
         </defs>
 
-        {/* ── Connectorlijnen (tekenen vóór labels zodat ze er achter vallen) ── */}
+        {/* Connectorlijnen */}
         {connectors.map(([x1, y1, x2, y2], i) => (
           <line
             key={i}
@@ -221,28 +199,18 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
           />
         ))}
 
-        {/* ── Buitenste ring (dunne cirkel) ── */}
+        {/* Buitenste ring */}
         <circle cx={CX} cy={CY} r={RING_R} fill="none" stroke="#111" strokeWidth={1.5} />
 
-        {/* ── Gevulde zwarte cirkel + X-logo ── */}
+        {/* Gevulde zwarte cirkel + X-logo */}
         <g clipPath="url(#xf-clip)">
           <circle cx={CX} cy={CY} r={CIRCLE_R} fill={DARK} />
-          {/* X: twee brede diagonale balken */}
-          <line
-            x1={CX - 80} y1={CY - 90}
-            x2={CX + 80} y2={CY + 90}
-            stroke="white" strokeWidth={56} strokeLinecap="butt"
-          />
-          <line
-            x1={CX + 80} y1={CY - 90}
-            x2={CX - 80} y2={CY + 90}
-            stroke="white" strokeWidth={56} strokeLinecap="butt"
-          />
-          {/* Kleine donkere cirkel in het midden */}
+          <line x1={CX - 80} y1={CY - 90} x2={CX + 80} y2={CY + 90} stroke="white" strokeWidth={56} strokeLinecap="butt" />
+          <line x1={CX + 80} y1={CY - 90} x2={CX - 80} y2={CY + 90} stroke="white" strokeWidth={56} strokeLinecap="butt" />
           <circle cx={CX} cy={CY} r={26} fill={DARK} />
         </g>
 
-        {/* ── PXL tekst ── */}
+        {/* PXL tekst */}
         <text
           x={CX} y={CY + 5}
           textAnchor="middle"
@@ -255,7 +223,7 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
           PXL
         </text>
 
-        {/* ── 5 Beentje labels ── */}
+        {/* 5 Beentje labels */}
         {boxes.map((box) => (
           <BeentjeLabel
             key={box.beentje}
@@ -265,11 +233,8 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
           />
         ))}
 
-        {/* ── DUURZAAM label ── */}
-        <rect
-          x={duurzX} y={duurzY} width={duurzW} height={duurzH}
-          rx={8} fill="white" stroke="#c4c4c4" strokeWidth={1.5}
-        />
+        {/* DUURZAAM label */}
+        <rect x={duurzX} y={duurzY} width={duurzW} height={duurzH} rx={8} fill="white" stroke="#c4c4c4" strokeWidth={1.5} />
         <text
           x={duurzX + duurzW / 2} y={duurzY + duurzH / 2 + 4}
           textAnchor="middle"
@@ -279,7 +244,7 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
         >
           DUURZAAM
         </text>
-        {heeftDuurzaamheid && (
+        {duurzaamheidBehaald && (
           <Checkmark cx={duurzX + duurzW - 12} cy={duurzY + duurzH / 2} r={9} />
         )}
       </svg>

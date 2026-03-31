@@ -24,7 +24,7 @@ export default async function DashboardLayout({
       <footer className="bg-pxl-black text-pxl-white py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-sm text-gray-400">
-            &copy; {new Date().getFullYear()} PXL Hogeschool - PXL-FactorTool
+            &copy; {new Date().getFullYear()} PXL Hogeschool - X-FactorTool
           </p>
         </div>
       </footer>

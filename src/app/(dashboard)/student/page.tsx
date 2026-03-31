@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import { getCurrentSchooljaar } from '@/lib/utils'
-import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD } from '@/lib/beentjes'
+import type { OpleidingTarget } from '@/app/(dashboard)/student/scorekaart/ScorekaartView'
 
 export const metadata = {
-  title: 'Student Dashboard - PXL-FactorTool',
+  title: 'Student Dashboard - X-FactorTool',
 }
 
 async function getStudentStats(userId: string, opleidingId: string | null) {
@@ -50,7 +51,7 @@ async function getStudentStats(userId: string, opleidingId: string | null) {
     mijnAanvragen,
     beschikbareActiviteiten,
     voortgang: voortgang as Record<string, number> | null,
-    target: target as Record<string, number> | null,
+    target: target as import('@/app/(dashboard)/student/scorekaart/ScorekaartView').OpleidingTarget | null,
   }
 }
 
@@ -72,17 +73,12 @@ export default async function StudentDashboard() {
       )
     : 0
 
-  // Bereken behaalde beentjes
+  // Bereken behaalde beentjes (vereist + ≥ 1 activiteit)
   const behaaldBeentjes = BEENTJES.filter((beentje) => {
-    const niveausMetTarget = NIVEAUS.filter(
-      (n) => (stats.target?.[getVeldNaam(beentje, n)] ?? 0) > 0
-    )
-    if (niveausMetTarget.length === 0) return false
-    return niveausMetTarget.every(
-      (n) =>
-        (stats.voortgang?.[getVeldNaam(beentje, n)] ?? 0) >=
-        (stats.target?.[getVeldNaam(beentje, n)] ?? 0)
-    )
+    const vereistVeld = BEENTJE_VEREIST_VELD[beentje] as keyof OpleidingTarget
+    if (!(stats.target as OpleidingTarget | null)?.[vereistVeld]) return false
+    const totaal = NIVEAUS.reduce((sum, n) => sum + (stats.voortgang?.[getVeldNaam(beentje, n)] ?? 0), 0)
+    return totaal >= 1
   })
 
   return (

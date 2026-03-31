@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD, BEENTJES_MET_NIVEAU } from '@/lib/beentjes'
 import XFactorVisual from './XFactorVisual'
 
 function Accordion({
@@ -61,11 +61,34 @@ type Inschrijving = {
   activiteit: Activiteit
 }
 
+export type OpleidingTarget = {
+  doelNiveau1: number
+  doelNiveau2: number
+  doelNiveau3: number
+  doelNiveau4: number
+  passieVereist: boolean
+  ondernemendVereist: boolean
+  samenwerkingVereist: boolean
+  multidisciplinairVereist: boolean
+  reflectieVereist: boolean
+  duurzaamheidVereist: boolean
+}
+
 type ScorekaartData = {
   schooljaar: string
   voortgang: Record<string, number> | null
-  target: Record<string, number> | null
+  target: OpleidingTarget | null
   inschrijvingen: Inschrijving[]
+}
+
+// Helper: totaal activiteiten voor een beentje (alle niveaus)
+function totaalVoorBeentje(beentje: string, voortgang: Record<string, number> | null): number {
+  return NIVEAUS.reduce((sum, n) => sum + (voortgang?.[getVeldNaam(beentje, n)] ?? 0), 0)
+}
+
+// Helper: totaal activiteiten op een niveau (alle beentjes)
+function totaalVoorNiveau(niveau: number, voortgang: Record<string, number> | null): number {
+  return BEENTJES_MET_NIVEAU.reduce((sum, b) => sum + (voortgang?.[getVeldNaam(b, niveau)] ?? 0), 0)
 }
 
 export default function ScorekaartView({
@@ -81,10 +104,9 @@ export default function ScorekaartView({
 
   const { voortgang, target, inschrijvingen, schooljaar } = data
 
-  // Bereken totaal behaalde activiteiten
   const totaalBehaald = inschrijvingen.length
 
-  // Aggregeer duurzaamheidsthema's over alle goedgekeurde activiteiten
+  // Aggregeer duurzaamheidsthema's
   const duurzaamheidCounts = new Map<string, { naam: string; icoon: string | null; aantal: number }>()
   for (const i of inschrijvingen) {
     for (const d of i.activiteit.duurzaamheid) {
@@ -98,14 +120,20 @@ export default function ScorekaartView({
     }
   }
   const duurzaamheidLijst = Array.from(duurzaamheidCounts.values()).sort((a, b) => b.aantal - a.aantal)
+  const heeftDuurzaamheid = duurzaamheidLijst.length > 0
 
-  // Bereken hoeveel beentjes volledig zijn (alle niveaus met target > 0 gehaald)
+  // Bereken behaalde beentjes (vereist + ≥ 1 activiteit)
   const behaaldBeentjes = BEENTJES.filter((beentje) => {
-    const niveausMetTarget = NIVEAUS.filter((n) => (target?.[getVeldNaam(beentje, n)] ?? 0) > 0)
-    if (niveausMetTarget.length === 0) return false
-    return niveausMetTarget.every(
-      (n) => (voortgang?.[getVeldNaam(beentje, n)] ?? 0) >= (target?.[getVeldNaam(beentje, n)] ?? 0)
-    )
+    const vereistVeld = BEENTJE_VEREIST_VELD[beentje] as keyof OpleidingTarget
+    if (!target?.[vereistVeld]) return false
+    return totaalVoorBeentje(beentje, voortgang) >= 1
+  })
+  const duurzaamheidBehaald = (target?.duurzaamheidVereist ?? false) && heeftDuurzaamheid
+
+  // Beentjes vereist tellen voor de badge
+  const beentjesVereist = BEENTJES.filter((b) => {
+    const veld = BEENTJE_VEREIST_VELD[b] as keyof OpleidingTarget
+    return target?.[veld] ?? false
   })
 
   return (
@@ -150,28 +178,46 @@ export default function ScorekaartView({
             </div>
             <div>
               <div className="text-xs text-pxl-black-light uppercase tracking-wide">Beentjes behaald</div>
-              <div className="font-bold text-pxl-black">{behaaldBeentjes.length} van {BEENTJES.length} voltooid</div>
+              <div className="font-bold text-pxl-black">
+                {behaaldBeentjes.length} van {beentjesVereist.length} vereist
+              </div>
             </div>
           </div>
 
           <div className="card-flat">
-            <div className="text-xs text-pxl-black-light uppercase tracking-wide mb-3">Voltooid</div>
-            {behaaldBeentjes.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">Nog geen beentjes volledig behaald.</p>
+            <div className="text-xs text-pxl-black-light uppercase tracking-wide mb-3">Voortgang beentjes</div>
+            {beentjesVereist.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Nog geen beentjes ingesteld.</p>
             ) : (
               <div className="space-y-2">
-                {behaaldBeentjes.map((b) => (
-                  <div key={b} className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
-                    <span className="text-sm font-medium text-pxl-black">{BEENTJE_LABELS[b]}</span>
+                {BEENTJES.map((b) => {
+                  const veld = BEENTJE_VEREIST_VELD[b] as keyof OpleidingTarget
+                  const vereist = target?.[veld] ?? false
+                  const behaald = behaaldBeentjes.includes(b)
+                  if (!vereist) return null
+                  return (
+                    <div key={b} className="flex items-center gap-2">
+                      {behaald
+                        ? <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
+                        : <span className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
+                      }
+                      <span className={`text-sm font-medium ${behaald ? 'text-pxl-black' : 'text-gray-500'}`}>
+                        {BEENTJE_LABELS[b]}
+                      </span>
+                    </div>
+                  )
+                })}
+                {target?.duurzaamheidVereist && (
+                  <div className="flex items-center gap-2">
+                    {duurzaamheidBehaald
+                      ? <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold shrink-0">✓</span>
+                      : <span className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
+                    }
+                    <span className={`text-sm font-medium ${duurzaamheidBehaald ? 'text-pxl-black' : 'text-gray-500'}`}>
+                      Duurzaamheid
+                    </span>
                   </div>
-                ))}
-                {BEENTJES.filter((b) => !behaaldBeentjes.includes(b)).map((b) => (
-                  <div key={b} className="flex items-center gap-2 opacity-40">
-                    <span className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
-                    <span className="text-sm text-gray-500">{BEENTJE_LABELS[b]}</span>
-                  </div>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -182,90 +228,141 @@ export default function ScorekaartView({
           <XFactorVisual
             voortgang={voortgang}
             target={target}
-            heeftDuurzaamheid={duurzaamheidLijst.length > 0}
+            heeftDuurzaamheid={heeftDuurzaamheid}
           />
         </div>
       </div>
 
-      {/* 5 Beentje blokken – accordion */}
-      <div className="space-y-2">
-        <h2 className="font-heading font-bold text-xl text-pxl-black">Voortgang per Beentje</h2>
-        {BEENTJES.map((beentje) => {
-          const niveausMetTarget = NIVEAUS.filter(
-            (n) => (target?.[getVeldNaam(beentje, n)] ?? 0) > 0
-          )
-          const behaaldCount = niveausMetTarget.filter(
-            (n) => (voortgang?.[getVeldNaam(beentje, n)] ?? 0) >= (target?.[getVeldNaam(beentje, n)] ?? 1)
-          ).length
-          const isVolledig = niveausMetTarget.length > 0 && behaaldCount === niveausMetTarget.length
+      {/* Voortgangstabel */}
+      <div className="card overflow-x-auto">
+        <h2 className="font-heading font-bold text-xl text-pxl-black mb-4">Voortgang X-Factor</h2>
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left py-2 px-3 font-semibold text-gray-700 border border-gray-200 w-44"></th>
+              {NIVEAUS.map((n) => (
+                <th key={n} className="text-center py-2 px-3 font-semibold text-gray-700 border border-gray-200">
+                  Niveau {n}
+                </th>
+              ))}
+              <th className="text-center py-2 px-3 font-semibold text-gray-700 border border-gray-200 bg-gray-100">TOTAAL</th>
+              <th className="text-center py-2 px-3 font-semibold text-gray-500 italic border border-gray-200">Te behalen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Rijen per beentje (zonder Reflectie) */}
+            {BEENTJES_MET_NIVEAU.map((beentje) => {
+              const totaal = totaalVoorBeentje(beentje, voortgang)
+              const vereist = (target?.[BEENTJE_VEREIST_VELD[beentje] as keyof OpleidingTarget] ?? false) as boolean
+              const behaald = vereist && totaal >= 1
+              return (
+                <tr key={beentje} className="border-t">
+                  <td className="py-2 px-3 text-center text-gray-800 border border-gray-200 text-xs font-medium">
+                    {BEENTJE_LABELS[beentje]}
+                  </td>
+                  {NIVEAUS.map((n) => (
+                    <td key={n} className="py-2 px-3 text-center text-gray-700 border border-gray-200">
+                      {voortgang?.[getVeldNaam(beentje, n)] ?? 0}
+                    </td>
+                  ))}
+                  <td className={`py-2 px-3 text-center font-bold border border-gray-200 bg-gray-50 ${behaald ? 'text-green-600' : 'text-gray-700'}`}>
+                    {totaal}
+                    {behaald && ' ✓'}
+                  </td>
+                  <td className="py-2 px-3 text-center italic text-gray-500 border border-gray-200">
+                    {vereist ? 1 : '—'}
+                  </td>
+                </tr>
+              )
+            })}
 
+            {/* TOTAAL rij */}
+            <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+              <td className="py-2 px-3 text-center text-gray-800 border border-gray-200">TOTAAL</td>
+              {NIVEAUS.map((n) => (
+                <td key={n} className="py-2 px-3 text-center text-gray-800 border border-gray-200">
+                  {totaalVoorNiveau(n, voortgang)}
+                </td>
+              ))}
+              <td className="border border-gray-200" />
+              <td className="border border-gray-200" />
+            </tr>
+
+            {/* Te behalen rij */}
+            <tr className="italic text-gray-500">
+              <td className="py-2 px-3 text-center border border-gray-200">Te behalen</td>
+              {NIVEAUS.map((n) => {
+                const doel = (target?.[`doelNiveau${n}` as keyof OpleidingTarget] ?? 0) as number
+                const behaaldN = totaalVoorNiveau(n, voortgang)
+                return (
+                  <td key={n} className={`py-2 px-3 text-center border border-gray-200 ${doel > 0 && behaaldN >= doel ? 'text-green-600 font-bold not-italic' : ''}`}>
+                    {doel > 0 ? doel : '—'}
+                  </td>
+                )
+              })}
+              <td className="border border-gray-200" />
+              <td className="border border-gray-200" />
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Reflectie rij */}
+        {(() => {
+          const reflectieVereist = target?.reflectieVereist ?? false
+          const reflectieTotaal = totaalVoorBeentje('REFLECTIE', voortgang)
+          const reflectieBehaald = reflectieVereist && reflectieTotaal >= 1
           return (
-            <Accordion
-              key={beentje}
-              title={BEENTJE_LABELS[beentje]}
-              badge={
-                isVolledig ? (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Behaald</span>
-                ) : niveausMetTarget.length > 0 ? (
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
-                    {behaaldCount}/{niveausMetTarget.length}
-                  </span>
-                ) : null
-              }
-            >
-              {niveausMetTarget.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">Geen targets ingesteld voor dit beentje.</p>
+            <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 rounded border border-gray-200">
+              <span className="text-sm font-semibold text-gray-700 w-44">Reflectie</span>
+              <span className="text-sm text-gray-600">
+                {reflectieTotaal} activiteit{reflectieTotaal !== 1 ? 'en' : ''}
+              </span>
+              {reflectieVereist ? (
+                reflectieBehaald
+                  ? <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">✓ Behaald</span>
+                  : <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Nog te behalen</span>
               ) : (
-                <div className="space-y-3">
-                  {niveausMetTarget.map((niveau) => {
-                    const veld = getVeldNaam(beentje, niveau)
-                    const behaald = voortgang?.[veld] ?? 0
-                    const doel = target?.[veld] ?? 0
-                    const pct = doel > 0 ? Math.min(100, (behaald / doel) * 100) : 0
-                    const volledig = behaald >= doel
-
-                    return (
-                      <div key={niveau}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Niveau {niveau}</span>
-                          <span className={volledig ? 'text-green-600 font-bold' : 'text-gray-600'}>
-                            {behaald} / {doel} activiteiten
-                          </span>
-                        </div>
-                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              volledig ? 'bg-green-500' : 'bg-pxl-gold'
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                <span className="ml-2 text-xs text-gray-400 italic">Niet vereist</span>
               )}
-            </Accordion>
+            </div>
           )
-        })}
+        })()}
+
+        {/* Duurzaamheid rij */}
+        <div className="mt-2">
+          <table className="text-sm border-collapse border border-gray-200">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="text-center py-2 px-4 font-semibold text-gray-700 border border-gray-200 w-44"></th>
+                <th className="text-center py-2 px-4 font-semibold text-gray-700 border border-gray-200 bg-gray-100">TOTAAL</th>
+                <th className="text-center py-2 px-4 font-semibold text-gray-500 italic border border-gray-200">Te behalen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-2 px-4 text-center text-gray-800 border border-gray-200 font-medium">Duurzaamheid</td>
+                <td className={`py-2 px-4 text-center font-bold border border-gray-200 bg-gray-50 ${duurzaamheidBehaald ? 'text-green-600' : 'text-gray-700'}`}>
+                  {duurzaamheidLijst.length}{duurzaamheidBehaald && ' ✓'}
+                </td>
+                <td className="py-2 px-4 text-center italic text-gray-500 border border-gray-200">
+                  {target?.duurzaamheidVereist ? 1 : '—'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Duurzaamheid – accordion */}
-      <Accordion
-        title="Duurzaamheid"
-        badge={
-          duurzaamheidLijst.length > 0 ? (
+      {/* Duurzaamheid thema's */}
+      {duurzaamheidLijst.length > 0 && (
+        <Accordion
+          title="Duurzaamheid thema's"
+          badge={
             <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
               {duurzaamheidLijst.length} thema{duurzaamheidLijst.length !== 1 ? "'s" : ''}
             </span>
-          ) : undefined
-        }
-      >
-        {duurzaamheidLijst.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">
-            Nog geen activiteiten met duurzaamheidsthema&apos;s goedgekeurd.
-          </p>
-        ) : (
+          }
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {duurzaamheidLijst.map((d) => (
               <div key={d.naam} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -279,10 +376,10 @@ export default function ScorekaartView({
               </div>
             ))}
           </div>
-        )}
-      </Accordion>
+        </Accordion>
+      )}
 
-      {/* Activiteiten Lijst – accordion */}
+      {/* Activiteiten Lijst */}
       {inschrijvingen.length > 0 ? (
         <Accordion
           title="Goedgekeurde Activiteiten"
