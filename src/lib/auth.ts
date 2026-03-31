@@ -208,8 +208,8 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // Credentials login
-      if (user) {
+      // Credentials login (niet voor OAuth — die verwerkt het blok hierboven)
+      if (user && account?.type === 'credentials') {
         token.id = user.id
         token.role = user.role
         token.naam = user.naam
