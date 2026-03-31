@@ -260,7 +260,7 @@ export default function PrikbordTable({
                 <div className="space-y-1 text-sm text-gray-600 mb-4">
                   <div className="flex items-center gap-2">
                     <span>📅</span>
-                    <span>{new Date(activiteit.datum).toLocaleDateString('nl-BE')}</span>
+                    <span>{new Date(activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span>🕐</span>

@@ -107,7 +107,7 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
             {statusLabels[aanvraag.status] || aanvraag.status}
           </span>
           <span className="text-sm text-gray-500">
-            Aangevraagd op {new Date(aanvraag.createdAt).toLocaleDateString('nl-BE')}
+            Aangevraagd op {new Date(aanvraag.createdAt).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </span>
         </div>
 
@@ -121,7 +121,7 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
             <div>
               <div className="text-sm text-gray-500">Datum</div>
               <div className="font-medium">
-                {new Date(aanvraag.datum).toLocaleDateString('nl-BE')}
+                {new Date(aanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </div>
             </div>
             <div>

@@ -403,7 +403,7 @@ export default function ScorekaartView({
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">{i.activiteit.titel}</div>
                   <div className="text-sm text-gray-500">
-                    {new Date(i.activiteit.datum).toLocaleDateString('nl-BE')} •{' '}
+                    {new Date(i.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })} •{' '}
                     {i.activiteit.typeActiviteit}
                     {i.activiteit.beentje && (
                       <>

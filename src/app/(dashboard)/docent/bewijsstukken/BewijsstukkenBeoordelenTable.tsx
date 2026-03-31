@@ -173,7 +173,7 @@ export default function BewijsstukkenBeoordelenTable({
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{inschrijving.activiteit.titel}</div>
                       <div className="text-sm text-gray-500">
-                        {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE')} | {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
+                        {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -249,7 +249,7 @@ export default function BewijsstukkenBeoordelenTable({
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedInschrijving.activiteit.datum).toLocaleDateString('nl-BE')}
+                      {new Date(selectedInschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
                   </div>
                   <div>

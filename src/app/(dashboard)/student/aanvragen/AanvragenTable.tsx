@@ -392,7 +392,7 @@ export default function AanvragenTable({
                 {filteredAanvragen.map((aanvraag) => (
                   <tr key={aanvraag.id}>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(aanvraag.createdAt).toLocaleDateString('nl-BE')}
+                      {new Date(aanvraag.createdAt).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{aanvraag.titel}</div>
@@ -401,7 +401,7 @@ export default function AanvragenTable({
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(aanvraag.datum).toLocaleDateString('nl-BE')}
+                      {new Date(aanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span
@@ -488,7 +488,7 @@ export default function AanvragenTable({
                   {statusLabels[selectedAanvraag.status] || selectedAanvraag.status}
                 </span>
                 <span className="text-sm text-gray-500">
-                  Aangevraagd op {new Date(selectedAanvraag.createdAt).toLocaleDateString('nl-BE')}
+                  Aangevraagd op {new Date(selectedAanvraag.createdAt).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </span>
               </div>
 
@@ -510,7 +510,7 @@ export default function AanvragenTable({
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedAanvraag.datum).toLocaleDateString('nl-BE')}
+                      {new Date(selectedAanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
                   </div>
                   <div>

@@ -197,7 +197,7 @@ export default function StudentenTable({
                               {laatsteInschrijving.activiteit.titel}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {new Date(laatsteInschrijving.activiteit.datum).toLocaleDateString('nl-BE')}
+                              {new Date(laatsteInschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                             </div>
                           </div>
                         ) : (
@@ -296,7 +296,7 @@ export default function StudentenTable({
                             {inschrijving.activiteit.titel}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE')}
+                            {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

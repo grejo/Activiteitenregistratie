@@ -306,7 +306,7 @@ export default function DocentActiviteitenTable({
                 return (
                   <tr key={activiteit.id} className={isPast ? 'bg-gray-50' : ''}>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(activiteit.datum).toLocaleDateString('nl-BE')}
+                      {new Date(activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{activiteit.titel}</div>

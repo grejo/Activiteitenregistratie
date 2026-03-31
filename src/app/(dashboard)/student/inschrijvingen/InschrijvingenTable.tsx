@@ -241,7 +241,7 @@ export default function InschrijvingenTable({
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE')}
+                          {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </div>
                         <div className="text-xs text-gray-500">
                           {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
@@ -432,7 +432,7 @@ export default function InschrijvingenTable({
                 <div className="text-sm text-gray-600 space-y-1">
                   <div>
                     Ingeschreven op:{' '}
-                    {new Date(selectedInschrijving.createdAt).toLocaleDateString('nl-BE')}
+                    {new Date(selectedInschrijving.createdAt).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </div>
                   {selectedInschrijving.uitgeschrevenOp && (
                     <div>
