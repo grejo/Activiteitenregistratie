@@ -36,7 +36,12 @@ export default function ImportModule({ opleidingen }: { opleidingen: Opleiding[]
   const [activiteitenResultaat, setActiviteitenResultaat] = useState<ActiviteitenResultaat | null>(null)
   const [activiteitenError, setActiviteitenError] = useState<string | null>(null)
 
-  // Sectie 3: reset
+  // Sectie 3: herbereken voortgang
+  const [herberekenenLoading, setHerberekenenLoading] = useState(false)
+  const [herberekenenResultaat, setHerberekenenResultaat] = useState<{ verwerkt: number; totaal: number; errors: string[] } | null>(null)
+  const [herberekenenError, setHerberekenenError] = useState<string | null>(null)
+
+  // Sectie 4: reset
   const [resetOpleidingId, setResetOpleidingId] = useState('')
   const [deleteStudenten, setDeleteStudenten] = useState(true)
   const [deleteActiviteiten, setDeleteActiviteiten] = useState(true)
@@ -85,6 +90,22 @@ export default function ImportModule({ opleidingen }: { opleidingen: Opleiding[]
       setActiviteitenError(e instanceof Error ? e.message : 'Er is iets misgegaan')
     } finally {
       setActiviteitenLoading(false)
+    }
+  }
+
+  async function herbereken() {
+    setHerberekenenLoading(true)
+    setHerberekenenError(null)
+    setHerberekenenResultaat(null)
+    try {
+      const res = await fetch('/api/admin/recalculate-voortgang', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Fout bij herberekenen')
+      setHerberekenenResultaat(data)
+    } catch (e) {
+      setHerberekenenError(e instanceof Error ? e.message : 'Er is iets misgegaan')
+    } finally {
+      setHerberekenenLoading(false)
     }
   }
 
@@ -270,9 +291,48 @@ export default function ImportModule({ opleidingen }: { opleidingen: Opleiding[]
         )}
       </div>
 
-      {/* Sectie 3: Reset */}
+      {/* Sectie 3: Herbereken voortgang */}
+      <div className="card">
+        <h2 className="font-heading font-bold text-xl text-pxl-black mb-1">Stap 3 — Scorekaart herberekenen</h2>
+        <p className="text-sm text-pxl-black-light mb-6">
+          Herbereken de voortgang (beentje-tellers) voor alle actieve studenten. Voer dit uit na een activiteitenimport
+          om de scorekaarten bij te werken.
+        </p>
+
+        <button
+          onClick={herbereken}
+          disabled={herberekenenLoading}
+          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {herberekenenLoading ? 'Bezig met herberekenen…' : 'Herbereken voortgang alle studenten'}
+        </button>
+
+        {herberekenenError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{herberekenenError}</div>
+        )}
+
+        {herberekenenResultaat && (
+          <div className="mt-4 space-y-2">
+            <div className="p-4 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+              ✓ Voortgang herberekend voor {herberekenenResultaat.verwerkt} van {herberekenenResultaat.totaal} studenten
+            </div>
+            {herberekenenResultaat.errors.length > 0 && (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-red-600 font-medium">
+                  {herberekenenResultaat.errors.length} fout(en)
+                </summary>
+                <ul className="mt-2 space-y-1 text-red-700 bg-red-50 p-3 rounded max-h-48 overflow-y-auto">
+                  {herberekenenResultaat.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sectie 4: Reset */}
       <div className="card border-2 border-red-200">
-        <h2 className="font-heading font-bold text-xl text-red-700 mb-1">Gevarenzone — Dummy data verwijderen</h2>
+        <h2 className="font-heading font-bold text-xl text-red-700 mb-1">Stap 4 — Gevarenzone: dummy data verwijderen</h2>
         <p className="text-sm text-gray-600 mb-6">
           Verwijder alle studenten en/of activiteiten van een opleiding. Dit kan niet ongedaan worden gemaakt.
         </p>
