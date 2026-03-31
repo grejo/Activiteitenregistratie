@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { LoginForm } from '@/components/auth/LoginForm'
 
 export const metadata = {
-  title: 'Inloggen - Activiteitenregistratie PXL',
+  title: 'Inloggen - PXL-FactorTool',
 }
 
 export default async function LoginPage() {
@@ -25,7 +25,7 @@ export default async function LoginPage() {
       <header className="bg-pxl-black text-pxl-white py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="font-heading font-black text-2xl text-pxl-white">
-            Activiteitenregistratie
+            PXL-FactorTool
           </h1>
         </div>
       </header>

@@ -1,7 +1,7 @@
 {
-  "name": "activiteitenregistratie",
+  "name": "pxl-factortool",
   "version": "1.0.0",
-  "description": "Activiteitenregistratie webapp voor PXL Hogeschool",
+  "description": "PXL-FactorTool webapp voor PXL Hogeschool",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

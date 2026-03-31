@@ -11,7 +11,7 @@ const raleway = Raleway({
 })
 
 export const metadata: Metadata = {
-  title: 'Activiteitenregistratie - PXL Hogeschool',
+  title: 'PXL-FactorTool',
   description: 'Registratie en beheer van buitenlesactiviteiten voor PXL studenten en docenten',
 }
 

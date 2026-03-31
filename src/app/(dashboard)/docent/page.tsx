@@ -4,7 +4,7 @@ import Link from 'next/link'
 import prisma from '@/lib/prisma'
 
 export const metadata = {
-  title: 'Docent Dashboard - Activiteitenregistratie',
+  title: 'Docent Dashboard - PXL-FactorTool',
 }
 
 async function getDocentStats(userId: string) {

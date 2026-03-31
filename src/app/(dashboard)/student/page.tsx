@@ -6,7 +6,7 @@ import { getCurrentSchooljaar } from '@/lib/utils'
 import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
 
 export const metadata = {
-  title: 'Student Dashboard - Activiteitenregistratie',
+  title: 'Student Dashboard - PXL-FactorTool',
 }
 
 async function getStudentStats(userId: string, opleidingId: string | null) {
