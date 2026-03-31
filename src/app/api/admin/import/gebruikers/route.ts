@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
     const sheet = workbook.Sheets['Activiteiten']
     if (!sheet) {
       return NextResponse.json({ error: 'Sheet "Activiteiten" niet gevonden in het Excel-bestand' }, { status: 400 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 
 type Inschrijving = {
@@ -48,6 +48,8 @@ export default function AdminStudentenTable({
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 10
 
   const filteredStudenten = useMemo(() => {
     let filtered = studenten
@@ -77,6 +79,17 @@ export default function AdminStudentenTable({
 
     return filtered
   }, [studenten, opleidingFilter, statusFilter, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudenten.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pagedStudenten = filteredStudenten.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  const resetFilters = useCallback(() => {
+    setOpleidingFilter('all')
+    setStatusFilter('all')
+    setSearchQuery('')
+    setPage(1)
+  }, [])
 
   const stats = useMemo(() => {
     const totalStudenten = studenten.length
@@ -127,7 +140,7 @@ export default function AdminStudentenTable({
               type="text"
               placeholder="Zoek op naam of email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
               className="input-field w-full"
             />
           </div>
@@ -139,7 +152,7 @@ export default function AdminStudentenTable({
             <select
               id="opleiding-filter"
               value={opleidingFilter}
-              onChange={(e) => setOpleidingFilter(e.target.value)}
+              onChange={(e) => { setOpleidingFilter(e.target.value); setPage(1) }}
               className="input-field w-48"
             >
               <option value="all">Alle opleidingen</option>
@@ -159,7 +172,7 @@ export default function AdminStudentenTable({
             <select
               id="status-filter"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
               className="input-field w-36"
             >
               <option value="all">Alle</option>
@@ -170,14 +183,10 @@ export default function AdminStudentenTable({
 
           {(opleidingFilter !== 'all' || statusFilter !== 'all' || searchQuery) && (
             <button
-              onClick={() => {
-                setOpleidingFilter('all')
-                setStatusFilter('all')
-                setSearchQuery('')
-              }}
+              onClick={resetFilters}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
-              Reset filters
+              ✕ Reset filters
             </button>
           )}
         </div>
@@ -215,7 +224,7 @@ export default function AdminStudentenTable({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudenten.map((student) => {
+                {pagedStudenten.map((student) => {
                   const laatsteInschrijving = student.inschrijvingen[0]
                   return (
                     <tr key={student.id} className={!student.actief ? 'bg-gray-50' : ''}>
@@ -298,6 +307,55 @@ export default function AdminStudentenTable({
               ? 'Er zijn nog geen studenten in het systeem'
               : 'Geen studenten gevonden met de huidige filters'}
           </p>
+        </div>
+      )}
+
+      {/* Paginatie */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            Pagina {currentPage} van {totalPages} ({filteredStudenten.length} resultaten)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Vorige
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((p, i) =>
+                p === '...' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 py-1.5 text-gray-400 text-sm">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p as number)}
+                    className={`px-3 py-1.5 border rounded text-sm font-medium transition-colors ${
+                      currentPage === p
+                        ? 'bg-pxl-gold border-pxl-gold text-white'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Volgende →
+            </button>
+          </div>
         </div>
       )}
 

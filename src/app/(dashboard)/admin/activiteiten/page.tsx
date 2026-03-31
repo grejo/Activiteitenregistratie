@@ -7,30 +7,6 @@ export const metadata = {
   title: 'Activiteiten - Admin',
 }
 
-async function getActiviteiten() {
-  return await prisma.activiteit.findMany({
-    include: {
-      aangemaaktDoor: {
-        include: {
-          opleiding: true,
-        },
-      },
-      opleiding: true,
-      duurzaamheid: {
-        include: {
-          duurzaamheid: true,
-        },
-      },
-      inschrijvingen: {
-        include: {
-          student: true,
-        },
-      },
-    },
-    orderBy: [{ datum: 'desc' }],
-  })
-}
-
 export default async function ActiviteitenPage() {
   const session = await auth()
 
@@ -38,7 +14,18 @@ export default async function ActiviteitenPage() {
     redirect('/dashboard')
   }
 
-  const activiteiten = await getActiviteiten()
+  const [activiteiten, opleidingen] = await Promise.all([
+    prisma.activiteit.findMany({
+      include: {
+        aangemaaktDoor: { include: { opleiding: true } },
+        opleiding: true,
+        duurzaamheid: { include: { duurzaamheid: true } },
+        inschrijvingen: { include: { student: true } },
+      },
+      orderBy: [{ datum: 'desc' }],
+    }),
+    prisma.opleiding.findMany({ orderBy: { naam: 'asc' } }),
+  ])
 
-  return <ActiviteitenTable activiteiten={activiteiten} />
+  return <ActiviteitenTable activiteiten={activiteiten} opleidingen={opleidingen} />
 }

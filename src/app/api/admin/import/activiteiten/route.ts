@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import * as XLSX from 'xlsx'
+import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 type BeentjeEnum = 'PASSIE' | 'ONDERNEMEND' | 'SAMENWERKING' | 'MULTIDISCIPLINAIR' | 'REFLECTIE'
 
@@ -28,9 +29,18 @@ function parseBeentje(code: unknown): { beentje: BeentjeEnum | null; niveau: num
 }
 
 function parseDatumUur(cel: unknown): { datum: Date | null; uur: string | null } {
+  // xlsx kan datumcellen als JS Date-object teruggeven
+  if (cel instanceof Date) {
+    const uur = `${String(cel.getHours()).padStart(2, '0')}:${String(cel.getMinutes()).padStart(2, '0')}`
+    return { datum: cel, uur }
+  }
   if (!cel || typeof cel !== 'string') return { datum: null, uur: null }
+  // Formaat: "di, 01/06/2026 - 17:43"
   const match = cel.match(/(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2}:\d{2})/)
-  if (!match) return { datum: null, uur: null }
+  if (!match) {
+    console.log('parseDatumUur: geen match voor waarde:', JSON.stringify(cel))
+    return { datum: null, uur: null }
+  }
   const [, dag, maand, jaar, uur] = match
   return {
     datum: new Date(`${jaar}-${maand}-${dag}T${uur}:00`),
@@ -88,18 +98,19 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
     const sheet = workbook.Sheets['Activiteiten']
     if (!sheet) {
       return NextResponse.json({ error: 'Sheet "Activiteiten" niet gevonden' }, { status: 400 })
     }
 
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { raw: false })
 
     let activiteitenAangemaakt = 0
     let activiteitenOvergeslagen = 0
     let inschrijvingenAangemaakt = 0
     const errors: string[] = []
+    const studentIdsVoorVoortgang = new Set<string>()
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
@@ -114,11 +125,10 @@ export async function POST(request: Request) {
         const { uur: einduur } = parseDatumUur(row['Einddatum en einduur activiteit'])
         const { beentje, niveau } = parseBeentje(row['Code deelnemer(s)'])
 
-        if (!beginDatum || !startuur) {
-          errors.push(`Rij ${i + 2}: ongeldige begindatum voor "${titel}"`)
-          activiteitenOvergeslagen++
-          continue
-        }
+        // Gebruik fallback als datum leeg of ongeldig is
+        const geldigeDatum = beginDatum && !isNaN(beginDatum.getTime())
+          ? beginDatum
+          : new Date('2020-01-01T00:00:00')
 
         const studentEmail = getStudentEmail(row)
         const docentEmail = getDocentEmail(row)
@@ -151,9 +161,9 @@ export async function POST(request: Request) {
             typeActiviteit: typeof row['Aard activiteit'] === 'string' ? row['Aard activiteit'].trim() : 'Onbekend',
             aard: typeof row['Aard activiteit'] === 'string' ? row['Aard activiteit'].trim() : null,
             omschrijving: typeof omschrijving === 'string' ? omschrijving.trim() : null,
-            datum: beginDatum,
-            startuur: startuur,
-            einduur: einduur ?? startuur,
+            datum: geldigeDatum,
+            startuur: startuur ?? '00:00',
+            einduur: einduur ?? startuur ?? '00:00',
             locatie: typeof locatie === 'string' ? locatie.trim() : null,
             weblink: typeof weblink === 'string' ? weblink.trim() : null,
             organisatorPxl: typeof organisatorPxl === 'string' ? organisatorPxl.trim() : null,
@@ -173,24 +183,30 @@ export async function POST(request: Request) {
         if (studentEmail) {
           const student = await prisma.user.findUnique({ where: { email: studentEmail } })
           if (student) {
-            const effectief = isEffectieveDeelnemer(row, studentEmail)
             await prisma.inschrijving.create({
               data: {
                 activiteitId: activiteit.id,
                 studentId: student.id,
                 inschrijvingsstatus: 'ingeschreven',
-                effectieveDeelname: effectief,
-                bewijsStatus: 'niet_ingediend',
+                effectieveDeelname: true,
+                bewijsStatus: 'goedgekeurd',
               },
             })
             inschrijvingenAangemaakt++
+            studentIdsVoorVoortgang.add(student.id)
           }
         }
       } catch (e) {
         const titel = row['Titel'] ?? `rij ${i + 2}`
-        errors.push(`Rij ${i + 2} "${titel}": ${(e as Error).message}`)
+        const msg = (e as Error).message
+        console.error(`Import fout rij ${i + 2} "${titel}":`, msg)
+        errors.push(`Rij ${i + 2} "${titel}": ${msg}`)
         activiteitenOvergeslagen++
       }
+    }
+
+    for (const studentId of studentIdsVoorVoortgang) {
+      await recalculateStudentVoortgang(studentId)
     }
 
     return NextResponse.json({

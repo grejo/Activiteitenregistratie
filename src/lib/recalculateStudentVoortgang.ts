@@ -5,6 +5,7 @@ import { BEENTJES, NIVEAUS, getVeldNaam } from '@/lib/beentjes'
 /**
  * Telt goedgekeurde activiteiten per beentje×niveau voor een student
  * en update de StudentVoortgang tabel.
+ * Activiteiten tellen over de hele opleiding heen (geen schooljaarfilter).
  * Aanroepen na elke goedkeuring van bewijsstuk of wijziging beentje/niveau.
  */
 export async function recalculateStudentVoortgang(studentId: string): Promise<void> {
@@ -20,7 +21,7 @@ export async function recalculateStudentVoortgang(studentId: string): Promise<vo
     return
   }
 
-  // Haal alle goedgekeurde inschrijvingen op
+  // Haal alle goedgekeurde inschrijvingen op (over de hele opleiding)
   const inschrijvingen = await prisma.inschrijving.findMany({
     where: {
       studentId,
@@ -29,19 +30,9 @@ export async function recalculateStudentVoortgang(studentId: string): Promise<vo
     },
     include: {
       activiteit: {
-        select: { beentje: true, niveau: true, datum: true },
+        select: { beentje: true, niveau: true },
       },
     },
-  })
-
-  // Filter op schooljaar (activiteiten in huidig schooljaar)
-  const schooljaarStart = parseInt(schooljaar.split('-')[0])
-  const inSchoolJaar = inschrijvingen.filter((i) => {
-    const jaar = new Date(i.activiteit.datum).getFullYear()
-    const maand = new Date(i.activiteit.datum).getMonth() + 1
-    // Schooljaar loopt van september tot augustus
-    if (maand >= 9) return jaar === schooljaarStart
-    return jaar === schooljaarStart + 1
   })
 
   // Tel per beentje × niveau
@@ -52,7 +43,7 @@ export async function recalculateStudentVoortgang(studentId: string): Promise<vo
     }
   }
 
-  for (const inschrijving of inSchoolJaar) {
+  for (const inschrijving of inschrijvingen) {
     const { beentje, niveau } = inschrijving.activiteit
     if (!beentje || !niveau) continue
     const veld = getVeldNaam(beentje, niveau)
