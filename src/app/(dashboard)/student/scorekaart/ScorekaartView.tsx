@@ -329,27 +329,18 @@ export default function ScorekaartView({
         })()}
 
         {/* Duurzaamheid rij */}
-        <div className="mt-2">
-          <table className="text-sm border-collapse border border-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-center py-2 px-4 font-semibold text-gray-700 border border-gray-200 w-44"></th>
-                <th className="text-center py-2 px-4 font-semibold text-gray-700 border border-gray-200 bg-gray-100">TOTAAL</th>
-                <th className="text-center py-2 px-4 font-semibold text-gray-500 italic border border-gray-200">Te behalen</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="py-2 px-4 text-center text-gray-800 border border-gray-200 font-medium">Duurzaamheid</td>
-                <td className={`py-2 px-4 text-center font-bold border border-gray-200 bg-gray-50 ${duurzaamheidBehaald ? 'text-green-600' : 'text-gray-700'}`}>
-                  {duurzaamheidLijst.length}{duurzaamheidBehaald && ' ✓'}
-                </td>
-                <td className="py-2 px-4 text-center italic text-gray-500 border border-gray-200">
-                  {target?.duurzaamheidVereist ? 1 : '—'}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="mt-2 flex items-center gap-3 p-3 bg-gray-50 rounded border border-gray-200">
+          <span className="text-sm font-semibold text-gray-700 w-44">Duurzaamheid</span>
+          <span className="text-sm text-gray-600">
+            {duurzaamheidLijst.length} thema{duurzaamheidLijst.length !== 1 ? "'s" : ''}
+          </span>
+          {target?.duurzaamheidVereist ? (
+            duurzaamheidBehaald
+              ? <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">✓ Behaald</span>
+              : <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Nog te behalen</span>
+          ) : (
+            <span className="ml-2 text-xs text-gray-400 italic">Niet vereist</span>
+          )}
         </div>
       </div>
 
