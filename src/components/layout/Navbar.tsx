@@ -81,6 +81,7 @@ export function Navbar() {
           { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
+          { href: '/admin/import', label: 'Import' },
         ]
       case 'docent':
         return [
