@@ -39,7 +39,8 @@ export default async function middleware(request: NextRequest) {
 
   // /dashboard redirect naar rol-specifieke dashboard
   if (pathname === '/dashboard') {
-    const dashboardUrl = new URL(`/${userRole}`, request.url)
+    const target = userRole || 'student'
+    const dashboardUrl = new URL(`/${target}`, request.url)
     return NextResponse.redirect(dashboardUrl)
   }
 

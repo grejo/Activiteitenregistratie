@@ -100,27 +100,29 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === 'microsoft-entra-id' && profile) {
-        const email = profile.email as string | undefined
-        const azureAdId = ((profile as Record<string, unknown>).oid as string | undefined) || profile.sub
+        const p = profile as Record<string, unknown>
+        const email = (profile.email || p.preferred_username || p.upn) as string | undefined
+        const azureAdId = (p.oid as string | undefined) || profile.sub
         const naam = (profile.name as string | undefined) || email || 'Onbekend'
 
         if (!email) return false
 
-        const existing = await prisma.user.findUnique({ where: { email } })
+        const normalizedEmail = email.toLowerCase()
+        const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
         if (!existing) {
           await prisma.user.create({
             data: {
-              email,
+              email: normalizedEmail,
               naam,
               role: 'student',
               azureAdId: azureAdId ?? null,
             },
           })
-        } else if (!existing.azureAdId && azureAdId) {
+        } else if ((!existing.azureAdId && azureAdId) || existing.email !== normalizedEmail) {
           await prisma.user.update({
             where: { id: existing.id },
-            data: { azureAdId },
+            data: { azureAdId: azureAdId ?? undefined, email: normalizedEmail },
           })
         }
       }
@@ -129,9 +131,11 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user, account, profile }) {
       // SSO login: haal user op via email
       if (account?.provider === 'microsoft-entra-id' && profile) {
-        const email = profile.email as string
+        const p = profile as Record<string, unknown>
+        const email = (profile.email || p.preferred_username || p.upn) as string | undefined
+        if (!email) return token
         const dbUser = await prisma.user.findUnique({
-          where: { email },
+          where: { email: email.toLowerCase() },
           include: { opleiding: true },
         })
         if (dbUser) {
