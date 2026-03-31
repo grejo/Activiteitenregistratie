@@ -7,11 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const rawCallback = searchParams.get('callbackUrl') || '/dashboard'
-  // Ongeldige callbackUrls (bv. /undefined) terugvallen op /dashboard
-  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.includes('undefined') && !rawCallback.includes('null')
-    ? rawCallback
-    : '/dashboard'
+  // Altijd naar /dashboard sturen — die page stuurt op basis van rol door
+  const callbackUrl = '/dashboard'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

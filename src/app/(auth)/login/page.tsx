@@ -10,9 +10,13 @@ export const metadata = {
 export default async function LoginPage() {
   const session = await auth()
 
-  // Als al ingelogd, redirect naar dashboard
+  // Als al ingelogd, stuur door op basis van rol
   if (session?.user) {
-    redirect('/dashboard')
+    const role = session.user.role
+    if (role === 'admin') redirect('/admin')
+    if (role === 'docent') redirect('/docent')
+    if (role === 'student') redirect('/student')
+    redirect('/no-access')
   }
 
   return (
