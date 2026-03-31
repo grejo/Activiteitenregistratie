@@ -108,6 +108,7 @@ export const authConfig: NextAuthConfig = {
         console.log('[AUTH] preferred_username:', p.preferred_username)
         console.log('[AUTH] upn:', p.upn)
         console.log('[AUTH] unique_name:', p.unique_name)
+        console.log('[AUTH] department:', p.department)
 
         const email = (
           profile.email ||
@@ -118,8 +119,9 @@ export const authConfig: NextAuthConfig = {
 
         const azureAdId = (p.oid as string | undefined) || profile.sub
         const naam = (profile.name as string | undefined) || email || 'Onbekend'
+        const department = p.department as string | undefined
 
-        console.log('[AUTH] resolved email:', email, '| naam:', naam)
+        console.log('[AUTH] resolved email:', email, '| naam:', naam, '| department:', department)
 
         if (!email) {
           console.error('[AUTH] Geen email gevonden in profiel, login geblokkeerd')
@@ -129,6 +131,21 @@ export const authConfig: NextAuthConfig = {
         const normalizedEmail = email.toLowerCase()
 
         try {
+          // Zoek opleiding op basis van department-code (indien aanwezig)
+          let opleidingId: string | null = null
+          if (department) {
+            const opleiding = await prisma.opleiding.findFirst({
+              where: { code: { equals: department, mode: 'insensitive' } },
+              select: { id: true },
+            })
+            if (opleiding) {
+              opleidingId = opleiding.id
+              console.log('[AUTH] Opleiding gevonden via department:', department, '→', opleidingId)
+            } else {
+              console.log('[AUTH] Geen opleiding gevonden voor department:', department)
+            }
+          }
+
           // 1. Zoek op email (case-insensitive)
           let existing = await prisma.user.findFirst({
             where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
@@ -144,19 +161,28 @@ export const authConfig: NextAuthConfig = {
 
           if (!existing) {
             await prisma.user.create({
-              data: { email: normalizedEmail, naam, role: 'student', azureAdId: azureAdId ?? null },
+              data: {
+                email: normalizedEmail,
+                naam,
+                role: 'student',
+                azureAdId: azureAdId ?? null,
+                opleidingId,
+              },
             })
-            console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail)
+            console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail, '| opleiding:', opleidingId)
           } else {
-            // Update email naar lowercase en azureAdId indien nodig
+            // Update email, azureAdId en opleidingId indien nodig
             const needsUpdate =
-              existing.email !== normalizedEmail || (!existing.azureAdId && azureAdId)
+              existing.email !== normalizedEmail ||
+              (!existing.azureAdId && azureAdId) ||
+              (!existing.opleidingId && opleidingId)
             if (needsUpdate) {
               await prisma.user.update({
                 where: { id: existing.id },
                 data: {
                   email: normalizedEmail,
                   azureAdId: existing.azureAdId ?? azureAdId ?? undefined,
+                  opleidingId: existing.opleidingId ?? opleidingId ?? undefined,
                 },
               })
             }
