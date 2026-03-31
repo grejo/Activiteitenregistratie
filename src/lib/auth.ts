@@ -101,29 +101,65 @@ export const authConfig: NextAuthConfig = {
     async signIn({ account, profile }) {
       if (account?.provider === 'microsoft-entra-id' && profile) {
         const p = profile as Record<string, unknown>
-        const email = (profile.email || p.preferred_username || p.upn) as string | undefined
+
+        // Log alle beschikbare profielvelden voor debugging
+        console.log('[AUTH] Microsoft profile keys:', Object.keys(p))
+        console.log('[AUTH] profile.email:', profile.email)
+        console.log('[AUTH] preferred_username:', p.preferred_username)
+        console.log('[AUTH] upn:', p.upn)
+        console.log('[AUTH] unique_name:', p.unique_name)
+
+        const email = (
+          profile.email ||
+          p.preferred_username ||
+          p.upn ||
+          p.unique_name
+        ) as string | undefined
+
         const azureAdId = (p.oid as string | undefined) || profile.sub
         const naam = (profile.name as string | undefined) || email || 'Onbekend'
 
-        if (!email) return false
+        console.log('[AUTH] resolved email:', email, '| naam:', naam)
+
+        if (!email) {
+          console.error('[AUTH] Geen email gevonden in profiel, login geblokkeerd')
+          return false
+        }
 
         const normalizedEmail = email.toLowerCase()
-        const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
-        if (!existing) {
-          await prisma.user.create({
-            data: {
-              email: normalizedEmail,
-              naam,
-              role: 'student',
-              azureAdId: azureAdId ?? null,
-            },
-          })
-        } else if ((!existing.azureAdId && azureAdId) || existing.email !== normalizedEmail) {
-          await prisma.user.update({
-            where: { id: existing.id },
-            data: { azureAdId: azureAdId ?? undefined, email: normalizedEmail },
-          })
+        try {
+          const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+
+          if (!existing) {
+            // Probeer ook op uppercase te zoeken (bestaande records)
+            const existingUpper = await prisma.user.findFirst({
+              where: { email: { equals: email, mode: 'insensitive' } },
+            })
+            if (existingUpper) {
+              await prisma.user.update({
+                where: { id: existingUpper.id },
+                data: { azureAdId: azureAdId ?? undefined, email: normalizedEmail },
+              })
+              console.log('[AUTH] Bestaand account gevonden (case-insensitive), email genormaliseerd')
+            } else {
+              await prisma.user.create({
+                data: { email: normalizedEmail, naam, role: 'student', azureAdId: azureAdId ?? null },
+              })
+              console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail)
+            }
+          } else {
+            if (!existing.azureAdId && azureAdId) {
+              await prisma.user.update({
+                where: { id: existing.id },
+                data: { azureAdId },
+              })
+            }
+            console.log('[AUTH] Bestaand account ingelogd:', normalizedEmail)
+          }
+        } catch (err) {
+          console.error('[AUTH] DB fout tijdens signIn:', err)
+          return false
         }
       }
       return true
@@ -132,10 +168,12 @@ export const authConfig: NextAuthConfig = {
       // SSO login: haal user op via email
       if (account?.provider === 'microsoft-entra-id' && profile) {
         const p = profile as Record<string, unknown>
-        const email = (profile.email || p.preferred_username || p.upn) as string | undefined
+        const email = (
+          profile.email || p.preferred_username || p.upn || p.unique_name
+        ) as string | undefined
         if (!email) return token
-        const dbUser = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: email.toLowerCase(), mode: 'insensitive' } },
           include: { opleiding: true },
         })
         if (dbUser) {
