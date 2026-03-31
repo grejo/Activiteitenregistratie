@@ -14,6 +14,11 @@ export default async function NoAccessPage() {
         <p className="text-pxl-black-light mb-2">
           Je bent aangemeld als <strong>{session?.user?.email}</strong>, maar je account heeft nog geen toegang tot deze applicatie.
         </p>
+        <div className="bg-gray-50 rounded p-3 text-xs text-left text-gray-500 mb-6 space-y-1">
+          <div><strong>Email:</strong> {session?.user?.email ?? '(niet beschikbaar)'}</div>
+          <div><strong>Rol:</strong> {session?.user?.role ?? '(niet ingesteld)'}</div>
+          <div><strong>ID:</strong> {session?.user?.id ?? '(niet ingesteld)'}</div>
+        </div>
         <p className="text-pxl-black-light mb-8">
           Neem contact op met de beheerder om toegang te krijgen.
         </p>
