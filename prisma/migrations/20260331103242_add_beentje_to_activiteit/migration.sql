@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "Beentje" AS ENUM ('PASSIE', 'ONDERNEMEND', 'SAMENWERKING', 'MULTIDISCIPLINAIR', 'REFLECTIE');
+
+-- AlterTable
+ALTER TABLE "Activiteit" ADD COLUMN "beentje" "Beentje";
