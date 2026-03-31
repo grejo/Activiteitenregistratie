@@ -170,23 +170,41 @@ export const authConfig: NextAuthConfig = {
       return true
     },
     async jwt({ token, user, account, profile }) {
-      // SSO login: haal user op via email
+      // SSO login: haal user op via email of azureAdId
       if (account?.provider === 'microsoft-entra-id' && profile) {
         const p = profile as Record<string, unknown>
         const email = (
           profile.email || p.preferred_username || p.upn || p.unique_name
         ) as string | undefined
-        if (!email) return token
-        const dbUser = await prisma.user.findFirst({
-          where: { email: { equals: email.toLowerCase(), mode: 'insensitive' } },
-          include: { opleiding: true },
-        })
+        const azureAdId = (p.oid as string | undefined) || profile.sub
+
+        let dbUser = null
+
+        // 1. Zoek op email (case-insensitive)
+        if (email) {
+          dbUser = await prisma.user.findFirst({
+            where: { email: { equals: email.toLowerCase(), mode: 'insensitive' } },
+            include: { opleiding: true },
+          })
+        }
+
+        // 2. Niet gevonden via email? Probeer azureAdId
+        if (!dbUser && azureAdId) {
+          dbUser = await prisma.user.findFirst({
+            where: { azureAdId },
+            include: { opleiding: true },
+          })
+        }
+
         if (dbUser) {
           token.id = dbUser.id
-          token.role = dbUser.role as UserRole
+          token.role = (dbUser.role || 'student') as UserRole
           token.naam = dbUser.naam
           token.opleidingId = dbUser.opleidingId
-          token.opleidingNaam = dbUser.opleiding?.naam || null
+          token.opleidingNaam = (dbUser as any).opleiding?.naam || null
+          console.log('[JWT] User gevonden:', dbUser.email, '| role:', token.role)
+        } else {
+          console.error('[JWT] Geen user gevonden voor email:', email, 'azureAdId:', azureAdId)
         }
       }
 
