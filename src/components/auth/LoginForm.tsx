@@ -7,7 +7,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const rawCallback = searchParams.get('callbackUrl') || '/dashboard'
+  // Ongeldige callbackUrls (bv. /undefined) terugvallen op /dashboard
+  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.includes('undefined') && !rawCallback.includes('null')
+    ? rawCallback
+    : '/dashboard'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

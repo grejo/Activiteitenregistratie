@@ -45,16 +45,18 @@ export default async function middleware(request: NextRequest) {
   }
 
   // Check rol-gebaseerde toegang
+  const roleFallback = userRole || 'student'
+
   if (pathname.startsWith('/admin') && userRole !== 'admin') {
-    return NextResponse.redirect(new URL(`/${userRole}`, request.url))
+    return NextResponse.redirect(new URL(`/${roleFallback}`, request.url))
   }
 
   if (pathname.startsWith('/docent') && userRole !== 'docent' && userRole !== 'admin') {
-    return NextResponse.redirect(new URL(`/${userRole}`, request.url))
+    return NextResponse.redirect(new URL(`/${roleFallback}`, request.url))
   }
 
   if (pathname.startsWith('/student') && userRole !== 'student' && userRole !== 'admin') {
-    return NextResponse.redirect(new URL(`/${userRole}`, request.url))
+    return NextResponse.redirect(new URL(`/${roleFallback}`, request.url))
   }
 
   return NextResponse.next()
