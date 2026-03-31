@@ -129,30 +129,35 @@ export const authConfig: NextAuthConfig = {
         const normalizedEmail = email.toLowerCase()
 
         try {
-          const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+          // 1. Zoek op email (case-insensitive)
+          let existing = await prisma.user.findFirst({
+            where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+          })
+
+          // 2. Niet gevonden op email? Zoek op azureAdId
+          if (!existing && azureAdId) {
+            existing = await prisma.user.findFirst({ where: { azureAdId } })
+            if (existing) {
+              console.log('[AUTH] Gevonden via azureAdId, email updaten naar:', normalizedEmail)
+            }
+          }
 
           if (!existing) {
-            // Probeer ook op uppercase te zoeken (bestaande records)
-            const existingUpper = await prisma.user.findFirst({
-              where: { email: { equals: email, mode: 'insensitive' } },
+            await prisma.user.create({
+              data: { email: normalizedEmail, naam, role: 'student', azureAdId: azureAdId ?? null },
             })
-            if (existingUpper) {
-              await prisma.user.update({
-                where: { id: existingUpper.id },
-                data: { azureAdId: azureAdId ?? undefined, email: normalizedEmail },
-              })
-              console.log('[AUTH] Bestaand account gevonden (case-insensitive), email genormaliseerd')
-            } else {
-              await prisma.user.create({
-                data: { email: normalizedEmail, naam, role: 'student', azureAdId: azureAdId ?? null },
-              })
-              console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail)
-            }
+            console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail)
           } else {
-            if (!existing.azureAdId && azureAdId) {
+            // Update email naar lowercase en azureAdId indien nodig
+            const needsUpdate =
+              existing.email !== normalizedEmail || (!existing.azureAdId && azureAdId)
+            if (needsUpdate) {
               await prisma.user.update({
                 where: { id: existing.id },
-                data: { azureAdId },
+                data: {
+                  email: normalizedEmail,
+                  azureAdId: existing.azureAdId ?? azureAdId ?? undefined,
+                },
               })
             }
             console.log('[AUTH] Bestaand account ingelogd:', normalizedEmail)
