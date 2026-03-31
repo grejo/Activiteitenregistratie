@@ -143,29 +143,21 @@ function BeentjeLabel({
 // ---------- main component ----------
 
 export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: Props) {
-  const boxes = [
-    // REFLECTIE – top centre
-    { beentje: 'REFLECTIE',       lines: ['REFLECTIE'],                            x: 254, y: 10,  w: 212, h: 42 },
-    // PASSIE – left middle
-    { beentje: 'PASSIE',          lines: ['(em)passie'],                           x: 10,  y: 218, w: 158, h: 42 },
-    // ONDERNEMEND – right middle
-    { beentje: 'ONDERNEMEND',     lines: ['ondernemend', '& innovatief'],           x: 552, y: 210, w: 158, h: 54 },
-    // SAMENWERKING – bottom left
-    { beentje: 'SAMENWERKING',    lines: ['(internationaal)', 'samen(net)werken'],  x: 10,  y: 368, w: 208, h: 54 },
-    // MULTIDISCIPLINAIR – bottom right
-    { beentje: 'MULTIDISCIPLINAIR', lines: ['multi- &', 'disciplinariteit'],        x: 502, y: 368, w: 208, h: 54 },
+  const allBoxes = [
+    { beentje: 'REFLECTIE',         lines: ['REFLECTIE'],                            x: 254, y: 10,  w: 212, h: 42, connector: [CX, 10 + 42, CX, CY - RING_R] as [number,number,number,number] },
+    { beentje: 'PASSIE',            lines: ['(em)passie'],                           x: 10,  y: 218, w: 158, h: 42, connector: [10 + 158, 218 + 21, CX - RING_R, CY] as [number,number,number,number] },
+    { beentje: 'ONDERNEMEND',       lines: ['ondernemend', '& innovatief'],           x: 552, y: 210, w: 158, h: 54, connector: [552, 210 + 27, CX + RING_R, CY] as [number,number,number,number] },
+    { beentje: 'SAMENWERKING',      lines: ['(internationaal)', 'samen(net)werken'],  x: 10,  y: 368, w: 208, h: 54, connector: [10 + 208, 368, CX - 0.707 * RING_R, CY + 0.707 * RING_R] as [number,number,number,number] },
+    { beentje: 'MULTIDISCIPLINAIR', lines: ['multi- &', 'disciplinariteit'],          x: 502, y: 368, w: 208, h: 54, connector: [502, 368, CX + 0.707 * RING_R, CY + 0.707 * RING_R] as [number,number,number,number] },
   ]
 
-  const connectors: [number, number, number, number][] = [
-    [CX,            10 + 42,   CX,            CY - RING_R],
-    [10 + 158,      218 + 21,  CX - RING_R,  CY],
-    [552,           210 + 27,  CX + RING_R,  CY],
-    [10 + 208,      368,       CX - 0.707 * RING_R, CY + 0.707 * RING_R],
-    [502,           368,       CX + 0.707 * RING_R, CY + 0.707 * RING_R],
-    [CX,            CY + RING_R, CX, 443],
-  ]
+  const boxes = allBoxes.filter((box) => {
+    const vereistVeld = BEENTJE_VEREIST_VELD[box.beentje] as keyof OpleidingTarget
+    return target?.[vereistVeld] ?? true // toon altijd als er geen target is
+  })
 
   const duurzX = 290, duurzY = 443, duurzW = 140, duurzH = 34
+  const toonDuurzaamheid = target ? target.duurzaamheidVereist : true
   const duurzaamheidBehaald = (target?.duurzaamheidVereist ?? false) && heeftDuurzaamheid
 
   return (
@@ -187,10 +179,10 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
           </clipPath>
         </defs>
 
-        {/* Connectorlijnen */}
-        {connectors.map(([x1, y1, x2, y2], i) => (
+        {/* Connectorlijnen voor actieve beentjes */}
+        {boxes.map(({ beentje, connector: [x1, y1, x2, y2] }) => (
           <line
-            key={i}
+            key={beentje}
             x1={x1} y1={y1} x2={x2} y2={y2}
             stroke="#888"
             strokeWidth={1.5}
@@ -198,6 +190,15 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
             markerStart="url(#xf-arrow-start)"
           />
         ))}
+        {/* Connector duurzaamheid */}
+        {toonDuurzaamheid && (
+          <line
+            x1={CX} y1={CY + RING_R} x2={CX} y2={443}
+            stroke="#888" strokeWidth={1.5}
+            markerEnd="url(#xf-arrow-end)"
+            markerStart="url(#xf-arrow-start)"
+          />
+        )}
 
         {/* Buitenste ring */}
         <circle cx={CX} cy={CY} r={RING_R} fill="none" stroke="#111" strokeWidth={1.5} />
@@ -233,19 +234,23 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
           />
         ))}
 
-        {/* DUURZAAM label */}
-        <rect x={duurzX} y={duurzY} width={duurzW} height={duurzH} rx={8} fill="white" stroke="#c4c4c4" strokeWidth={1.5} />
-        <text
-          x={duurzX + duurzW / 2} y={duurzY + duurzH / 2 + 4}
-          textAnchor="middle"
-          fontSize={11} fontWeight="800" fill={DARK}
-          letterSpacing={1.5}
-          fontFamily="system-ui, -apple-system, sans-serif"
-        >
-          DUURZAAM
-        </text>
-        {duurzaamheidBehaald && (
-          <Checkmark cx={duurzX + duurzW - 12} cy={duurzY + duurzH / 2} r={9} />
+        {/* DUURZAAM label – alleen tonen als vereist */}
+        {toonDuurzaamheid && (
+          <>
+            <rect x={duurzX} y={duurzY} width={duurzW} height={duurzH} rx={8} fill="white" stroke="#c4c4c4" strokeWidth={1.5} />
+            <text
+              x={duurzX + duurzW / 2} y={duurzY + duurzH / 2 + 4}
+              textAnchor="middle"
+              fontSize={11} fontWeight="800" fill={DARK}
+              letterSpacing={1.5}
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              DUURZAAM
+            </text>
+            {duurzaamheidBehaald && (
+              <Checkmark cx={duurzX + duurzW - 12} cy={duurzY + duurzH / 2} r={9} />
+            )}
+          </>
         )}
       </svg>
     </div>

@@ -143,10 +143,7 @@ export default function ScorekaartView({
         <h1 className="font-heading font-black text-3xl text-pxl-black gold-underline inline-block">
           Scorekaart
         </h1>
-        <p className="text-pxl-black-light mt-4">
-          Bekijk je voortgang voor schooljaar {schooljaar}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <span className="px-3 py-1 bg-pxl-gold-light text-pxl-black rounded-full text-sm font-medium">
             {studentNaam}
           </span>
@@ -295,8 +292,39 @@ export default function ScorekaartView({
                 const doel = (target?.[`doelNiveau${n}` as keyof OpleidingTarget] ?? 0) as number
                 const behaaldN = totaalVoorNiveau(n, voortgang)
                 return (
-                  <td key={n} className={`py-2 px-3 text-center border border-gray-200 ${doel > 0 && behaaldN >= doel ? 'text-green-600 font-bold not-italic' : ''}`}>
+                  <td key={n} className="py-2 px-3 text-center border border-gray-200">
                     {doel > 0 ? doel : '—'}
+                  </td>
+                )
+              })}
+              <td className="border border-gray-200" />
+              <td className="border border-gray-200" />
+            </tr>
+
+            {/* Status rij per niveau */}
+            <tr>
+              <td className="py-2 px-3 text-center text-xs font-semibold text-gray-500 border border-gray-200">Status</td>
+              {NIVEAUS.map((n) => {
+                const doel = (target?.[`doelNiveau${n}` as keyof OpleidingTarget] ?? 0) as number
+                const behaaldN = totaalVoorNiveau(n, voortgang)
+                if (doel === 0) {
+                  return (
+                    <td key={n} className="py-2 px-3 text-center border border-gray-200">
+                      <span className="text-xs text-gray-300 italic">—</span>
+                    </td>
+                  )
+                }
+                return behaaldN >= doel ? (
+                  <td key={n} className="py-2 px-3 text-center border border-gray-200">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                      ✓ Behaald
+                    </span>
+                  </td>
+                ) : (
+                  <td key={n} className="py-2 px-3 text-center border border-gray-200">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
+                      {doel - behaaldN} nog nodig
+                    </span>
                   </td>
                 )
               })}
