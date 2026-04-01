@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 type Bewijsstuk = {
   id: string
@@ -53,6 +54,7 @@ export default function BewijsstukkenBeoordelenTable({
   const [processingAction, setProcessingAction] = useState<'goedkeuren' | 'afkeuren' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
+  const [previewBewijsstuk, setPreviewBewijsstuk] = useState<Bewijsstuk | null>(null)
 
   const handleAction = async (actie: 'goedkeuren' | 'afkeuren') => {
     if (!selectedInschrijving) return
@@ -80,6 +82,7 @@ export default function BewijsstukkenBeoordelenTable({
 
       // Sluit modal en reset state
       setSelectedInschrijving(null)
+      setPreviewBewijsstuk(null)
       setFeedback('')
       setProcessingAction(null)
 
@@ -96,13 +99,18 @@ export default function BewijsstukkenBeoordelenTable({
 
   const getFileIcon = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase()
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
-      return '🖼️'
-    }
-    if (ext === 'pdf') {
-      return '📄'
-    }
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return '🖼️'
+    if (ext === 'pdf') return '📄'
     return '📎'
+  }
+
+  const isImage = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase()
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')
+  }
+
+  const isPdf = (filename: string) => {
+    return filename.split('.').pop()?.toLowerCase() === 'pdf'
   }
 
   return (
@@ -187,6 +195,7 @@ export default function BewijsstukkenBeoordelenTable({
                           setSelectedInschrijving(inschrijving)
                           setFeedback('')
                           setError(null)
+                          setPreviewBewijsstuk(null)
                         }}
                         className="inline-flex items-center px-3 py-1.5 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium transition-colors"
                       >
@@ -221,7 +230,7 @@ export default function BewijsstukkenBeoordelenTable({
                 Bewijsstukken Beoordelen
               </h2>
               <button
-                onClick={() => setSelectedInschrijving(null)}
+                onClick={() => { setSelectedInschrijving(null); setPreviewBewijsstuk(null) }}
                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
                 &times;
@@ -278,37 +287,75 @@ export default function BewijsstukkenBeoordelenTable({
                 </h4>
                 <div className="space-y-2">
                   {selectedInschrijving.bewijsstukken.map((bewijsstuk) => (
-                    <div
-                      key={bewijsstuk.id}
-                      className="flex items-center justify-between bg-gray-50 rounded-lg p-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-2xl">{getFileIcon(bewijsstuk.bestandsnaam)}</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {bewijsstuk.bestandsnaam}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span>{typeLabels[bewijsstuk.type] || bewijsstuk.type}</span>
-                            <span>•</span>
-                            <span>
-                              {new Date(bewijsstuk.uploadedAt).toLocaleDateString('nl-BE', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })}
-                            </span>
+                    <div key={bewijsstuk.id}>
+                      <button
+                        onClick={() =>
+                          setPreviewBewijsstuk(
+                            previewBewijsstuk?.id === bewijsstuk.id ? null : bewijsstuk
+                          )
+                        }
+                        className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-lg p-3 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-2xl">{getFileIcon(bewijsstuk.bestandsnaam)}</span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              {bewijsstuk.bestandsnaam}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span>{typeLabels[bewijsstuk.type] || bewijsstuk.type}</span>
+                              <span>•</span>
+                              <span>
+                                {new Date(bewijsstuk.uploadedAt).toLocaleDateString('nl-BE', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <a
-                        href={bewijsstuk.bestandspad}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium transition-colors"
-                      >
-                        Bekijken
-                      </a>
+                        <span className="text-xs text-blue-600 font-medium ml-2 shrink-0">
+                          {previewBewijsstuk?.id === bewijsstuk.id ? 'Verbergen' : 'Bekijken'}
+                        </span>
+                      </button>
+
+                      {previewBewijsstuk?.id === bewijsstuk.id && (
+                        <div className="mt-2 rounded-lg overflow-hidden border bg-gray-900">
+                          {isImage(bewijsstuk.bestandsnaam) ? (
+                            <div className="relative w-full" style={{ minHeight: '200px' }}>
+                              <Image
+                                src={bewijsstuk.bestandspad}
+                                alt={bewijsstuk.bestandsnaam}
+                                width={800}
+                                height={600}
+                                className="w-full h-auto max-h-[60vh] object-contain"
+                                unoptimized
+                              />
+                            </div>
+                          ) : isPdf(bewijsstuk.bestandsnaam) ? (
+                            <iframe
+                              src={bewijsstuk.bestandspad}
+                              className="w-full"
+                              style={{ height: '60vh' }}
+                              title={bewijsstuk.bestandsnaam}
+                            />
+                          ) : (
+                            <div className="p-6 text-center text-gray-400">
+                              <div className="text-4xl mb-2">📎</div>
+                              <p className="text-sm">Geen preview beschikbaar</p>
+                              <a
+                                href={bewijsstuk.bestandspad}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-block text-blue-400 underline text-sm"
+                              >
+                                Bestand openen
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -339,7 +386,7 @@ export default function BewijsstukkenBeoordelenTable({
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
               <button
-                onClick={() => setSelectedInschrijving(null)}
+                onClick={() => { setSelectedInschrijving(null); setPreviewBewijsstuk(null) }}
                 disabled={processingAction !== null}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
               >

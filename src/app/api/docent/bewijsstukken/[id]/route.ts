@@ -69,7 +69,7 @@ export async function PATCH(
       const opleidingIds = docentOpleidingen.map(d => d.opleidingId)
       const studentOpleidingId = inschrijving.student.opleidingId
 
-      if (studentOpleidingId && !opleidingIds.includes(studentOpleidingId)) {
+      if (opleidingIds.length > 0 && studentOpleidingId && !opleidingIds.includes(studentOpleidingId)) {
         return NextResponse.json({ error: 'Geen toegang tot deze student' }, { status: 403 })
       }
     }

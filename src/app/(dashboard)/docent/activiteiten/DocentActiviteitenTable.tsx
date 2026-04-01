@@ -85,6 +85,8 @@ export default function DocentActiviteitenTable({
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 10
   const [showModal, setShowModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -111,6 +113,12 @@ export default function DocentActiviteitenTable({
 
     return filtered
   }, [activiteiten, statusFilter, searchQuery])
+
+  const totalPages = Math.ceil(filteredActiviteiten.length / PAGE_SIZE)
+  const paginatedActiviteiten = filteredActiviteiten.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -232,7 +240,7 @@ export default function DocentActiviteitenTable({
               type="text"
               placeholder="Zoek op titel of omschrijving..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
               className="input-field w-full"
             />
           </div>
@@ -244,7 +252,7 @@ export default function DocentActiviteitenTable({
             <select
               id="status-filter"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
               className="input-field w-48"
             >
               <option value="all">Alle statussen</option>
@@ -262,6 +270,7 @@ export default function DocentActiviteitenTable({
               onClick={() => {
                 setStatusFilter('all')
                 setSearchQuery('')
+                setCurrentPage(1)
               }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
@@ -301,7 +310,7 @@ export default function DocentActiviteitenTable({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredActiviteiten.map((activiteit) => {
+              {paginatedActiviteiten.map((activiteit) => {
                 const isPast = new Date(activiteit.datum) < new Date()
                 return (
                   <tr key={activiteit.id} className={isPast ? 'bg-gray-50' : ''}>
@@ -357,6 +366,42 @@ export default function DocentActiviteitenTable({
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+            <div className="text-sm text-gray-500">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredActiviteiten.length)} van {filteredActiviteiten.length} activiteiten
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Vorige
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1.5 text-sm border rounded ${
+                    page === currentPage
+                      ? 'bg-pxl-gold text-white border-pxl-gold'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Volgende
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {filteredActiviteiten.length === 0 && (

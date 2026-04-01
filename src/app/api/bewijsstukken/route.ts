@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import sharp from 'sharp'
 
 export async function POST(request: Request) {
   try {
@@ -100,19 +101,34 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create unique filename
-    const fileExtension = path.extname(file.name)
-    const uniqueFilename = `${uuidv4()}${fileExtension}`
-
     // Create upload directory if it doesn't exist
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'bewijsstukken')
     await mkdir(uploadDir, { recursive: true })
 
+    const bytes = await file.arrayBuffer()
+    const inputBuffer = Buffer.from(bytes)
+
+    // Compress images, save PDFs as-is
+    const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
+    let outputBuffer: Buffer
+    let uniqueFilename: string
+
+    if (isImage) {
+      // Convert all images to webp for maximum compression
+      uniqueFilename = `${uuidv4()}.webp`
+      outputBuffer = await sharp(inputBuffer)
+        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer()
+    } else {
+      const fileExtension = path.extname(file.name)
+      uniqueFilename = `${uuidv4()}${fileExtension}`
+      outputBuffer = inputBuffer
+    }
+
     // Save file
     const filePath = path.join(uploadDir, uniqueFilename)
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
+    await writeFile(filePath, outputBuffer)
 
     // Save to database
     const bewijsstuk = await prisma.bewijsstuk.create({

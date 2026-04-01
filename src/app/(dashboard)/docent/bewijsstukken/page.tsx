@@ -7,22 +7,33 @@ export const metadata = {
   title: 'Bewijsstukken Beoordelen - Docent',
 }
 
-async function getIngediendeBewijsstukken(docentId: string) {
-  // Haal opleidingen van de docent op
-  const docentOpleidingen = await prisma.docentOpleiding.findMany({
-    where: { docentId },
-    select: { opleidingId: true },
-  })
+async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
+  let whereClause: Record<string, unknown> = { bewijsStatus: 'ingediend' }
 
-  const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
+  if (!isAdmin) {
+    // Haal opleidingen van de docent op
+    const docentOpleidingen = await prisma.docentOpleiding.findMany({
+      where: { docentId },
+      select: { opleidingId: true },
+    })
+    const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
+
+    if (opleidingIds.length > 0) {
+      // Docent is gekoppeld aan opleidingen: filter op activiteit.opleidingId of student.opleidingId
+      whereClause = {
+        bewijsStatus: 'ingediend',
+        OR: [
+          { activiteit: { opleidingId: { in: opleidingIds } } },
+          { activiteit: { aangemaaktDoorId: docentId } },
+          { student: { opleidingId: { in: opleidingIds } } },
+        ],
+      }
+    }
+    // Als docent geen opleiding-links heeft: toon alle ingediende bewijsstukken
+  }
 
   const inschrijvingen = await prisma.inschrijving.findMany({
-    where: {
-      bewijsStatus: 'ingediend',
-      student: {
-        opleidingId: { in: opleidingIds },
-      },
-    },
+    where: whereClause,
     include: {
       bewijsstukken: {
         orderBy: { uploadedAt: 'desc' },
@@ -76,7 +87,7 @@ export default async function BewijsstukkenPage() {
     redirect('/login')
   }
 
-  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id)
+  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id, session.user.role === 'admin')
 
   return <BewijsstukkenBeoordelenTable inschrijvingen={inschrijvingen} />
 }

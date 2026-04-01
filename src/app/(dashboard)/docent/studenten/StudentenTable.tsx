@@ -47,6 +47,8 @@ export default function StudentenTable({
   const [searchQuery, setSearchQuery] = useState('')
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 10
 
   const filteredStudenten = useMemo(() => {
     let filtered = studenten
@@ -66,6 +68,12 @@ export default function StudentenTable({
 
     return filtered
   }, [studenten, opleidingFilter, searchQuery])
+
+  const totalPages = Math.ceil(filteredStudenten.length / PAGE_SIZE)
+  const paginatedStudenten = filteredStudenten.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
 
   const stats = useMemo(() => {
     const totalStudenten = studenten.length
@@ -109,7 +117,7 @@ export default function StudentenTable({
               type="text"
               placeholder="Zoek op naam of email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
               className="input-field w-full"
             />
           </div>
@@ -122,7 +130,7 @@ export default function StudentenTable({
               <select
                 id="opleiding-filter"
                 value={opleidingFilter}
-                onChange={(e) => setOpleidingFilter(e.target.value)}
+                onChange={(e) => { setOpleidingFilter(e.target.value); setCurrentPage(1) }}
                 className="input-field w-48"
               >
                 <option value="all">Alle opleidingen</option>
@@ -140,6 +148,7 @@ export default function StudentenTable({
               onClick={() => {
                 setOpleidingFilter('all')
                 setSearchQuery('')
+                setCurrentPage(1)
               }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
@@ -174,7 +183,7 @@ export default function StudentenTable({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudenten.map((student) => {
+                {paginatedStudenten.map((student) => {
                   const laatsteInschrijving = student.inschrijvingen[0]
                   return (
                     <tr key={student.id}>
@@ -226,6 +235,42 @@ export default function StudentenTable({
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+              <div className="text-sm text-gray-500">
+                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredStudenten.length)} van {filteredStudenten.length} studenten
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Vorige
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 text-sm border rounded ${
+                      page === currentPage
+                        ? 'bg-pxl-gold text-white border-pxl-gold'
+                        : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Volgende
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card text-center py-12">
