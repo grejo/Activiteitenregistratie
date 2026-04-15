@@ -12,7 +12,7 @@ export async function POST(
     const session = await auth()
 
     if (session?.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 })
+      return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 403 })
     }
 
     const { id } = await params
