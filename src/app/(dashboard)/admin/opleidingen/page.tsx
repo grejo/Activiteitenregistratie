@@ -22,6 +22,14 @@ async function getOpleidingen() {
   })
 }
 
+async function getAlleDocenten() {
+  return await prisma.user.findMany({
+    where: { role: 'docent', actief: true },
+    select: { id: true, naam: true, email: true },
+    orderBy: { naam: 'asc' },
+  })
+}
+
 export default async function OpleidingenPage() {
   const session = await auth()
 
@@ -29,7 +37,10 @@ export default async function OpleidingenPage() {
     redirect('/dashboard')
   }
 
-  const opleidingen = await getOpleidingen()
+  const [opleidingen, alleDocenten] = await Promise.all([
+    getOpleidingen(),
+    getAlleDocenten(),
+  ])
 
   return (
     <div className="space-y-8">
@@ -67,7 +78,7 @@ export default async function OpleidingenPage() {
       </div>
 
       {/* Opleidingen Grid with Modal */}
-      <OpleidingenGrid opleidingen={opleidingen} />
+      <OpleidingenGrid opleidingen={opleidingen} alleDocenten={alleDocenten} />
     </div>
   )
 }
