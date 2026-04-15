@@ -57,7 +57,13 @@ export default async function EditUserPage({
 
       {/* Form */}
       <div className="card max-w-2xl">
-        <EditUserForm user={user} opleidingen={opleidingen} />
+        <EditUserForm
+          user={{
+            ...user,
+            gearchiveerdOp: user.gearchiveerdOp?.toISOString() ?? null,
+          }}
+          opleidingen={opleidingen}
+        />
       </div>
     </div>
   )

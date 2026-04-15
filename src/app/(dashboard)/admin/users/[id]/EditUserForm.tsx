@@ -10,6 +10,7 @@ type User = {
   role: string
   actief: boolean
   opleidingId: string | null
+  gearchiveerdOp: string | null
   opleiding: {
     id: string
     naam: string
@@ -32,6 +33,8 @@ export default function EditUserForm({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showArchiveerConfirm, setShowArchiveerConfirm] = useState(false)
+  const [isArchivering, setIsArchivering] = useState(false)
   const [formData, setFormData] = useState({
     naam: user.naam,
     email: user.email,
@@ -94,6 +97,26 @@ export default function EditUserForm({
       setShowDeleteConfirm(false)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleArchiveer = async () => {
+    setIsArchivering(true)
+    try {
+      const res = await fetch(`/api/admin/studenten/${user.id}/archiveer`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        router.push('/admin/studenten')
+        router.refresh()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Er is een fout opgetreden')
+      }
+    } catch {
+      alert('Er is een fout opgetreden')
+    } finally {
+      setIsArchivering(false)
     }
   }
 
@@ -246,6 +269,75 @@ export default function EditUserForm({
           Annuleren
         </button>
       </div>
+
+      {/* Archiveer sectie — alleen voor studenten die nog niet gearchiveerd zijn */}
+      {user.role === 'student' && !user.gearchiveerdOp && (
+        <div className="pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-medium text-amber-600 mb-2">Student Archiveren</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Archiveer deze student na het afstuderen. Alle bewijsstukken worden permanent
+            verwijderd. De overige gegevens blijven bewaard.
+          </p>
+          {!showArchiveerConfirm ? (
+            <button
+              type="button"
+              onClick={() => setShowArchiveerConfirm(true)}
+              className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+              disabled={isLoading}
+            >
+              Student Archiveren
+            </button>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded space-y-3">
+              <p className="text-sm text-amber-800 font-medium">
+                Weet je zeker dat je deze student wilt archiveren?
+              </p>
+              <p className="text-sm text-amber-700">
+                Alle bewijsstukbestanden (foto&apos;s, pdf&apos;s) worden permanent verwijderd.
+                Dit kan niet ongedaan gemaakt worden. De overige gegevens blijven bewaard.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleArchiveer}
+                  disabled={isArchivering}
+                  className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+                >
+                  {isArchivering ? 'Bezig...' : 'Ja, Archiveren'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveerConfirm(false)}
+                  disabled={isArchivering}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+                >
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toon badge als student al gearchiveerd is */}
+      {user.gearchiveerdOp && (
+        <div className="pt-6 border-t border-gray-200">
+          <div className="bg-gray-50 border border-gray-200 p-4 rounded">
+            <p className="text-sm text-gray-700 font-medium">
+              Deze student is gearchiveerd op{' '}
+              {new Date(user.gearchiveerdOp).toLocaleDateString('nl-BE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
+              .
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Alle bewijsstukken zijn verwijderd. De overige gegevens blijven bewaard.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Delete Section */}
       <div className="pt-6 border-t border-gray-200">
