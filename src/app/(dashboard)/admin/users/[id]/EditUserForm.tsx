@@ -111,10 +111,10 @@ export default function EditUserForm({
         router.refresh()
       } else {
         const data = await res.json()
-        alert(data.error || 'Er is een fout opgetreden')
+        setError(data.error || 'Er is een fout opgetreden')
       }
     } catch {
-      alert('Er is een fout opgetreden')
+      setError('Er is een fout opgetreden')
     } finally {
       setIsArchivering(false)
     }
@@ -283,7 +283,7 @@ export default function EditUserForm({
               type="button"
               onClick={() => setShowArchiveerConfirm(true)}
               className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
-              disabled={isLoading}
+              disabled={isLoading || isArchivering}
             >
               Student Archiveren
             </button>
