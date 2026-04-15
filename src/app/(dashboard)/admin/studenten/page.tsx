@@ -50,6 +50,7 @@ async function getStudenten() {
     ...s,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
+    gearchiveerdOp: s.gearchiveerdOp?.toISOString() || null,
     inschrijvingen: s.inschrijvingen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),

@@ -22,6 +22,7 @@ type Student = {
   email: string
   actief: boolean
   createdAt: string
+  gearchiveerdOp: string | null
   opleiding: {
     id: string
     naam: string
@@ -63,9 +64,12 @@ export default function AdminStudentenTable({
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter((s) =>
-        statusFilter === 'actief' ? s.actief : !s.actief
-      )
+      filtered = filtered.filter((s) => {
+        if (statusFilter === 'actief') return s.actief
+        if (statusFilter === 'gearchiveerd') return !!s.gearchiveerdOp
+        if (statusFilter === 'inactief') return !s.actief && !s.gearchiveerdOp
+        return true
+      })
     }
 
     if (searchQuery) {
@@ -96,8 +100,9 @@ export default function AdminStudentenTable({
     const actiefStudenten = studenten.filter((s) => s.actief).length
     const totalDeelnames = studenten.reduce((sum, s) => sum + s._count.inschrijvingen, 0)
     const zonderOpleiding = studenten.filter((s) => !s.opleiding).length
+    const gearchiveerdStudenten = studenten.filter((s) => !!s.gearchiveerdOp).length
 
-    return { totalStudenten, actiefStudenten, totalDeelnames, zonderOpleiding }
+    return { totalStudenten, actiefStudenten, totalDeelnames, zonderOpleiding, gearchiveerdStudenten }
   }, [studenten])
 
   return (
@@ -113,7 +118,7 @@ export default function AdminStudentenTable({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="card-flat">
           <div className="text-sm text-pxl-black-light">Totaal Studenten</div>
           <div className="text-2xl font-bold text-pxl-gold">{stats.totalStudenten}</div>
@@ -129,6 +134,10 @@ export default function AdminStudentenTable({
         <div className="card-flat">
           <div className="text-sm text-pxl-black-light">Zonder Opleiding</div>
           <div className="text-2xl font-bold text-orange-600">{stats.zonderOpleiding}</div>
+        </div>
+        <div className="card-flat">
+          <div className="text-sm text-pxl-black-light">Gearchiveerd</div>
+          <div className="text-2xl font-bold text-purple-600">{stats.gearchiveerdStudenten}</div>
         </div>
       </div>
 
@@ -178,6 +187,7 @@ export default function AdminStudentenTable({
               <option value="all">Alle</option>
               <option value="actief">Actief</option>
               <option value="inactief">Inactief</option>
+              <option value="gearchiveerd">Gearchiveerd</option>
             </select>
           </div>
 
@@ -238,12 +248,16 @@ export default function AdminStudentenTable({
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        {student.actief ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                        {student.gearchiveerdOp ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                            Gearchiveerd
+                          </span>
+                        ) : student.actief ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                             Actief
                           </span>
                         ) : (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                             Inactief
                           </span>
                         )}
