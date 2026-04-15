@@ -47,6 +47,7 @@ async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
           startuur: true,
           einduur: true,
           locatie: true,
+          niveau: true,
         },
       },
       student: {

@@ -98,6 +98,7 @@ export async function PATCH(
       maxPlaatsen,
       status,
       opleidingId,
+      niveau,
     } = body
 
     const activiteit = await prisma.activiteit.update({
@@ -119,6 +120,7 @@ export async function PATCH(
         maxPlaatsen: maxPlaatsen || null,
         status,
         opleidingId: opleidingId || null,
+        niveau: niveau ? parseInt(niveau) : null,
       },
     })
 

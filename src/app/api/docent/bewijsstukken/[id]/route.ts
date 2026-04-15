@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const { id: inschrijvingId } = await params
-    const { actie, feedback } = await request.json()
+    const { actie, feedback, niveau } = await request.json()
 
     if (!actie || !['goedkeuren', 'afkeuren'].includes(actie)) {
       return NextResponse.json(
@@ -89,6 +89,17 @@ export async function PATCH(
     // Bij goedkeuring: zet effectieveDeelname op true
     if (actie === 'goedkeuren') {
       updateData.effectieveDeelname = true
+    }
+
+    // Pas niveau aan op de activiteit als opgegeven
+    if (niveau) {
+      const parsedNiveau = parseInt(niveau)
+      if ([1, 2, 3, 4].includes(parsedNiveau)) {
+        await prisma.activiteit.update({
+          where: { id: inschrijving.activiteitId },
+          data: { niveau: parsedNiveau },
+        })
+      }
     }
 
     const updatedInschrijving = await prisma.inschrijving.update({

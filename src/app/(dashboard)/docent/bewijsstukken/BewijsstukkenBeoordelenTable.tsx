@@ -25,6 +25,7 @@ type Inschrijving = {
     startuur: string
     einduur: string
     locatie: string | null
+    niveau: number | null
   }
   student: {
     id: string
@@ -54,6 +55,7 @@ export default function BewijsstukkenBeoordelenTable({
   const [processingAction, setProcessingAction] = useState<'goedkeuren' | 'afkeuren' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
+  const [niveau, setNiveau] = useState('')
   const [previewBewijsstuk, setPreviewBewijsstuk] = useState<Bewijsstuk | null>(null)
 
   const handleAction = async (actie: 'goedkeuren' | 'afkeuren') => {
@@ -71,7 +73,7 @@ export default function BewijsstukkenBeoordelenTable({
       const response = await fetch(`/api/docent/bewijsstukken/${selectedInschrijving.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actie, feedback: feedback.trim() || null }),
+        body: JSON.stringify({ actie, feedback: feedback.trim() || null, niveau: niveau || null }),
       })
 
       const data = await response.json()
@@ -84,6 +86,7 @@ export default function BewijsstukkenBeoordelenTable({
       setSelectedInschrijving(null)
       setPreviewBewijsstuk(null)
       setFeedback('')
+      setNiveau('')
       setProcessingAction(null)
 
       // Trigger event om navbar counts te refreshen
@@ -194,6 +197,7 @@ export default function BewijsstukkenBeoordelenTable({
                         onClick={() => {
                           setSelectedInschrijving(inschrijving)
                           setFeedback('')
+                          setNiveau(inschrijving.activiteit.niveau?.toString() || '')
                           setError(null)
                           setPreviewBewijsstuk(null)
                         }}
@@ -361,8 +365,32 @@ export default function BewijsstukkenBeoordelenTable({
                 </div>
               </div>
 
-              {/* Feedback */}
+              {/* Niveau aanpassen */}
               <div className="border-t pt-4">
+                <label htmlFor="niveau" className="block text-sm font-medium text-gray-700 mb-1">
+                  Niveau aanpassen
+                </label>
+                <select
+                  id="niveau"
+                  value={niveau}
+                  onChange={(e) => setNiveau(e.target.value)}
+                  className="input-field w-full"
+                >
+                  <option value="">— Ongewijzigd —</option>
+                  <option value="1">Niveau 1</option>
+                  <option value="2">Niveau 2</option>
+                  <option value="3">Niveau 3</option>
+                  <option value="4">Niveau 4</option>
+                </select>
+                {selectedInschrijving.activiteit.niveau && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Huidig niveau: {selectedInschrijving.activiteit.niveau}
+                  </p>
+                )}
+              </div>
+
+              {/* Feedback */}
+              <div>
                 <label htmlFor="feedback" className="block text-sm font-medium text-gray-700 mb-1">
                   Feedback (verplicht bij afkeuring)
                 </label>

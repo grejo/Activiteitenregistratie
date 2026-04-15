@@ -24,6 +24,7 @@ type Activiteit = {
   bewijslink: string | null
   verplichtProfiel: string | null
   maxPlaatsen: number | null
+  niveau: number | null
   status: string
   typeAanvraag: string
   opleidingId: string | null
@@ -61,6 +62,7 @@ export default function DocentActiviteitForm({
     maxPlaatsen: activiteit?.maxPlaatsen || null,
     status: activiteit?.status || 'gepubliceerd',
     opleidingId: activiteit?.opleidingId || '',
+    niveau: activiteit?.niveau?.toString() || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,6 +84,7 @@ export default function DocentActiviteitForm({
           ...formData,
           maxPlaatsen: formData.maxPlaatsen ? Number(formData.maxPlaatsen) : null,
           opleidingId: formData.opleidingId,
+          niveau: formData.niveau ? Number(formData.niveau) : null,
         }),
       })
 
@@ -323,7 +326,7 @@ export default function DocentActiviteitForm({
         </div>
       </div>
 
-      {/* Opleiding & Max Plaatsen */}
+      {/* Opleiding & Niveau */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label
@@ -351,22 +354,46 @@ export default function DocentActiviteitForm({
 
         <div>
           <label
-            htmlFor="maxPlaatsen"
+            htmlFor="niveau"
             className="block text-sm font-medium text-gray-700"
           >
-            Max Plaatsen
+            Niveau *
           </label>
-          <input
-            type="number"
-            id="maxPlaatsen"
-            name="maxPlaatsen"
-            min="0"
-            value={formData.maxPlaatsen || ''}
+          <select
+            id="niveau"
+            name="niveau"
+            required
+            value={formData.niveau}
             onChange={handleChange}
             className="input-field mt-1"
-            placeholder="Laat leeg voor onbeperkt"
-          />
+          >
+            <option value="" disabled>— Kies een niveau —</option>
+            <option value="1">Niveau 1</option>
+            <option value="2">Niveau 2</option>
+            <option value="3">Niveau 3</option>
+            <option value="4">Niveau 4</option>
+          </select>
         </div>
+      </div>
+
+      {/* Max Plaatsen */}
+      <div>
+        <label
+          htmlFor="maxPlaatsen"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Max Plaatsen
+        </label>
+        <input
+          type="number"
+          id="maxPlaatsen"
+          name="maxPlaatsen"
+          min="0"
+          value={formData.maxPlaatsen || ''}
+          onChange={handleChange}
+          className="input-field mt-1"
+          placeholder="Laat leeg voor onbeperkt"
+        />
       </div>
 
       {/* Status */}
