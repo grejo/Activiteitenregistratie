@@ -16,7 +16,10 @@ export default async function UsersPage() {
 
   const [users, opleidingen] = await Promise.all([
     prisma.user.findMany({
-      include: { opleiding: true },
+      include: {
+        opleiding: true,
+        docentOpleidingen: { include: { opleiding: true } },
+      },
       orderBy: [{ actief: 'desc' }, { role: 'asc' }, { naam: 'asc' }],
     }),
     prisma.opleiding.findMany({ orderBy: { naam: 'asc' } }),

@@ -10,6 +10,7 @@ type User = {
   role: string
   actief: boolean
   opleiding: { id: string; naam: string } | null
+  docentOpleidingen: { opleiding: { id: string; naam: string } }[]
 }
 
 type Opleiding = {
@@ -168,8 +169,12 @@ export default function UsersTable({
                       {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.opleiding?.naam || '-'}
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {user.role === 'docent'
+                      ? user.docentOpleidingen.length > 0
+                        ? user.docentOpleidingen.map((d) => d.opleiding.naam).join(', ')
+                        : '-'
+                      : user.opleiding?.naam || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.actief ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
