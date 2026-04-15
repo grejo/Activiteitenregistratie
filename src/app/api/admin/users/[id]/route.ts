@@ -69,6 +69,11 @@ export async function PATCH(
       opleidingId: role === 'student' ? opleidingId : null,
     }
 
+    // Als een gearchiveerde student terug actief gezet wordt, wis dan de archiveringsdatum
+    if (actief && existingUser.gearchiveerdOp) {
+      updateData.gearchiveerdOp = null
+    }
+
     // Alleen wachtwoord updaten als het is ingevuld
     if (password && password.length >= 8) {
       updateData.wachtwoord = await bcrypt.hash(password, 10)
