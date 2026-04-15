@@ -15,10 +15,7 @@ async function getActiviteiten(opleidingId: string | null, userId: string) {
         {
           status: 'gepubliceerd',
           typeAanvraag: 'docent',
-          OR: [
-            { opleidingId: null },
-            { opleidingId: opleidingId || undefined },
-          ],
+          opleidingId: opleidingId || undefined,
         },
         {
           status: 'gepubliceerd',
