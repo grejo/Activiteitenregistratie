@@ -21,6 +21,7 @@ type Student = {
   naam: string
   email: string
   createdAt: string
+  gearchiveerdOp: string | null
   opleiding: {
     id: string
     naam: string
@@ -46,12 +47,19 @@ export default function StudentenTable({
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('actief')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 10
 
   const filteredStudenten = useMemo(() => {
     let filtered = studenten
+
+    if (statusFilter === 'actief') {
+      filtered = filtered.filter((s) => !s.gearchiveerdOp)
+    } else if (statusFilter === 'gearchiveerd') {
+      filtered = filtered.filter((s) => !!s.gearchiveerdOp)
+    }
 
     if (opleidingFilter !== 'all') {
       filtered = filtered.filter((s) => s.opleiding?.id === opleidingFilter)
@@ -67,7 +75,7 @@ export default function StudentenTable({
     }
 
     return filtered
-  }, [studenten, opleidingFilter, searchQuery])
+  }, [studenten, opleidingFilter, statusFilter, searchQuery])
 
   const totalPages = Math.ceil(filteredStudenten.length / PAGE_SIZE)
   const paginatedStudenten = filteredStudenten.slice(
@@ -76,9 +84,10 @@ export default function StudentenTable({
   )
 
   const stats = useMemo(() => {
-    const totalStudenten = studenten.length
-    const totalDeelnames = studenten.reduce((sum, s) => sum + s._count.inschrijvingen, 0)
-    return { totalStudenten, totalDeelnames }
+    const totalStudenten = studenten.filter((s) => !s.gearchiveerdOp).length
+    const gearchiveerdStudenten = studenten.filter((s) => !!s.gearchiveerdOp).length
+    const totalDeelnames = studenten.filter((s) => !s.gearchiveerdOp).reduce((sum, s) => sum + s._count.inschrijvingen, 0)
+    return { totalStudenten, gearchiveerdStudenten, totalDeelnames }
   }, [studenten])
 
   return (
@@ -94,9 +103,9 @@ export default function StudentenTable({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card-flat">
-          <div className="text-sm text-pxl-black-light">Totaal Studenten</div>
+          <div className="text-sm text-pxl-black-light">Actieve Studenten</div>
           <div className="text-2xl font-bold text-pxl-gold">{stats.totalStudenten}</div>
         </div>
         <div className="card-flat">
@@ -106,6 +115,10 @@ export default function StudentenTable({
         <div className="card-flat">
           <div className="text-sm text-pxl-black-light">Opleidingen</div>
           <div className="text-2xl font-bold text-blue-600">{opleidingen.length}</div>
+        </div>
+        <div className="card-flat">
+          <div className="text-sm text-pxl-black-light">Gearchiveerd</div>
+          <div className="text-2xl font-bold text-purple-600">{stats.gearchiveerdStudenten}</div>
         </div>
       </div>
 
@@ -120,6 +133,22 @@ export default function StudentenTable({
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
               className="input-field w-full"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
+              Status:
+            </label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
+              className="input-field w-40"
+            >
+              <option value="actief">Actief</option>
+              <option value="gearchiveerd">Gearchiveerd</option>
+              <option value="all">Alle</option>
+            </select>
           </div>
 
           {opleidingen.length > 1 && (
@@ -143,10 +172,11 @@ export default function StudentenTable({
             </div>
           )}
 
-          {(opleidingFilter !== 'all' || searchQuery) && (
+          {(opleidingFilter !== 'all' || searchQuery || statusFilter !== 'actief') && (
             <button
               onClick={() => {
                 setOpleidingFilter('all')
+                setStatusFilter('actief')
                 setSearchQuery('')
                 setCurrentPage(1)
               }}
@@ -186,10 +216,15 @@ export default function StudentenTable({
                 {paginatedStudenten.map((student) => {
                   const laatsteInschrijving = student.inschrijvingen[0]
                   return (
-                    <tr key={student.id}>
+                    <tr key={student.id} className={student.gearchiveerdOp ? 'bg-gray-50 opacity-75' : ''}>
                       <td className="px-4 py-4">
                         <div className="font-medium text-gray-900">{student.naam}</div>
                         <div className="text-sm text-gray-500">{student.email}</div>
+                        {student.gearchiveerdOp && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
+                            Gearchiveerd
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {student.opleiding?.naam || '-'}
@@ -307,7 +342,14 @@ export default function StudentenTable({
             <div className="px-6 py-4 space-y-6">
               {/* Student Info */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <div className="font-medium text-lg text-gray-900">{selectedStudent.naam}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="font-medium text-lg text-gray-900">{selectedStudent.naam}</div>
+                  {selectedStudent.gearchiveerdOp && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                      Gearchiveerd op {new Date(selectedStudent.gearchiveerdOp).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
                 <div className="text-sm text-gray-500">{selectedStudent.email}</div>
                 {selectedStudent.opleiding && (
                   <div className="text-sm text-gray-500 mt-1">{selectedStudent.opleiding.naam}</div>

@@ -24,7 +24,6 @@ async function getStudenten(opleidingIds: string[]) {
     where: {
       role: 'student',
       opleidingId: { in: opleidingIds },
-      actief: true,
     },
     include: {
       opleiding: true,
@@ -56,6 +55,7 @@ async function getStudenten(opleidingIds: string[]) {
   return studenten.map((s) => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
+    gearchiveerdOp: s.gearchiveerdOp?.toISOString() || null,
     inschrijvingen: s.inschrijvingen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),
