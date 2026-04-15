@@ -23,6 +23,14 @@ async function getOpleidingen() {
   })
 }
 
+async function getDocentOpleidingen(userId: string) {
+  return await prisma.docentOpleiding.findMany({
+    where: { docentId: userId },
+    include: { opleiding: true },
+    orderBy: { opleiding: { naam: 'asc' } },
+  })
+}
+
 export default async function EditUserPage({
   params,
 }: {
@@ -41,7 +49,10 @@ export default async function EditUserPage({
     notFound()
   }
 
-  const opleidingen = await getOpleidingen()
+  const [opleidingen, docentOpleidingen] = await Promise.all([
+    getOpleidingen(),
+    user.role === 'docent' ? getDocentOpleidingen(user.id) : Promise.resolve([]),
+  ])
 
   return (
     <div className="space-y-8">
@@ -63,6 +74,10 @@ export default async function EditUserPage({
             gearchiveerdOp: user.gearchiveerdOp?.toISOString() ?? null,
           }}
           opleidingen={opleidingen}
+          docentOpleidingen={docentOpleidingen.map((d) => ({
+            opleidingId: d.opleidingId,
+            naam: d.opleiding.naam,
+          }))}
         />
       </div>
     </div>

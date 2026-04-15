@@ -22,12 +22,19 @@ type Opleiding = {
   naam: string
 }
 
+type DocentOpleiding = {
+  opleidingId: string
+  naam: string
+}
+
 export default function EditUserForm({
   user,
   opleidingen,
+  docentOpleidingen = [],
 }: {
   user: User
   opleidingen: Opleiding[]
+  docentOpleidingen?: DocentOpleiding[]
 }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -35,6 +42,10 @@ export default function EditUserForm({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showArchiveerConfirm, setShowArchiveerConfirm] = useState(false)
   const [isArchivering, setIsArchivering] = useState(false)
+  const [koppelingen, setKoppelingen] = useState<DocentOpleiding[]>(docentOpleidingen)
+  const [isKoppeling, setIsKoppeling] = useState(false)
+  const [koppelError, setKoppelError] = useState<string | null>(null)
+  const [selectedOpleidingId, setSelectedOpleidingId] = useState('')
   const [formData, setFormData] = useState({
     naam: user.naam,
     email: user.email,
@@ -117,6 +128,54 @@ export default function EditUserForm({
       setError('Er is een fout opgetreden')
     } finally {
       setIsArchivering(false)
+    }
+  }
+
+  const handleOpleidingToevoegen = async () => {
+    if (!selectedOpleidingId) return
+    setIsKoppeling(true)
+    setKoppelError(null)
+    try {
+      const res = await fetch(`/api/admin/opleidingen/${selectedOpleidingId}/docenten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docentId: user.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setKoppelError(data.error || 'Er is een fout opgetreden')
+      } else {
+        const opleiding = opleidingen.find((o) => o.id === selectedOpleidingId)
+        if (opleiding) {
+          setKoppelingen((prev) => [...prev, { opleidingId: opleiding.id, naam: opleiding.naam }])
+        }
+        setSelectedOpleidingId('')
+      }
+    } catch {
+      setKoppelError('Er is een fout opgetreden')
+    } finally {
+      setIsKoppeling(false)
+    }
+  }
+
+  const handleOpleidingVerwijderen = async (opleidingId: string) => {
+    setIsKoppeling(true)
+    setKoppelError(null)
+    try {
+      const res = await fetch(
+        `/api/admin/opleidingen/${opleidingId}/docenten/${user.id}`,
+        { method: 'DELETE' }
+      )
+      if (!res.ok) {
+        const data = await res.json()
+        setKoppelError(data.error || 'Er is een fout opgetreden')
+      } else {
+        setKoppelingen((prev) => prev.filter((k) => k.opleidingId !== opleidingId))
+      }
+    } catch {
+      setKoppelError('Er is een fout opgetreden')
+    } finally {
+      setIsKoppeling(false)
     }
   }
 
@@ -269,6 +328,69 @@ export default function EditUserForm({
           Annuleren
         </button>
       </div>
+
+      {/* Opleidingen sectie — alleen voor docenten */}
+      {user.role === 'docent' && (
+        <div className="pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Gekoppelde Opleidingen</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Opleidingen waarvoor deze docent activiteiten kan aanmaken.
+          </p>
+
+          {koppelingen.length > 0 ? (
+            <div className="space-y-2 mb-4">
+              {koppelingen.map((k) => (
+                <div
+                  key={k.opleidingId}
+                  className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+                >
+                  <span className="text-sm font-medium text-gray-900">{k.naam}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpleidingVerwijderen(k.opleidingId)}
+                    disabled={isKoppeling}
+                    className="text-red-500 hover:text-red-700 text-sm disabled:opacity-40"
+                  >
+                    Verwijderen
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 italic mb-4">Geen opleidingen gekoppeld.</p>
+          )}
+
+          {(() => {
+            const gekoppeldeIds = new Set(koppelingen.map((k) => k.opleidingId))
+            const beschikbaar = opleidingen.filter((o) => !gekoppeldeIds.has(o.id))
+            return beschikbaar.length > 0 ? (
+              <div className="flex gap-2 items-center">
+                <select
+                  value={selectedOpleidingId}
+                  onChange={(e) => setSelectedOpleidingId(e.target.value)}
+                  className="input-field flex-1 text-sm"
+                  disabled={isKoppeling}
+                >
+                  <option value="">— Opleiding kiezen —</option>
+                  {beschikbaar.map((o) => (
+                    <option key={o.id} value={o.id}>{o.naam}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleOpleidingToevoegen}
+                  disabled={!selectedOpleidingId || isKoppeling}
+                  className="px-3 py-2 bg-pxl-gold text-white rounded text-sm font-medium hover:bg-pxl-gold-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Toevoegen
+                </button>
+              </div>
+            ) : null
+          })()}
+
+          {koppelError && <p className="text-red-600 text-sm mt-2">{koppelError}</p>}
+        </div>
+      )}
 
       {/* Archiveer sectie — alleen voor studenten die nog niet gearchiveerd zijn */}
       {user.role === 'student' && !user.gearchiveerdOp && (
