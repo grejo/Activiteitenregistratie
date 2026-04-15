@@ -65,7 +65,7 @@ export default function AdminStudentenTable({
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter((s) => {
-        if (statusFilter === 'actief') return s.actief
+        if (statusFilter === 'actief') return s.actief && !s.gearchiveerdOp
         if (statusFilter === 'gearchiveerd') return !!s.gearchiveerdOp
         if (statusFilter === 'inactief') return !s.actief && !s.gearchiveerdOp
         return true
@@ -97,7 +97,7 @@ export default function AdminStudentenTable({
 
   const stats = useMemo(() => {
     const totalStudenten = studenten.length
-    const actiefStudenten = studenten.filter((s) => s.actief).length
+    const actiefStudenten = studenten.filter((s) => s.actief && !s.gearchiveerdOp).length
     const totalDeelnames = studenten.reduce((sum, s) => sum + s._count.inschrijvingen, 0)
     const zonderOpleiding = studenten.filter((s) => !s.opleiding).length
     const gearchiveerdStudenten = studenten.filter((s) => !!s.gearchiveerdOp).length
@@ -404,12 +404,16 @@ export default function AdminStudentenTable({
                       <div className="text-sm text-orange-600 mt-1">Geen opleiding toegewezen</div>
                     )}
                   </div>
-                  {selectedStudent.actief ? (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                  {selectedStudent.gearchiveerdOp ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                      Gearchiveerd
+                    </span>
+                  ) : selectedStudent.actief ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                       Actief
                     </span>
                   ) : (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                       Inactief
                     </span>
                   )}
