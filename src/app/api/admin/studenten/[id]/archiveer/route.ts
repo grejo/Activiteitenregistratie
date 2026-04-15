@@ -36,19 +36,12 @@ export async function POST(
       return NextResponse.json({ error: 'Student is al gearchiveerd' }, { status: 400 })
     }
 
-    // Verzamel alle bewijsstukken
-    const alleBewijsstukken = student.inschrijvingen.flatMap((i) => i.bewijsstukken)
-
-    // Verwijder bestanden van schijf
-    for (const bewijs of alleBewijsstukken) {
-      try {
-        const filePath = path.join(process.cwd(), 'public', bewijs.bestandspad)
-        await unlink(filePath)
-      } catch (fileError) {
-        console.error(`Bestand niet gevonden of al verwijderd: ${bewijs.bestandspad}`, fileError)
-        // Doorgaan ook als bestand niet bestaat
-      }
+    if (student.role !== 'student') {
+      return NextResponse.json({ error: 'Gebruiker is geen student' }, { status: 400 })
     }
+
+    // Verzamel alle bewijsstukken (vóór transactie, zodat we de paden hebben)
+    const alleBewijsstukken = student.inschrijvingen.flatMap((i) => i.bewijsstukken)
 
     // Verwijder database-records en archiveer student in één transactie
     await prisma.$transaction([
@@ -67,6 +60,17 @@ export async function POST(
         },
       }),
     ])
+
+    // Verwijder bestanden van schijf (ná geslaagde transactie)
+    for (const bewijs of alleBewijsstukken) {
+      try {
+        const filePath = path.join(process.cwd(), 'public', bewijs.bestandspad)
+        await unlink(filePath)
+      } catch (fileError) {
+        console.error(`Bestand niet gevonden of al verwijderd: ${bewijs.bestandspad}`, fileError)
+        // Doorgaan ook als bestand niet bestaat
+      }
+    }
 
     return NextResponse.json({
       success: true,
