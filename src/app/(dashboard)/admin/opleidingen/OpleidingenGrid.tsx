@@ -22,15 +22,31 @@ type User = {
   actief: boolean
 }
 
-type OpleidingUsers = {
-  studenten: User[]
-  docenten: User[]
+type Docent = {
+  id: string
+  naam: string
+  email: string
+  actief: boolean
 }
 
-export default function OpleidingenGrid({ opleidingen }: { opleidingen: Opleiding[] }) {
+type OpleidingUsers = {
+  studenten: User[]
+  docenten: Docent[]
+}
+
+export default function OpleidingenGrid({
+  opleidingen,
+  alleDocenten,
+}: {
+  opleidingen: Opleiding[]
+  alleDocenten: { id: string; naam: string; email: string }[]
+}) {
   const [selectedOpleiding, setSelectedOpleiding] = useState<Opleiding | null>(null)
   const [users, setUsers] = useState<OpleidingUsers | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isKoppeling, setIsKoppeling] = useState(false)
+  const [koppelError, setKoppelError] = useState<string | null>(null)
+  const [selectedDocentId, setSelectedDocentId] = useState('')
 
   useEffect(() => {
     if (selectedOpleiding) {
@@ -56,6 +72,54 @@ export default function OpleidingenGrid({ opleidingen }: { opleidingen: Opleidin
   const closeModal = () => {
     setSelectedOpleiding(null)
     setUsers(null)
+    setKoppelError(null)
+    setSelectedDocentId('')
+  }
+
+  const handleDocentToevoegen = async () => {
+    if (!selectedOpleiding || !selectedDocentId) return
+    setIsKoppeling(true)
+    setKoppelError(null)
+    try {
+      const res = await fetch(`/api/admin/opleidingen/${selectedOpleiding.id}/docenten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docentId: selectedDocentId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setKoppelError(data.error || 'Er is een fout opgetreden')
+      } else {
+        setSelectedDocentId('')
+        await fetchUsers(selectedOpleiding.id)
+      }
+    } catch {
+      setKoppelError('Er is een fout opgetreden')
+    } finally {
+      setIsKoppeling(false)
+    }
+  }
+
+  const handleDocentVerwijderen = async (docentId: string) => {
+    if (!selectedOpleiding) return
+    setIsKoppeling(true)
+    setKoppelError(null)
+    try {
+      const res = await fetch(
+        `/api/admin/opleidingen/${selectedOpleiding.id}/docenten/${docentId}`,
+        { method: 'DELETE' }
+      )
+      if (!res.ok) {
+        const data = await res.json()
+        setKoppelError(data.error || 'Er is een fout opgetreden')
+      } else {
+        await fetchUsers(selectedOpleiding.id)
+      }
+    } catch {
+      setKoppelError('Er is een fout opgetreden')
+    } finally {
+      setIsKoppeling(false)
+    }
   }
 
   return (
@@ -197,7 +261,7 @@ export default function OpleidingenGrid({ opleidingen }: { opleidingen: Opleidin
                       Docenten ({users.docenten.length})
                     </h3>
                     {users.docenten.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 mb-3">
                         {users.docenten.map((docent) => (
                           <div
                             key={docent.id}
@@ -208,29 +272,62 @@ export default function OpleidingenGrid({ opleidingen }: { opleidingen: Opleidin
                               <div className="text-sm text-gray-500">{docent.email}</div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  docent.actief
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
-                              >
-                                {docent.actief ? 'Actief' : 'Inactief'}
-                              </span>
                               <Link
                                 href={`/admin/users/${docent.id}`}
                                 className="text-pxl-gold hover:text-pxl-gold-dark text-sm font-medium"
                               >
                                 Bekijken
                               </Link>
+                              <button
+                                onClick={() => handleDocentVerwijderen(docent.id)}
+                                disabled={isKoppeling}
+                                className="text-red-500 hover:text-red-700 text-sm font-bold disabled:opacity-40"
+                                title="Koppeling verwijderen"
+                              >
+                                &times;
+                              </button>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-sm italic">
+                      <p className="text-gray-500 text-sm italic mb-3">
                         Geen docenten gekoppeld aan deze opleiding
                       </p>
+                    )}
+
+                    {/* Docent toevoegen */}
+                    {(() => {
+                      const gekoppeldeIds = new Set(users.docenten.map((d) => d.id))
+                      const beschikbaar = alleDocenten.filter((d) => !gekoppeldeIds.has(d.id))
+                      return beschikbaar.length > 0 ? (
+                        <div className="flex gap-2 items-center">
+                          <select
+                            value={selectedDocentId}
+                            onChange={(e) => setSelectedDocentId(e.target.value)}
+                            className="input-field flex-1 text-sm"
+                            disabled={isKoppeling}
+                          >
+                            <option value="">— Docent kiezen —</option>
+                            {beschikbaar.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.naam}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleDocentToevoegen}
+                            disabled={!selectedDocentId || isKoppeling}
+                            className="px-3 py-1.5 bg-pxl-gold text-white rounded text-sm font-medium hover:bg-pxl-gold-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Toevoegen
+                          </button>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {koppelError && (
+                      <p className="text-red-600 text-sm mt-2">{koppelError}</p>
                     )}
                   </div>
                 </div>
