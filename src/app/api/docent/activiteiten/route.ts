@@ -66,11 +66,30 @@ export async function POST(request: Request) {
     } = body
 
     // Validate required fields
-    if (!titel || !typeActiviteit || !datum || !startuur || !einduur) {
+    if (!titel || !typeActiviteit || !datum || !startuur || !einduur || !opleidingId) {
       return NextResponse.json(
-        { error: 'Titel, type, datum en tijd zijn verplicht' },
+        { error: 'Titel, type, datum, start- en einduur en opleiding zijn verplicht' },
         { status: 400 }
       )
+    }
+
+    // Controleer of de docent gekoppeld is aan de gekozen opleiding
+    if (session.user.role === 'docent') {
+      const koppeling = await prisma.docentOpleiding.findUnique({
+        where: {
+          docentId_opleidingId: {
+            docentId: session.user.id,
+            opleidingId,
+          },
+        },
+      })
+
+      if (!koppeling) {
+        return NextResponse.json(
+          { error: 'Je bent niet gekoppeld aan deze opleiding' },
+          { status: 403 }
+        )
+      }
     }
 
     // Create activiteit

@@ -81,7 +81,7 @@ export default function DocentActiviteitForm({
         body: JSON.stringify({
           ...formData,
           maxPlaatsen: formData.maxPlaatsen ? Number(formData.maxPlaatsen) : null,
-          opleidingId: formData.opleidingId || null,
+          opleidingId: formData.opleidingId,
         }),
       })
 
@@ -330,16 +330,17 @@ export default function DocentActiviteitForm({
             htmlFor="opleidingId"
             className="block text-sm font-medium text-gray-700"
           >
-            Opleiding
+            Opleiding *
           </label>
           <select
             id="opleidingId"
             name="opleidingId"
+            required
             value={formData.opleidingId}
             onChange={handleChange}
             className="input-field mt-1"
           >
-            <option value="">Alle opleidingen</option>
+            <option value="" disabled>— Kies een opleiding —</option>
             {opleidingen.map((opleiding) => (
               <option key={opleiding.id} value={opleiding.id}>
                 {opleiding.naam}
