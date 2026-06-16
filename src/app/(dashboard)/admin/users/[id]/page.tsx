@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import EditUserForm from './EditUserForm'
@@ -16,9 +16,12 @@ async function getUser(id: string) {
   })
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
-    where: { actief: true },
+    where: {
+      actief: true,
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+    },
     orderBy: { naam: 'asc' },
   })
 }
@@ -31,6 +34,14 @@ async function getDocentOpleidingen(userId: string) {
   })
 }
 
+async function getAdminOpleidingIds(userId: string) {
+  const rows = await prisma.adminOpleiding.findMany({
+    where: { adminId: userId },
+    select: { opleidingId: true },
+  })
+  return rows.map((r) => r.opleidingId)
+}
+
 export default async function EditUserPage({
   params,
 }: {
@@ -38,7 +49,7 @@ export default async function EditUserPage({
 }) {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
@@ -49,10 +60,13 @@ export default async function EditUserPage({
     notFound()
   }
 
-  const [opleidingen, docentOpleidingen] = await Promise.all([
-    getOpleidingen(),
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+  const [opleidingen, docentOpleidingen, adminOpleidingIds] = await Promise.all([
+    getOpleidingen(beheerdeIds),
     user.role === 'docent' ? getDocentOpleidingen(user.id) : Promise.resolve([]),
+    user.role === 'admin' ? getAdminOpleidingIds(user.id) : Promise.resolve([]),
   ])
+  const canAssignSuperadmin = session.user.role === 'superadmin'
 
   return (
     <div className="space-y-8">
@@ -78,6 +92,8 @@ export default async function EditUserPage({
             opleidingId: d.opleidingId,
             naam: d.opleiding.naam,
           }))}
+          adminOpleidingIds={adminOpleidingIds}
+          canAssignSuperadmin={canAssignSuperadmin}
         />
       </div>
     </div>

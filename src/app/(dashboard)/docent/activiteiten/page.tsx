@@ -20,7 +20,7 @@ async function getDocentActiviteiten(userId: string) {
         },
       },
     },
-    orderBy: [{ datum: 'desc' }],
+    orderBy: [{ datum: 'asc' }],
   })
 
   // Serialize dates for client component
@@ -75,7 +75,7 @@ async function getDuurzaamheidsThemas(userId: string) {
 export default async function DocentActiviteitenPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 

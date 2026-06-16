@@ -27,6 +27,7 @@ type Aanvraag = {
   organisatorPxl: string | null
   organisatorExtern: string | null
   bewijslink: string | null
+  openVoorMedestudenten: boolean
   aangemaaktDoor: {
     id: string
     naam: string
@@ -46,6 +47,7 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
   const [error, setError] = useState<string | null>(null)
   const [selectedAanvraag, setSelectedAanvraag] = useState<Aanvraag | null>(null)
   const [opmerkingen, setOpmerkingen] = useState('')
+  const [verstuurMail, setVerstuurMail] = useState(false)
   const [bewijsstukken, setBewijsstukken] = useState<Bewijsstuk[]>([])
   const [loadingBewijsstukken, setLoadingBewijsstukken] = useState(false)
 
@@ -85,7 +87,7 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
       const response = await fetch(`/api/docent/aanvragen/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, opmerkingen }),
+        body: JSON.stringify({ status: newStatus, opmerkingen, verstuurMail }),
       })
 
       if (!response.ok) {
@@ -95,6 +97,7 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
 
       setSelectedAanvraag(null)
       setOpmerkingen('')
+    setVerstuurMail(false)
 
       // Trigger event om navbar counts te refreshen
       window.dispatchEvent(new CustomEvent('refresh-counts'))
@@ -110,12 +113,14 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
   const openModal = (aanvraag: Aanvraag) => {
     setSelectedAanvraag(aanvraag)
     setOpmerkingen('')
+    setVerstuurMail(false)
     setError(null)
   }
 
   const closeModal = () => {
     setSelectedAanvraag(null)
     setOpmerkingen('')
+    setVerstuurMail(false)
     setError(null)
   }
 
@@ -405,6 +410,25 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
                   placeholder="Eventuele feedback voor de student..."
                 />
               </div>
+
+              {/* Mail-verwittiging — enkel relevant als de aanvraag op het prikbord komt */}
+              {selectedAanvraag.openVoorMedestudenten && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={verstuurMail}
+                      onChange={(e) => setVerstuurMail(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 text-pxl-gold focus:ring-pxl-gold border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium">Medestudenten per e-mail verwittigen</span>
+                      <br />
+                      Bij goedkeuring krijgen alle studenten van de opleiding een e-mail. Standaard uit.
+                    </span>
+                  </label>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">

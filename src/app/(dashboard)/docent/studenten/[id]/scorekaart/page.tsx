@@ -89,7 +89,7 @@ export default async function DocentStudentScorekaartPage({
 }) {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 
@@ -98,7 +98,7 @@ export default async function DocentStudentScorekaartPage({
   const canView = await canViewStudent(
     session.user.id,
     studentId,
-    session.user.role === 'admin'
+    (session.user.role === 'admin' || session.user.role === 'superadmin')
   )
 
   if (!canView) {

@@ -58,7 +58,7 @@ async function getStudentStats(userId: string, opleidingId: string | null) {
 export default async function StudentDashboard() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 

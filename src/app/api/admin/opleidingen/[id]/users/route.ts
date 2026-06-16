@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 export async function GET(
@@ -9,11 +9,16 @@ export async function GET(
   try {
     const session = await auth()
 
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id: opleidingId } = await params
+
+    // Opleidingsadmin mag enkel eigen opleiding(en) inkijken
+    if (!(await canAccessOpleiding(session.user.id, opleidingId))) {
+      return NextResponse.json({ error: 'Geen toegang tot deze opleiding' }, { status: 403 })
+    }
 
     // Haal studenten op
     const studenten = await prisma.user.findMany({

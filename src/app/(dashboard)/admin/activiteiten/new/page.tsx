@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ActiviteitForm from '../ActiviteitForm'
@@ -7,9 +7,12 @@ export const metadata = {
   title: 'Nieuwe Activiteit - Admin',
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
-    where: { actief: true },
+    where: {
+      actief: true,
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+    },
     orderBy: { naam: 'asc' },
   })
 }
@@ -17,11 +20,12 @@ async function getOpleidingen() {
 export default async function NewActiviteitPage() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
-  const opleidingen = await getOpleidingen()
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+  const opleidingen = await getOpleidingen(beheerdeIds)
 
   return (
     <div className="space-y-8">

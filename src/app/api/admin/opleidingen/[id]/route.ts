@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 export async function PATCH(
@@ -9,14 +9,35 @@ export async function PATCH(
   try {
     const session = await auth()
 
-    // Check if user is admin
-    if (!session?.user || session.user.role !== 'admin') {
+    // Admin (eigen opleiding) of superadmin
+    if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
+
+    // Opleidingsadmin mag enkel eigen opleiding wijzigen
+    if (!(await canAccessOpleiding(session.user.id, id))) {
+      return NextResponse.json({ error: 'Geen toegang tot deze opleiding' }, { status: 403 })
+    }
+
     const body = await request.json()
-    const { naam, code, beschrijving, actief, autoGoedkeuringStudentActiviteiten, targets, schooljaar } = body
+    const {
+      naam,
+      code,
+      beschrijving,
+      actief,
+      autoGoedkeuringStudentActiviteiten,
+      niveau1Beschrijving,
+      niveau2Beschrijving,
+      niveau3Beschrijving,
+      niveau4Beschrijving,
+      targets,
+      schooljaar,
+    } = body
+    const codes: { code: string; omschrijving?: string | null }[] = Array.isArray(body.codes)
+      ? body.codes
+      : []
 
     // Validate required fields
     if (!naam || !code) {
@@ -55,7 +76,26 @@ export async function PATCH(
       }
     }
 
-    // Update opleiding
+    // Controleer of de extra codes niet al door een andere opleiding gebruikt worden
+    const normCodes = codes
+      .map((c) => ({ code: (c.code || '').trim(), omschrijving: c.omschrijving?.trim() || null }))
+      .filter((c) => c.code.length > 0)
+    if (normCodes.length > 0) {
+      const conflict = await prisma.opleidingCode.findFirst({
+        where: {
+          code: { in: normCodes.map((c) => c.code), mode: 'insensitive' },
+          opleidingId: { not: id },
+        },
+      })
+      if (conflict) {
+        return NextResponse.json(
+          { error: `Code "${conflict.code}" is al in gebruik bij een andere opleiding` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update opleiding + synchroniseer extra codes (vervang de set)
     const opleiding = await prisma.opleiding.update({
       where: { id },
       data: {
@@ -64,6 +104,14 @@ export async function PATCH(
         beschrijving: beschrijving || null,
         actief: actief ?? true,
         autoGoedkeuringStudentActiviteiten: autoGoedkeuringStudentActiviteiten ?? false,
+        niveau1Beschrijving: niveau1Beschrijving || null,
+        niveau2Beschrijving: niveau2Beschrijving || null,
+        niveau3Beschrijving: niveau3Beschrijving || null,
+        niveau4Beschrijving: niveau4Beschrijving || null,
+        codes: {
+          deleteMany: {},
+          create: normCodes.map((c) => ({ code: c.code, omschrijving: c.omschrijving })),
+        },
       },
     })
 
@@ -100,8 +148,8 @@ export async function DELETE(
   try {
     const session = await auth()
 
-    // Check if user is admin
-    if (!session?.user || session.user.role !== 'admin') {
+    // Opleidingen verwijderen is departementaal — enkel superadmin
+    if (!session?.user || session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

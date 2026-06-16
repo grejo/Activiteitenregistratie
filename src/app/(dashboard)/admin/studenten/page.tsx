@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import AdminStudentenTable from './AdminStudentenTable'
@@ -7,17 +7,21 @@ export const metadata = {
   title: 'Studenten - Admin',
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
-    where: { actief: true },
+    where: {
+      actief: true,
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+    },
     orderBy: { naam: 'asc' },
   })
 }
 
-async function getStudenten() {
+async function getStudenten(beheerdeIds: string[] | null) {
   const studenten = await prisma.user.findMany({
     where: {
       role: 'student',
+      ...(beheerdeIds ? { opleidingId: { in: beheerdeIds } } : {}),
     },
     include: {
       opleiding: true,
@@ -67,13 +71,14 @@ async function getStudenten() {
 export default async function AdminStudentenPage() {
   const session = await auth()
 
-  if (!session?.user || session.user.role !== 'admin') {
+  if (!session?.user || session.user.role !== 'admin' && session.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
   const [studenten, opleidingen] = await Promise.all([
-    getStudenten(),
-    getOpleidingen(),
+    getStudenten(beheerdeIds),
+    getOpleidingen(beheerdeIds),
   ])
 
   return <AdminStudentenTable studenten={studenten} opleidingen={opleidingen} />

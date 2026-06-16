@@ -22,7 +22,7 @@ function extractEmails(cel: unknown, domein: string): string[] {
 export async function POST(request: Request) {
   try {
     const session = await auth()
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

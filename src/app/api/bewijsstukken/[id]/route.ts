@@ -31,7 +31,7 @@ export async function DELETE(
 
     // Check permissions
     const isOwner = bewijsstuk.inschrijving.studentId === session.user.id
-    const isAdmin = session.user.role === 'admin'
+    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
 
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
@@ -87,7 +87,7 @@ export async function GET(
 
     // Check permissions
     const isOwner = bewijsstuk.inschrijving.studentId === session.user.id
-    const isAdmin = session.user.role === 'admin'
+    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
     const isDocent = session.user.role === 'docent'
 
     if (!isOwner && !isAdmin && !isDocent) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { notifyPublicatie } from '@/lib/mail'
 
 export async function PATCH(
   request: Request,
@@ -10,7 +11,7 @@ export async function PATCH(
     const session = await auth()
 
     // Check if user is admin
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -47,6 +48,11 @@ export async function PATCH(
         opmerkingen: opmerkingen || activiteit.opmerkingen,
       },
     })
+
+    // Verwittig studenten als de activiteit nu (pas) gepubliceerd wordt
+    if (status === 'gepubliceerd' && activiteit.status !== 'gepubliceerd') {
+      await notifyPublicatie(id)
+    }
 
     return NextResponse.json({
       success: true,

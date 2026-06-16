@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
-import { BEENTJES, BEENTJE_LABELS } from '@/lib/beentjes'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, NIVEAU_LABELS } from '@/lib/beentjes'
 
 type Bewijsstuk = {
   id: string
@@ -100,9 +100,11 @@ type DuurzaamheidsThema = {
 export default function AanvragenTable({
   aanvragen,
   duurzaamheidsThemas = [],
+  niveauBeschrijvingen = {},
 }: {
   aanvragen: Aanvraag[]
   duurzaamheidsThemas?: DuurzaamheidsThema[]
+  niveauBeschrijvingen?: Record<number, string | null>
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -976,26 +978,47 @@ export default function AanvragenTable({
                 </div>
 
                 <div>
-                  <label htmlFor="niveau" className="block text-sm font-medium text-gray-700">
-                    Niveau *
-                  </label>
-                  <select
-                    id="niveau"
-                    name="niveau"
-                    required
-                    value={formData.niveau}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                  >
-                    <option value="">Selecteer niveau</option>
-                    <option value="1">Niveau 1</option>
-                    <option value="2">Niveau 2</option>
-                    <option value="3">Niveau 3</option>
-                    <option value="4">Niveau 4</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Op welk niveau zit deze activiteit?
-                  </p>
+                  {(() => {
+                    const niveauNr = formData.niveau ? Number(formData.niveau) : null
+                    const beschrijving = niveauNr ? niveauBeschrijvingen[niveauNr] : null
+                    return (
+                      <>
+                        <label
+                          htmlFor="niveau"
+                          className="flex items-center gap-1 text-sm font-medium text-gray-700"
+                        >
+                          Niveau *
+                          {beschrijving && (
+                            <span
+                              title={beschrijving}
+                              className="cursor-help text-gray-400"
+                              aria-label="Omschrijving van dit niveau binnen jouw opleiding"
+                            >
+                              ⓘ
+                            </span>
+                          )}
+                        </label>
+                        <select
+                          id="niveau"
+                          name="niveau"
+                          required
+                          value={formData.niveau}
+                          onChange={handleChange}
+                          className="input-field mt-1 w-full"
+                        >
+                          <option value="">Selecteer niveau</option>
+                          {NIVEAUS.map((n) => (
+                            <option key={n} value={n}>
+                              {NIVEAU_LABELS[n]}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {beschrijving || 'Op welk niveau zit deze activiteit?'}
+                        </p>
+                      </>
+                    )
+                  })()}
                 </div>
 
                 <div>

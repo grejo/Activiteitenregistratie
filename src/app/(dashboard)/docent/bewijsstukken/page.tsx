@@ -84,11 +84,11 @@ async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
 export default async function BewijsstukkenPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/login')
   }
 
-  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id, session.user.role === 'admin')
+  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id, (session.user.role === 'admin' || session.user.role === 'superadmin'))
 
   return <BewijsstukkenBeoordelenTable inschrijvingen={inschrijvingen} />
 }

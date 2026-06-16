@@ -7,7 +7,7 @@ import type { NextAuthConfig } from 'next-auth'
 
 const prisma = new PrismaClient()
 
-export type UserRole = 'admin' | 'docent' | 'student'
+export type UserRole = 'superadmin' | 'admin' | 'docent' | 'student'
 
 declare module 'next-auth' {
   interface User {
@@ -17,6 +17,7 @@ declare module 'next-auth' {
     role: UserRole
     opleidingId?: string | null
     opleidingNaam?: string | null
+    adminOpleidingIds?: string[]
   }
 
   interface Session {
@@ -25,6 +26,7 @@ declare module 'next-auth' {
       role: UserRole
       opleidingId?: string | null
       opleidingNaam?: string | null
+      adminOpleidingIds?: string[]
     }
   }
 }
@@ -36,6 +38,7 @@ declare module '@auth/core/jwt' {
     naam: string
     opleidingId?: string | null
     opleidingNaam?: string | null
+    adminOpleidingIds?: string[]
   }
 }
 
@@ -73,7 +76,7 @@ export const authConfig: NextAuthConfig = {
 
         const user = await prisma.user.findUnique({
           where: { email },
-          include: { opleiding: true },
+          include: { opleiding: true, adminOpleidingen: true },
         })
 
         if (!user || !user.actief || !user.passwordHash) {
@@ -93,6 +96,7 @@ export const authConfig: NextAuthConfig = {
           role: user.role as UserRole,
           opleidingId: user.opleidingId,
           opleidingNaam: user.opleiding?.naam || null,
+          adminOpleidingIds: user.adminOpleidingen.map((o) => o.opleidingId),
         }
       },
     }),
@@ -131,7 +135,9 @@ export const authConfig: NextAuthConfig = {
         const normalizedEmail = email.toLowerCase()
 
         try {
-          // Zoek opleiding op basis van department-code (indien aanwezig)
+          // Zoek opleiding op basis van department-code (indien aanwezig).
+          // Eerst op de primaire code, daarna op de extra OpleidingCode-mappings
+          // (bv. afstandsstudenten 'pbboa', EMA, management).
           let opleidingId: string | null = null
           if (department) {
             const opleiding = await prisma.opleiding.findFirst({
@@ -140,9 +146,18 @@ export const authConfig: NextAuthConfig = {
             })
             if (opleiding) {
               opleidingId = opleiding.id
-              console.log('[AUTH] Opleiding gevonden via department:', department, '→', opleidingId)
+              console.log('[AUTH] Opleiding gevonden via primaire code:', department, '→', opleidingId)
             } else {
-              console.log('[AUTH] Geen opleiding gevonden voor department:', department)
+              const extra = await prisma.opleidingCode.findFirst({
+                where: { code: { equals: department, mode: 'insensitive' } },
+                select: { opleidingId: true },
+              })
+              if (extra) {
+                opleidingId = extra.opleidingId
+                console.log('[AUTH] Opleiding gevonden via extra code:', department, '→', opleidingId)
+              } else {
+                console.log('[AUTH] Geen opleiding gevonden voor department:', department)
+              }
             }
           }
 
@@ -210,7 +225,7 @@ export const authConfig: NextAuthConfig = {
         if (email) {
           dbUser = await prisma.user.findFirst({
             where: { email: { equals: email.toLowerCase(), mode: 'insensitive' } },
-            include: { opleiding: true },
+            include: { opleiding: true, adminOpleidingen: true },
           })
         }
 
@@ -218,7 +233,7 @@ export const authConfig: NextAuthConfig = {
         if (!dbUser && azureAdId) {
           dbUser = await prisma.user.findFirst({
             where: { azureAdId },
-            include: { opleiding: true },
+            include: { opleiding: true, adminOpleidingen: true },
           })
         }
 
@@ -228,6 +243,9 @@ export const authConfig: NextAuthConfig = {
           token.naam = dbUser.naam
           token.opleidingId = dbUser.opleidingId
           token.opleidingNaam = (dbUser as any).opleiding?.naam || null
+          token.adminOpleidingIds = (dbUser as any).adminOpleidingen?.map(
+            (o: { opleidingId: string }) => o.opleidingId
+          ) ?? []
           console.log('[JWT] User gevonden:', dbUser.email, '| role:', token.role)
         } else {
           console.error('[JWT] Geen user gevonden voor email:', email, 'azureAdId:', azureAdId)
@@ -241,6 +259,7 @@ export const authConfig: NextAuthConfig = {
         token.naam = user.naam
         token.opleidingId = user.opleidingId
         token.opleidingNaam = user.opleidingNaam
+        token.adminOpleidingIds = user.adminOpleidingIds ?? []
       }
       return token
     },
@@ -251,6 +270,7 @@ export const authConfig: NextAuthConfig = {
         session.user.naam = token.naam
         session.user.opleidingId = token.opleidingId
         session.user.opleidingNaam = token.opleidingNaam
+        session.user.adminOpleidingIds = token.adminOpleidingIds ?? []
       }
       return session
     },
@@ -266,6 +286,18 @@ export const authConfig: NextAuthConfig = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
 
+// Leesbare labels per rol (UI). Superadmin = departementaal, admin = opleidingsniveau.
+export const ROLE_LABELS: Record<UserRole, string> = {
+  superadmin: 'Superadmin (departement)',
+  admin: 'Admin (opleiding)',
+  docent: 'Docent',
+  student: 'Student',
+}
+
+export function getRoleLabel(role?: string | null): string {
+  return ROLE_LABELS[(role ?? '') as UserRole] ?? (role ?? '')
+}
+
 // Helper function to get current user server-side
 export async function getCurrentUser() {
   const session = await auth()
@@ -278,19 +310,60 @@ export function hasRole(user: { role: UserRole } | null, roles: UserRole[]): boo
   return roles.includes(user.role)
 }
 
+// Superadmin = departementaal niveau (globale toegang tot alle opleidingen)
+export function isSuperadmin(role?: string | null): boolean {
+  return role === 'superadmin'
+}
+
+// Admin-niveau toegang: zowel opleidingsadmin als superadmin.
+// Gebruik dit overal waar voorheen `role === 'admin'` een admin-bypass was.
+export function isAdmin(role?: string | null): boolean {
+  return role === 'admin' || role === 'superadmin'
+}
+
+// Staff = iedereen die activiteiten/inschrijvingen mag beheren
+export function isStaff(role?: string | null): boolean {
+  return role === 'docent' || role === 'admin' || role === 'superadmin'
+}
+
+// Geeft de opleiding-ids die een gebruiker beheert.
+// - superadmin: null  → betekent "alle opleidingen" (geen filter)
+// - admin: gekoppelde AdminOpleiding-ids
+// - docent: gekoppelde DocentOpleiding-ids
+// - student: eigen opleiding (of leeg)
+export async function getBeheerdeOpleidingIds(userId: string): Promise<string[] | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { adminOpleidingen: true, docentOpleidingen: true },
+  })
+
+  if (!user) return []
+  if (user.role === 'superadmin') return null
+  if (user.role === 'admin') return user.adminOpleidingen.map((o) => o.opleidingId)
+  if (user.role === 'docent') return user.docentOpleidingen.map((o) => o.opleidingId)
+  if (user.role === 'student') return user.opleidingId ? [user.opleidingId] : []
+  return []
+}
+
 // Helper to check if user can access opleiding
 export async function canAccessOpleiding(userId: string, opleidingId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
       docentOpleidingen: true,
+      adminOpleidingen: true,
     },
   })
 
   if (!user) return false
 
-  // Admin kan alles
-  if (user.role === 'admin') return true
+  // Superadmin kan alles
+  if (user.role === 'superadmin') return true
+
+  // Admin kan zijn gekoppelde opleidingen
+  if (user.role === 'admin') {
+    return user.adminOpleidingen.some((o) => o.opleidingId === opleidingId)
+  }
 
   // Student kan alleen eigen opleiding
   if (user.role === 'student') {

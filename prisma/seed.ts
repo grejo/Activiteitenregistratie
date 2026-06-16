@@ -114,12 +114,27 @@ async function main() {
   const hashedDocent = await bcrypt.hash('docent123', 10)
   const hashedStudent = await bcrypt.hash('student123', 10)
 
-  const admin = await prisma.user.upsert({
+  // Departementaal beheerder (superadmin): toegang tot alle opleidingen
+  const superadmin = await prisma.user.upsert({
     where: { email: 'admin@pxl.be' },
     update: {},
-    create: { email: 'admin@pxl.be', passwordHash: hashedAdmin, naam: 'Systeem Beheerder', role: 'admin' },
+    create: { email: 'admin@pxl.be', passwordHash: hashedAdmin, naam: 'Departementaal Beheerder', role: 'superadmin' },
   })
-  console.log('  ✅ Admin:', admin.email)
+  console.log('  ✅ Superadmin:', superadmin.email)
+
+  // Opleidingsadmin: beheert enkel de eigen opleiding (Bouwkunde)
+  const adminBouw = await prisma.user.upsert({
+    where: { email: 'admin.bouw@pxl.be' },
+    update: {},
+    create: {
+      email: 'admin.bouw@pxl.be',
+      passwordHash: hashedAdmin,
+      naam: 'Opleidingsadmin Bouw',
+      role: 'admin',
+      adminOpleidingen: { create: [{ opleidingId: bouw.id }] },
+    },
+  })
+  console.log('  ✅ Admin (opleiding):', adminBouw.email)
 
   // Docenten
   const docentBouw = await prisma.user.upsert({
@@ -1222,7 +1237,8 @@ async function main() {
   console.log('┌─────────────────────────────────────────────────────────────────────────────────┐')
   console.log('│ Role     │ Email                            │ Wachtwoord │ Info                  │')
   console.log('├─────────────────────────────────────────────────────────────────────────────────┤')
-  console.log('│ Admin    │ admin@pxl.be                     │ admin123   │                       │')
+  console.log('│ Superadm │ admin@pxl.be                     │ admin123   │ Alle opleidingen      │')
+  console.log('│ Admin    │ admin.bouw@pxl.be                │ admin123   │ Bouwkunde             │')
   console.log('│ Docent   │ docent.bouw@pxl.be               │ docent123  │ Bouwkunde             │')
   console.log('│ Docent   │ docent.multi@pxl.be              │ docent123  │ IT coördinator + Bouw │')
   console.log('│ Student  │ student.bouw@student.pxl.be      │ student123 │ Lisa - Bouwkunde      │')

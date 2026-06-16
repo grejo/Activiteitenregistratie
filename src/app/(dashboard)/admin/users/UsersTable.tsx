@@ -18,8 +18,14 @@ type Opleiding = {
   naam: string
 }
 
-const ROLE_LABELS = { admin: 'Administrator', docent: 'Docent', student: 'Student' }
+const ROLE_LABELS = {
+  superadmin: 'Superadmin',
+  admin: 'Admin',
+  docent: 'Docent',
+  student: 'Student',
+}
 const ROLE_COLORS = {
+  superadmin: 'bg-purple-100 text-purple-800',
   admin: 'bg-red-100 text-red-800',
   docent: 'bg-blue-100 text-blue-800',
   student: 'bg-green-100 text-green-800',
@@ -88,7 +94,7 @@ export default function UsersTable({
         <div className="card-flat">
           <div className="text-sm text-pxl-black-light">Admins</div>
           <div className="text-2xl font-bold text-red-600">
-            {users.filter((u) => u.role === 'admin').length}
+            {users.filter((u) => u.role === 'admin' || u.role === 'superadmin').length}
           </div>
         </div>
         <div className="card-flat">

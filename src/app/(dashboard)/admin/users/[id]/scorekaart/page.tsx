@@ -67,7 +67,7 @@ export default async function AdminStudentScorekaartPage({
 }) {
   const session = await auth()
 
-  if (!session?.user || session.user.role !== 'admin') {
+  if (!session?.user || session.user.role !== 'admin' && session.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 

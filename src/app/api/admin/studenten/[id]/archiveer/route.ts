@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { unlink } from 'fs/promises'
-import path from 'path'
+import { verwijderBestandenVanStudent } from '@/lib/retentie'
 
 export async function POST(
   request: Request,
@@ -11,7 +10,7 @@ export async function POST(
   try {
     const session = await auth()
 
-    if (session?.user.role !== 'admin') {
+    if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 403 })
     }
 
@@ -19,13 +18,6 @@ export async function POST(
 
     const student = await prisma.user.findUnique({
       where: { id },
-      include: {
-        inschrijvingen: {
-          include: {
-            bewijsstukken: true,
-          },
-        },
-      },
     })
 
     if (!student) {
@@ -40,41 +32,21 @@ export async function POST(
       return NextResponse.json({ error: 'Gebruiker is geen student' }, { status: 400 })
     }
 
-    // Verzamel alle bewijsstukken (vóór transactie, zodat we de paden hebben)
-    const alleBewijsstukken = student.inschrijvingen.flatMap((i) => i.bewijsstukken)
+    // Retentiebeleid: verwijder de fysieke bestanden, maar behoud de metadata
+    const verwijderd = await verwijderBestandenVanStudent(id)
 
-    // Verwijder database-records en archiveer student in één transactie
-    await prisma.$transaction([
-      prisma.bewijsstuk.deleteMany({
-        where: {
-          inschrijving: {
-            studentId: id,
-          },
-        },
-      }),
-      prisma.user.update({
-        where: { id },
-        data: {
-          actief: false,
-          gearchiveerdOp: new Date(),
-        },
-      }),
-    ])
-
-    // Verwijder bestanden van schijf (ná geslaagde transactie)
-    for (const bewijs of alleBewijsstukken) {
-      try {
-        const filePath = path.join(process.cwd(), 'public', bewijs.bestandspad)
-        await unlink(filePath)
-      } catch (fileError) {
-        console.error(`Bestand niet gevonden of al verwijderd: ${bewijs.bestandspad}`, fileError)
-        // Doorgaan ook als bestand niet bestaat
-      }
-    }
+    // Archiveer de student
+    await prisma.user.update({
+      where: { id },
+      data: {
+        actief: false,
+        gearchiveerdOp: new Date(),
+      },
+    })
 
     return NextResponse.json({
       success: true,
-      verwijderdeBewijsstukken: alleBewijsstukken.length,
+      verwijderdeBewijsstukken: verwijderd,
     })
   } catch (error) {
     console.error('Error archiving student:', error)

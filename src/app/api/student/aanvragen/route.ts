@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Beentje } from '@prisma/client'
+import { notifyNieuweAanvraag } from '@/lib/mail'
 
 export async function POST(request: Request) {
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -86,6 +87,10 @@ export async function POST(request: Request) {
         aangemaaktDoorId: session.user.id,
         opleidingId: student?.opleidingId || null,
         openVoorMedestudenten: openVoorMedestudenten === true,
+        // Eigen opleiding koppelen voor prikbord-zichtbaarheid
+        ...(student?.opleidingId && {
+          opleidingen: { create: [{ opleidingId: student.opleidingId }] },
+        }),
         // Duurzaamheid wordt apart toegevoegd
         ...(duurzaamheidId && {
           duurzaamheid: {
@@ -109,6 +114,12 @@ export async function POST(request: Request) {
       })
     }
 
+    // Geen automatische mail naar medestudenten: een student kan dat nooit zelf
+    // triggeren. Wél een melding naar de beoordelaars als goedkeuring nodig is.
+    if (initialStatus === 'in_review') {
+      await notifyNieuweAanvraag(aanvraag.id)
+    }
+
     return NextResponse.json(aanvraag, { status: 201 })
   } catch (error) {
     console.error('Error creating aanvraag:', error)
@@ -123,7 +134,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -175,7 +186,7 @@ export async function GET() {
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -8,6 +8,20 @@ export const metadata = {
 }
 
 async function getActiviteiten(opleidingId: string | null, userId: string) {
+  // Zichtbaar op het prikbord van de student: activiteiten die aan zijn opleiding
+  // gekoppeld zijn (via de ActiviteitOpleiding-join), plus departementale activiteiten
+  // (geen koppeling én geen primaire opleiding) die voor alle opleidingen gelden.
+  const zichtbaarVoorOpleiding = [
+    ...(opleidingId
+      ? [
+          { opleidingen: { some: { opleidingId } } },
+          // Backward-compat: oudere activiteiten zonder join-rijen
+          { opleidingId },
+        ]
+      : []),
+    { opleidingId: null, opleidingen: { none: {} } },
+  ]
+
   const activiteiten = await prisma.activiteit.findMany({
     where: {
       datum: { gte: new Date() },
@@ -15,14 +29,14 @@ async function getActiviteiten(opleidingId: string | null, userId: string) {
         {
           status: 'gepubliceerd',
           typeAanvraag: 'docent',
-          opleidingId: opleidingId || undefined,
+          OR: zichtbaarVoorOpleiding,
         },
         {
           status: 'gepubliceerd',
           typeAanvraag: 'student',
           openVoorMedestudenten: true,
-          opleidingId: opleidingId || undefined,
           aangemaaktDoorId: { not: userId },
+          OR: zichtbaarVoorOpleiding,
         },
       ],
     },
@@ -67,7 +81,7 @@ async function getMijnInschrijvingen(userId: string) {
 export default async function PrikbordPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 

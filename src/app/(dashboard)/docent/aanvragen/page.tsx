@@ -51,7 +51,7 @@ async function getAanvragen(opleidingIds: string[]) {
 export default async function AanvragenPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 

@@ -10,7 +10,7 @@ export const metadata = {
 export default async function ImportPage() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 

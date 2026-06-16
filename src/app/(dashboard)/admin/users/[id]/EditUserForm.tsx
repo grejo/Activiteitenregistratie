@@ -31,10 +31,14 @@ export default function EditUserForm({
   user,
   opleidingen,
   docentOpleidingen = [],
+  adminOpleidingIds: initialAdminOpleidingIds = [],
+  canAssignSuperadmin = false,
 }: {
   user: User
   opleidingen: Opleiding[]
   docentOpleidingen?: DocentOpleiding[]
+  adminOpleidingIds?: string[]
+  canAssignSuperadmin?: boolean
 }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -46,6 +50,13 @@ export default function EditUserForm({
   const [isKoppeling, setIsKoppeling] = useState(false)
   const [koppelError, setKoppelError] = useState<string | null>(null)
   const [selectedOpleidingId, setSelectedOpleidingId] = useState('')
+  const [adminOpleidingIds, setAdminOpleidingIds] = useState<string[]>(
+    initialAdminOpleidingIds
+  )
+  const toggleAdminOpleiding = (id: string) =>
+    setAdminOpleidingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
   const [formData, setFormData] = useState({
     naam: user.naam,
     email: user.email,
@@ -63,7 +74,8 @@ export default function EditUserForm({
     try {
       // Alleen wachtwoord meesturen als het is ingevuld
       const { password, ...rest } = formData
-      const dataToSend = password ? { ...rest, password } : rest
+      const base = { ...rest, adminOpleidingIds }
+      const dataToSend = password ? { ...base, password } : base
 
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
@@ -267,9 +279,37 @@ export default function EditUserForm({
         >
           <option value="student">Student</option>
           <option value="docent">Docent</option>
-          <option value="admin">Administrator</option>
+          <option value="admin">Admin (opleiding)</option>
+          {(canAssignSuperadmin || user.role === 'superadmin') && (
+            <option value="superadmin">Superadmin (departement)</option>
+          )}
         </select>
       </div>
+
+      {formData.role === 'admin' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Opleidingen die deze admin beheert *
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Een admin beheert enkel de aangevinkte opleiding(en). Voor toegang tot
+            alle opleidingen, gebruik de rol Superadmin.
+          </p>
+          <div className="space-y-2 border border-gray-200 rounded p-3 max-h-56 overflow-y-auto">
+            {opleidingen.map((opleiding) => (
+              <label key={opleiding.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={adminOpleidingIds.includes(opleiding.id)}
+                  onChange={() => toggleAdminOpleiding(opleiding.id)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">{opleiding.naam}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {formData.role === 'student' && (
         <div>

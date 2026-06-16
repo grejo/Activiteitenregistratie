@@ -9,7 +9,8 @@ export const metadata = {
 export default async function NewOpleidingPage() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  // Opleidingen aanmaken is departementaal — enkel superadmin
+  if (session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 

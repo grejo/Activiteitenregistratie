@@ -151,7 +151,8 @@ export function LoginForm() {
         <div className="mt-4 p-4 bg-pxl-gray-light rounded-lg">
           <p className="text-sm font-semibold text-pxl-black mb-2">Demo accounts:</p>
           <div className="text-xs text-pxl-black-light space-y-1">
-            <p><strong>Admin:</strong> admin@pxl.be / admin123</p>
+            <p><strong>Superadmin:</strong> admin@pxl.be / admin123</p>
+            <p><strong>Admin (opleiding):</strong> admin.bouw@pxl.be / admin123</p>
             <p><strong>Docent:</strong> docent.bouw@pxl.be / docent123</p>
             <p><strong>Student:</strong> student.bouw@student.pxl.be / student123</p>
           </div>

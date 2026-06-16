@@ -8,7 +8,13 @@ type Opleiding = {
   naam: string
 }
 
-export default function NewUserForm({ opleidingen }: { opleidingen: Opleiding[] }) {
+export default function NewUserForm({
+  opleidingen,
+  canAssignSuperadmin = false,
+}: {
+  opleidingen: Opleiding[]
+  canAssignSuperadmin?: boolean
+}) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,6 +26,13 @@ export default function NewUserForm({ opleidingen }: { opleidingen: Opleiding[] 
     opleidingId: '',
     actief: true,
   })
+  const [adminOpleidingIds, setAdminOpleidingIds] = useState<string[]>([])
+
+  const toggleAdminOpleiding = (id: string) => {
+    setAdminOpleidingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,7 +43,7 @@ export default function NewUserForm({ opleidingen }: { opleidingen: Opleiding[] 
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, adminOpleidingIds }),
       })
 
       const data = await response.json()
@@ -136,9 +149,37 @@ export default function NewUserForm({ opleidingen }: { opleidingen: Opleiding[] 
         >
           <option value="student">Student</option>
           <option value="docent">Docent</option>
-          <option value="admin">Administrator</option>
+          <option value="admin">Admin (opleiding)</option>
+          {canAssignSuperadmin && (
+            <option value="superadmin">Superadmin (departement)</option>
+          )}
         </select>
       </div>
+
+      {formData.role === 'admin' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Opleidingen die deze admin beheert *
+          </label>
+          <p className="text-sm text-gray-500 mb-2">
+            Een admin beheert enkel de aangevinkte opleiding(en). Voor toegang tot
+            alle opleidingen, gebruik de rol Superadmin.
+          </p>
+          <div className="space-y-2 border border-gray-200 rounded p-3 max-h-56 overflow-y-auto">
+            {opleidingen.map((opleiding) => (
+              <label key={opleiding.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={adminOpleidingIds.includes(opleiding.id)}
+                  onChange={() => toggleAdminOpleiding(opleiding.id)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">{opleiding.naam}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {formData.role === 'student' && (
         <div>

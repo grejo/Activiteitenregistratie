@@ -236,14 +236,23 @@ export default function BewijsstukkenUpload({
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl">{getFileIcon(bewijsstuk.bestandsnaam)}</span>
                   <div className="min-w-0">
-                    <a
-                      href={bewijsstuk.bestandspad}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
-                    >
-                      {bewijsstuk.bestandsnaam}
-                    </a>
+                    {bewijsstuk.bestandspad ? (
+                      <a
+                        href={bewijsstuk.bestandspad}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
+                      >
+                        {bewijsstuk.bestandsnaam}
+                      </a>
+                    ) : (
+                      <span
+                        className="text-sm font-medium text-gray-500 truncate block"
+                        title="Bestand verwijderd volgens het bewaarbeleid"
+                      >
+                        {bewijsstuk.bestandsnaam} (bestand verwijderd)
+                      </span>
+                    )}
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{typeLabels[bewijsstuk.type] || bewijsstuk.type}</span>
                       <span>•</span>
@@ -258,18 +267,20 @@ export default function BewijsstukkenUpload({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-2">
-                  <a
-                    href={bewijsstuk.bestandspad}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Bekijken"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </a>
+                  {bewijsstuk.bestandspad && (
+                    <a
+                      href={bewijsstuk.bestandspad}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Bekijken"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </a>
+                  )}
                   {canDelete && (
                     <button
                       onClick={() => handleDelete(bewijsstuk.id)}

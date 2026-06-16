@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
@@ -8,8 +8,9 @@ export const metadata = {
   title: 'Opleidingen - Admin',
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
+    where: beheerdeIds ? { id: { in: beheerdeIds } } : {},
     include: {
       _count: {
         select: {
@@ -33,12 +34,14 @@ async function getAlleDocenten() {
 export default async function OpleidingenPage() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+  const isSuperadmin = session.user.role === 'superadmin'
   const [opleidingen, alleDocenten] = await Promise.all([
-    getOpleidingen(),
+    getOpleidingen(beheerdeIds),
     getAlleDocenten(),
   ])
 
@@ -52,9 +55,11 @@ export default async function OpleidingenPage() {
           </h1>
           <p className="text-pxl-black-light mt-4">Beheer alle opleidingen in het systeem</p>
         </div>
-        <Link href="/admin/opleidingen/new" className="btn-primary">
-          + Nieuwe Opleiding
-        </Link>
+        {isSuperadmin && (
+          <Link href="/admin/opleidingen/new" className="btn-primary">
+            + Nieuwe Opleiding
+          </Link>
+        )}
       </div>
 
       {/* Stats */}

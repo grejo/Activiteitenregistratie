@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { notifyPublicatie } from '@/lib/mail'
 
 export async function GET() {
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -64,6 +65,16 @@ export async function POST(request: Request) {
       niveau,
       duurzaamheidId,
     } = body
+    const verwittigPerMail = body.verwittigPerMail === true
+
+    // Volledige set opleidingen waarvoor de activiteit zichtbaar is (incl. de primaire).
+    // Standaard enkel de eigen/primaire opleiding.
+    const opleidingIds: string[] = Array.from(
+      new Set([
+        ...(Array.isArray(body.opleidingIds) ? body.opleidingIds : []),
+        ...(opleidingId ? [opleidingId] : []),
+      ])
+    )
 
     // Validate required fields
     if (!titel || !typeActiviteit || !datum || !startuur || !einduur || !opleidingId) {
@@ -73,20 +84,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Controleer of de docent gekoppeld is aan de gekozen opleiding
-    if (session.user.role === 'docent') {
-      const koppeling = await prisma.docentOpleiding.findUnique({
-        where: {
-          docentId_opleidingId: {
-            docentId: session.user.id,
-            opleidingId,
-          },
-        },
-      })
-
-      if (!koppeling) {
+    // Controleer toegang tot élke gekozen opleiding (docent: gekoppeld; admin: eigen; superadmin: alle)
+    for (const opId of opleidingIds) {
+      if (!(await canAccessOpleiding(session.user.id, opId))) {
         return NextResponse.json(
-          { error: 'Je bent niet gekoppeld aan deze opleiding' },
+          { error: 'Je hebt geen toegang tot één van de gekozen opleidingen' },
           { status: 403 }
         )
       }
@@ -111,9 +113,14 @@ export async function POST(request: Request) {
         maxPlaatsen: maxPlaatsen || null,
         niveau: niveau ? parseInt(niveau) : null,
         status: status || 'gepubliceerd',
+        verwittigPerMail,
         typeAanvraag: 'docent',
         aangemaaktDoorId: session.user.id,
         opleidingId: opleidingId || null,
+        // Cross-opleiding zichtbaarheid
+        opleidingen: {
+          create: opleidingIds.map((opId) => ({ opleidingId: opId })),
+        },
         // Duurzaamheid wordt apart toegevoegd
         ...(duurzaamheidId && {
           duurzaamheid: {
@@ -124,6 +131,11 @@ export async function POST(request: Request) {
         }),
       },
     })
+
+    // Verwittig studenten bij directe publicatie
+    if (activiteit.status === 'gepubliceerd') {
+      await notifyPublicatie(activiteit.id)
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ActiviteitForm from '../../ActiviteitForm'
@@ -12,6 +12,7 @@ async function getActiviteit(id: string) {
     where: { id },
     include: {
       opleiding: true,
+      opleidingen: { select: { opleidingId: true } },
       duurzaamheid: {
         include: {
           duurzaamheid: true,
@@ -21,9 +22,12 @@ async function getActiviteit(id: string) {
   })
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
-    where: { actief: true },
+    where: {
+      actief: true,
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+    },
     orderBy: { naam: 'asc' },
   })
 }
@@ -35,14 +39,15 @@ export default async function EditActiviteitPage({
 }) {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
   const { id } = await params
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
   const [activiteit, opleidingen] = await Promise.all([
     getActiviteit(id),
-    getOpleidingen(),
+    getOpleidingen(beheerdeIds),
   ])
 
   if (!activiteit) {

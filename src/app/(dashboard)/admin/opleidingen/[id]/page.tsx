@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { getCurrentSchooljaar } from '@/lib/utils'
@@ -14,6 +14,7 @@ async function getOpleiding(id: string) {
   const opleiding = await prisma.opleiding.findUnique({
     where: { id },
     include: {
+      codes: { orderBy: { code: 'asc' } },
       _count: {
         select: {
           studenten: true,
@@ -39,6 +40,7 @@ async function getOpleiding(id: string) {
 
   return {
     ...opleiding,
+    codes: opleiding.codes.map((c) => ({ code: c.code, omschrijving: c.omschrijving })),
     targets,
     schooljaar,
   }
@@ -51,11 +53,17 @@ export default async function EditOpleidingPage({
 }) {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
   const { id } = await params
+
+  // Opleidingsadmin mag enkel eigen opleiding bekijken/bewerken
+  if (!(await canAccessOpleiding(session.user.id, id))) {
+    redirect('/admin/opleidingen')
+  }
+
   const opleiding = await getOpleiding(id)
 
   if (!opleiding) {

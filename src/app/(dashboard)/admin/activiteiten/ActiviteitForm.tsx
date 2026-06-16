@@ -27,6 +27,8 @@ type Activiteit = {
   status: string
   typeAanvraag: string
   opleidingId: string | null
+  verwittigPerMail?: boolean
+  opleidingen?: { opleidingId: string }[]
 }
 
 export default function ActiviteitForm({
@@ -63,6 +65,22 @@ export default function ActiviteitForm({
     opleidingId: activiteit?.opleidingId || '',
   })
 
+  // Mail-verwittiging (standaard uit)
+  const [verwittigPerMail, setVerwittigPerMail] = useState<boolean>(
+    activiteit?.verwittigPerMail ?? false
+  )
+
+  // Extra opleidingen waarvoor de activiteit óók zichtbaar is (cross-opleiding).
+  const [extraOpleidingIds, setExtraOpleidingIds] = useState<string[]>(
+    (activiteit?.opleidingen || [])
+      .map((o) => o.opleidingId)
+      .filter((id) => id !== activiteit?.opleidingId)
+  )
+  const toggleExtraOpleiding = (id: string) =>
+    setExtraOpleidingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -82,6 +100,10 @@ export default function ActiviteitForm({
           ...formData,
           maxPlaatsen: formData.maxPlaatsen ? Number(formData.maxPlaatsen) : null,
           opleidingId: formData.opleidingId || null,
+          opleidingIds: Array.from(
+            new Set([formData.opleidingId, ...extraOpleidingIds].filter(Boolean))
+          ),
+          verwittigPerMail,
         }),
       })
 
@@ -339,13 +361,38 @@ export default function ActiviteitForm({
             onChange={handleChange}
             className="input-field mt-1"
           >
-            <option value="">Alle opleidingen</option>
+            <option value="">Alle opleidingen (departementaal)</option>
             {opleidingen.map((opleiding) => (
               <option key={opleiding.id} value={opleiding.id}>
                 {opleiding.naam}
               </option>
             ))}
           </select>
+
+          {/* Cross-opleiding: alleen relevant als er een primaire opleiding is gekozen */}
+          {formData.opleidingId &&
+            opleidingen.filter((o) => o.id !== formData.opleidingId).length > 0 && (
+              <div className="mt-3">
+                <p className="text-sm font-medium text-gray-700">
+                  Ook tonen op het prikbord van:
+                </p>
+                <div className="mt-1 space-y-1 border border-gray-200 rounded p-2 max-h-40 overflow-y-auto">
+                  {opleidingen
+                    .filter((o) => o.id !== formData.opleidingId)
+                    .map((o) => (
+                      <label key={o.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={extraOpleidingIds.includes(o.id)}
+                          onChange={() => toggleExtraOpleiding(o.id)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700">{o.naam}</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
         </div>
 
         <div>
@@ -387,6 +434,24 @@ export default function ActiviteitForm({
           <option value="afgekeurd">Afgekeurd</option>
           <option value="afgerond">Afgerond</option>
         </select>
+      </div>
+
+      {/* Mail-verwittiging */}
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={verwittigPerMail}
+            onChange={(e) => setVerwittigPerMail(e.target.checked)}
+            className="mt-0.5 h-4 w-4 text-pxl-gold focus:ring-pxl-gold border-gray-300 rounded"
+          />
+          <span className="text-sm text-gray-700">
+            <span className="font-medium">Studenten per e-mail verwittigen</span>
+            <br />
+            Bij publicatie krijgen alle studenten van de gekozen opleiding(en) een e-mail.
+            Standaard uit.
+          </span>
+        </label>
       </div>
 
       {/* Actions */}

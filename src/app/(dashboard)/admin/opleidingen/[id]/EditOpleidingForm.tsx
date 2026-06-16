@@ -17,6 +17,11 @@ type OpleidingTargets = {
   duurzaamheidVereist: boolean
 }
 
+type OpleidingCode = {
+  code: string
+  omschrijving: string | null
+}
+
 type Opleiding = {
   id: string
   naam: string
@@ -24,6 +29,11 @@ type Opleiding = {
   beschrijving: string | null
   actief: boolean
   autoGoedkeuringStudentActiviteiten: boolean
+  niveau1Beschrijving: string | null
+  niveau2Beschrijving: string | null
+  niveau3Beschrijving: string | null
+  niveau4Beschrijving: string | null
+  codes: OpleidingCode[]
   targets: OpleidingTargets | null
   _count: {
     studenten: number
@@ -50,7 +60,31 @@ export default function EditOpleidingForm({
     beschrijving: opleiding.beschrijving || '',
     actief: opleiding.actief,
     autoGoedkeuringStudentActiviteiten: opleiding.autoGoedkeuringStudentActiviteiten,
+    niveau1Beschrijving: opleiding.niveau1Beschrijving || '',
+    niveau2Beschrijving: opleiding.niveau2Beschrijving || '',
+    niveau3Beschrijving: opleiding.niveau3Beschrijving || '',
+    niveau4Beschrijving: opleiding.niveau4Beschrijving || '',
   })
+
+  // Extra SSO-codes (afstandsstudenten, EMA, management, …)
+  const [codes, setCodes] = useState<OpleidingCode[]>(opleiding.codes)
+  const [nieuweCode, setNieuweCode] = useState('')
+  const [nieuweCodeOmschrijving, setNieuweCodeOmschrijving] = useState('')
+
+  const voegCodeToe = () => {
+    const code = nieuweCode.trim()
+    if (!code) return
+    if (codes.some((c) => c.code.toLowerCase() === code.toLowerCase())) return
+    setCodes((prev) => [
+      ...prev,
+      { code, omschrijving: nieuweCodeOmschrijving.trim() || null },
+    ])
+    setNieuweCode('')
+    setNieuweCodeOmschrijving('')
+  }
+
+  const verwijderCode = (code: string) =>
+    setCodes((prev) => prev.filter((c) => c.code !== code))
 
   const [targets, setTargets] = useState<OpleidingTargets>({
     doelNiveau1: opleiding.targets?.doelNiveau1 ?? 0,
@@ -76,6 +110,7 @@ export default function EditOpleidingForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          codes,
           targets,
           schooljaar,
         }),
@@ -222,6 +257,92 @@ export default function EditOpleidingForm({
           >
             Automatische goedkeuring van studentactiviteiten
           </label>
+        </div>
+      </div>
+
+      {/* Niveaubeschrijvingen per opleiding */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Niveaubeschrijvingen</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Opleidingsspecifieke omschrijving per niveau. Deze tekst wordt getoond via
+          het info-icoon naast de niveau-keuze bij het aanmaken van een activiteit.
+        </p>
+        <div className="space-y-4">
+          {NIVEAUS.map((n) => {
+            const veld = `niveau${n}Beschrijving` as keyof typeof formData
+            return (
+              <div key={n}>
+                <label
+                  htmlFor={veld as string}
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Niveau {n}
+                </label>
+                <textarea
+                  id={veld as string}
+                  name={veld as string}
+                  value={formData[veld] as string}
+                  onChange={handleChange}
+                  className="input-field mt-1"
+                  rows={2}
+                  placeholder={`Wat betekent niveau ${n} binnen deze opleiding?`}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Extra SSO-codes */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Extra opleidingscodes (SSO)</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Extra <code>department</code>-codes uit de SSO die naar deze opleiding mappen
+          (bv. afstandsstudenten <code>pbboa</code>, EMA, management). De hoofdcode
+          hierboven blijft de primaire code.
+        </p>
+
+        {codes.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {codes.map((c) => (
+              <div
+                key={c.code}
+                className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+              >
+                <span className="text-sm text-gray-700">
+                  <strong>{c.code}</strong>
+                  {c.omschrijving ? ` — ${c.omschrijving}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => verwijderCode(c.code)}
+                  className="text-sm text-red-600 hover:text-red-800"
+                >
+                  Verwijderen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={nieuweCode}
+            onChange={(e) => setNieuweCode(e.target.value)}
+            className="input-field flex-1"
+            placeholder="Code (bv. pbboa)"
+          />
+          <input
+            type="text"
+            value={nieuweCodeOmschrijving}
+            onChange={(e) => setNieuweCodeOmschrijving(e.target.value)}
+            className="input-field flex-1"
+            placeholder="Omschrijving (optioneel)"
+          />
+          <button type="button" onClick={voegCodeToe} className="btn-secondary">
+            Code toevoegen
+          </button>
         </div>
       </div>
 

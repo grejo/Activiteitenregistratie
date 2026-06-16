@@ -47,15 +47,32 @@ async function getAanvragen(userId: string) {
 export default async function AanvragenPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 
-  // Get student's opleiding for duurzaamheidsthemas
+  // Get student's opleiding for duurzaamheidsthemas + niveaubeschrijvingen
   const student = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { opleidingId: true },
+    select: {
+      opleidingId: true,
+      opleiding: {
+        select: {
+          niveau1Beschrijving: true,
+          niveau2Beschrijving: true,
+          niveau3Beschrijving: true,
+          niveau4Beschrijving: true,
+        },
+      },
+    },
   })
+
+  const niveauBeschrijvingen: Record<number, string | null> = {
+    1: student?.opleiding?.niveau1Beschrijving ?? null,
+    2: student?.opleiding?.niveau2Beschrijving ?? null,
+    3: student?.opleiding?.niveau3Beschrijving ?? null,
+    4: student?.opleiding?.niveau4Beschrijving ?? null,
+  }
 
   // Get duurzaamheidsthemas for student's opleiding
   const duurzaamheidsThemas = student?.opleidingId
@@ -89,7 +106,11 @@ export default async function AanvragenPage() {
 
   return (
     <Suspense fallback={<div className="animate-pulse">Laden...</div>}>
-      <AanvragenTable aanvragen={aanvragen} duurzaamheidsThemas={duurzaamheidsThemas} />
+      <AanvragenTable
+        aanvragen={aanvragen}
+        duurzaamheidsThemas={duurzaamheidsThemas}
+        niveauBeschrijvingen={niveauBeschrijvingen}
+      />
     </Suspense>
   )
 }

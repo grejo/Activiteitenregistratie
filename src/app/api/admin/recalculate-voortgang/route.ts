@@ -5,7 +5,7 @@ import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 export async function POST() {
   const session = await auth()
-  if (!session?.user || session.user.role !== 'admin') {
+  if (!session?.user || session.user.role !== 'superadmin') {
     return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 403 })
   }
 

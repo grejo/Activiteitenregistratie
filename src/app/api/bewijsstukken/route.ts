@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Inschrijving niet gevonden' }, { status: 404 })
       }
 
-      if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin') {
+      if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
         return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
       }
     } else if (activiteitId) {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       }
 
       // Verify the student owns this aanvraag
-      if (activiteit.aangemaaktDoorId !== session.user.id && session.user.role !== 'admin') {
+      if (activiteit.aangemaaktDoorId !== session.user.id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
         return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
       }
 
@@ -177,7 +177,7 @@ export async function GET(request: Request) {
 
       // Check if user has access
       const isOwner = inschrijving.studentId === session.user.id
-      const isAdmin = session.user.role === 'admin'
+      const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
       const isDocent = session.user.role === 'docent'
 
       if (!isOwner && !isAdmin && !isDocent) {
@@ -186,7 +186,7 @@ export async function GET(request: Request) {
 
       whereClause = { inschrijvingId }
     } else if (activiteitId) {
-      const isAdmin = session.user.role === 'admin'
+      const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
       const isDocent = session.user.role === 'docent'
 
       if (isAdmin || isDocent) {

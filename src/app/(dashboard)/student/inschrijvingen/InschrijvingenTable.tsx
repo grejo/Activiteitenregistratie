@@ -119,6 +119,9 @@ export default function InschrijvingenTable({
   }
 
   const isPast = (datum: string) => new Date(datum) < new Date()
+  // Uitschrijven kan tot 24 uur voor aanvang van de activiteit
+  const binnen24u = (datum: string) =>
+    new Date(datum).getTime() - Date.now() < 24 * 60 * 60 * 1000
 
   return (
     <div className="space-y-8">
@@ -289,7 +292,15 @@ export default function InschrijvingenTable({
                             Details
                           </button>
                           {inschrijving.inschrijvingsstatus === 'ingeschreven' &&
-                            !past && (
+                            !past &&
+                            (binnen24u(inschrijving.activiteit.datum) ? (
+                              <span
+                                className="inline-flex items-center text-xs text-gray-400"
+                                title="Uitschrijven kan tot 24 uur voor de activiteit"
+                              >
+                                Uitschrijven gesloten
+                              </span>
+                            ) : (
                               <button
                                 onClick={() => handleUitschrijven(inschrijving.id)}
                                 disabled={processing === inschrijving.id}
@@ -297,7 +308,7 @@ export default function InschrijvingenTable({
                               >
                                 {processing === inschrijving.id ? '...' : 'Uitschrijven'}
                               </button>
-                            )}
+                            ))}
                         </div>
                       </td>
                     </tr>
@@ -464,7 +475,12 @@ export default function InschrijvingenTable({
                 Sluiten
               </button>
               {selectedInschrijving.inschrijvingsstatus === 'ingeschreven' &&
-                !isPast(selectedInschrijving.activiteit.datum) && (
+                !isPast(selectedInschrijving.activiteit.datum) &&
+                (binnen24u(selectedInschrijving.activiteit.datum) ? (
+                  <span className="self-center text-sm text-gray-500">
+                    Uitschrijven kan tot 24 uur voor de activiteit
+                  </span>
+                ) : (
                   <button
                     onClick={() => handleUitschrijven(selectedInschrijving.id)}
                     disabled={processing === selectedInschrijving.id}
@@ -472,7 +488,7 @@ export default function InschrijvingenTable({
                   >
                     {processing === selectedInschrijving.id ? 'Bezig...' : 'Uitschrijven'}
                   </button>
-                )}
+                ))}
             </div>
           </div>
         </div>

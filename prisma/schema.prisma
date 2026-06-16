@@ -26,12 +26,22 @@ model Opleiding {
   beschrijving                       String?
   actief                             Boolean  @default(true)
   autoGoedkeuringStudentActiviteiten Boolean  @default(false)
+
+  // Opleidingsspecifieke omschrijving per niveau (1-4), getoond via info-icoon
+  niveau1Beschrijving String?
+  niveau2Beschrijving String?
+  niveau3Beschrijving String?
+  niveau4Beschrijving String?
+
   createdAt                          DateTime @default(now())
   updatedAt                          DateTime @updatedAt
 
   studenten           User[]               @relation("StudentOpleiding")
   docenten            DocentOpleiding[]
+  admins              AdminOpleiding[]
+  codes               OpleidingCode[]
   activiteiten        Activiteit[]
+  activiteitKoppelingen ActiviteitOpleiding[]
   duurzaamheidsThemas DuurzaamheidsThema[]
   targets             OpleidingTarget[]
   studentVoortgang    StudentVoortgang[]
@@ -57,6 +67,7 @@ model User {
   opleiding   Opleiding? @relation("StudentOpleiding", fields: [opleidingId], references: [id])
 
   docentOpleidingen DocentOpleiding[]
+  adminOpleidingen  AdminOpleiding[]
   activiteiten      Activiteit[]
   inschrijvingen    Inschrijving[]
   voortgang         StudentVoortgang[]
@@ -76,6 +87,30 @@ model DocentOpleiding {
   opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
 
   @@unique([docentId, opleidingId])
+}
+
+// Extra SSO-codes (department) die naar dezelfde opleiding mappen,
+// bv. afstandsstudenten (pbboa), EMA, management.
+model OpleidingCode {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  omschrijving String?
+  createdAt   DateTime @default(now())
+
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+}
+
+model AdminOpleiding {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  adminId     String
+  admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  opleidingId String
+  opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, opleidingId])
 }
 
 // ============================================
@@ -143,6 +178,11 @@ model Activiteit {
 
   openVoorMedestudenten Boolean  @default(false)
 
+  // Mailing: een docent/admin/superadmin moet expliciet goedkeuren of studenten
+  // per e-mail verwittigd worden. Studenten kunnen dit nooit zelf zetten.
+  verwittigPerMail Boolean   @default(false)
+  mailVerstuurdOp  DateTime?
+
   status             String    @default("concept")
   opmerkingen        String?
   typeAanvraag       String
@@ -158,8 +198,25 @@ model Activiteit {
 
   inschrijvingen Inschrijving[]
   duurzaamheid   ActiviteitDuurzaamheid[]
+  opleidingen    ActiviteitOpleiding[]
 
   @@index([opleidingId, status, openVoorMedestudenten])
+}
+
+// Koppelt een activiteit aan één of meer opleidingen (cross-opleiding zichtbaarheid).
+// opleidingId op Activiteit blijft de primaire/eigen opleiding; deze join bevat de
+// volledige set opleidingen waarvoor de activiteit op het prikbord verschijnt.
+model ActiviteitOpleiding {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  activiteitId String
+  activiteit   Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  opleidingId  String
+  opleiding    Opleiding  @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  @@unique([activiteitId, opleidingId])
+  @@index([opleidingId])
 }
 
 model ActiviteitDuurzaamheid {
@@ -210,6 +267,10 @@ model Bewijsstuk {
   bestandsnaam String
   bestandspad  String
   uploadedAt   DateTime @default(now())
+
+  // Retentiebeleid: bij uitschrijving/afstuderen wordt het fysieke bestand verwijderd,
+  // maar de metadata (type, bestandsnaam, uploadedAt) blijft bewaard.
+  bestandVerwijderdOp DateTime?
 
   inschrijvingId String
   inschrijving   Inschrijving @relation(fields: [inschrijvingId], references: [id], onDelete: Cascade)

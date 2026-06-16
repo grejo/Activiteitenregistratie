@@ -1,6 +1,23 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { notifyPublicatie, notifyActiviteitWijziging } from '@/lib/mail'
+
+// Bepaal welke voor studenten relevante velden gewijzigd zijn
+function bepaalWijzigingen(
+  oud: { datum: Date; startuur: string; einduur: string; locatie: string | null },
+  nieuw: { datum?: string; startuur?: string; einduur?: string; locatie?: string | null }
+): string[] {
+  const w: string[] = []
+  if (nieuw.datum && oud.datum.toISOString().slice(0, 10) !== nieuw.datum) w.push('datum')
+  if (
+    (nieuw.startuur !== undefined && nieuw.startuur !== oud.startuur) ||
+    (nieuw.einduur !== undefined && nieuw.einduur !== oud.einduur)
+  )
+    w.push('tijdstip')
+  if (nieuw.locatie !== undefined && (oud.locatie ?? '') !== (nieuw.locatie ?? '')) w.push('locatie')
+  return w
+}
 
 export async function GET(
   request: Request,
@@ -9,7 +26,7 @@ export async function GET(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -22,6 +39,7 @@ export async function GET(
       },
       include: {
         opleiding: true,
+        opleidingen: { select: { opleidingId: true } },
         inschrijvingen: {
           include: {
             student: true,
@@ -59,7 +77,7 @@ export async function PATCH(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -100,6 +118,25 @@ export async function PATCH(
       opleidingId,
       niveau,
     } = body
+    const verwittigPerMail = body.verwittigPerMail === true
+
+    // Volledige set opleidingen (incl. primaire). Indien niet meegegeven: behoud bestaand gedrag (enkel primaire).
+    const opleidingIds: string[] = Array.from(
+      new Set([
+        ...(Array.isArray(body.opleidingIds) ? body.opleidingIds : []),
+        ...(opleidingId ? [opleidingId] : []),
+      ])
+    )
+
+    // Toegang tot élke gekozen opleiding controleren
+    for (const opId of opleidingIds) {
+      if (!(await canAccessOpleiding(session.user.id, opId))) {
+        return NextResponse.json(
+          { error: 'Je hebt geen toegang tot één van de gekozen opleidingen' },
+          { status: 403 }
+        )
+      }
+    }
 
     const activiteit = await prisma.activiteit.update({
       where: { id },
@@ -121,8 +158,25 @@ export async function PATCH(
         status,
         opleidingId: opleidingId || null,
         niveau: niveau ? parseInt(niveau) : null,
+        verwittigPerMail,
+        opleidingen: {
+          deleteMany: {},
+          create: opleidingIds.map((opId) => ({ opleidingId: opId })),
+        },
       },
     })
+
+    // notifyPublicatie is idempotent en bewaakt zelf de vlag + reeds-verstuurd;
+    // zo vertrekt de mail ook als de docent 'verwittigen' pas later aanvinkt.
+    if (activiteit.status === 'gepubliceerd') {
+      await notifyPublicatie(activiteit.id)
+    }
+
+    // Ingeschreven studenten verwittigen bij wijziging van datum/tijd/locatie
+    const wijzigingen = bepaalWijzigingen(existingActiviteit, { datum, startuur, einduur, locatie })
+    if (wijzigingen.length > 0) {
+      await notifyActiviteitWijziging(activiteit.id, { wijzigingen })
+    }
 
     return NextResponse.json({
       success: true,
@@ -147,7 +201,7 @@ export async function DELETE(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -167,6 +221,9 @@ export async function DELETE(
         { status: 404 }
       )
     }
+
+    // Ingeschreven studenten verwittigen vóór het verwijderen (inschrijvingen gaan mee weg)
+    await notifyActiviteitWijziging(id, { geannuleerd: true })
 
     await prisma.activiteit.delete({
       where: { id },

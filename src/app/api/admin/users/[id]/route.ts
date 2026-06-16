@@ -10,13 +10,16 @@ export async function PATCH(
   try {
     const session = await auth()
 
-    if (session?.user.role !== 'admin') {
+    if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
     const { naam, email, role, opleidingId, actief, password } = body
+    const adminOpleidingIds: string[] = Array.isArray(body.adminOpleidingIds)
+      ? body.adminOpleidingIds
+      : []
 
     // Validatie
     if (!naam || !email || !role) {
@@ -26,10 +29,26 @@ export async function PATCH(
       )
     }
 
+    // Alleen een superadmin mag de superadmin-rol toekennen
+    if (role === 'superadmin' && session.user.role !== 'superadmin') {
+      return NextResponse.json(
+        { error: 'Enkel een superadmin kan de superadmin-rol toekennen' },
+        { status: 403 }
+      )
+    }
+
     // Als rol student is, is opleiding verplicht
     if (role === 'student' && !opleidingId) {
       return NextResponse.json(
         { error: 'Opleiding is verplicht voor studenten' },
+        { status: 400 }
+      )
+    }
+
+    // Een opleidingsadmin moet aan minstens één opleiding gekoppeld zijn
+    if (role === 'admin' && adminOpleidingIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Een admin moet aan minstens één opleiding gekoppeld worden' },
         { status: 400 }
       )
     }
@@ -76,7 +95,16 @@ export async function PATCH(
 
     // Alleen wachtwoord updaten als het is ingevuld
     if (password && password.length >= 8) {
-      updateData.wachtwoord = await bcrypt.hash(password, 10)
+      updateData.passwordHash = await bcrypt.hash(password, 10)
+    }
+
+    // Admin↔opleiding koppelingen synchroniseren: bestaande vervangen door de nieuwe set.
+    // Bij een niet-admin rol worden alle koppelingen verwijderd.
+    updateData.adminOpleidingen = {
+      deleteMany: {},
+      ...(role === 'admin'
+        ? { create: adminOpleidingIds.map((opId: string) => ({ opleidingId: opId })) }
+        : {}),
     }
 
     const user = await prisma.user.update({
@@ -104,7 +132,7 @@ export async function DELETE(
   try {
     const session = await auth()
 
-    if (session?.user.role !== 'admin') {
+    if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 })
     }
 

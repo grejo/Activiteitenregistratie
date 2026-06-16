@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { notifyPublicatie } from '@/lib/mail'
 
 export async function POST(request: Request) {
   try {
     const session = await auth()
 
     // Check if user is admin
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session?.user || session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -30,6 +31,16 @@ export async function POST(request: Request) {
       status,
       opleidingId,
     } = body
+    const verwittigPerMail = body.verwittigPerMail === true
+
+    // Cross-opleiding zichtbaarheid. Een lege set + lege opleidingId = departementale
+    // activiteit (zichtbaar voor alle opleidingen).
+    const opleidingIds: string[] = Array.from(
+      new Set([
+        ...(Array.isArray(body.opleidingIds) ? body.opleidingIds : []),
+        ...(opleidingId ? [opleidingId] : []),
+      ])
+    )
 
     // Validate required fields
     if (!titel || !typeActiviteit || !datum || !startuur || !einduur) {
@@ -37,6 +48,16 @@ export async function POST(request: Request) {
         { error: 'Titel, type, datum en tijd zijn verplicht' },
         { status: 400 }
       )
+    }
+
+    // Opleidingsadmin mag enkel eigen opleiding(en) koppelen; superadmin alles
+    for (const opId of opleidingIds) {
+      if (!(await canAccessOpleiding(session.user.id, opId))) {
+        return NextResponse.json(
+          { error: 'Je hebt geen toegang tot één van de gekozen opleidingen' },
+          { status: 403 }
+        )
+      }
     }
 
     // Create activiteit
@@ -60,8 +81,16 @@ export async function POST(request: Request) {
         typeAanvraag: 'docent', // Admin creates as docent type
         aangemaaktDoorId: session.user.id,
         opleidingId: opleidingId || null,
+        verwittigPerMail,
+        opleidingen: {
+          create: opleidingIds.map((opId) => ({ opleidingId: opId })),
+        },
       },
     })
+
+    if (activiteit.status === 'gepubliceerd') {
+      await notifyPublicatie(activiteit.id)
+    }
 
     return NextResponse.json({
       success: true,

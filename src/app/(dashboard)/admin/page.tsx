@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
@@ -7,22 +7,38 @@ export const metadata = {
   title: 'Admin Dashboard - X-FactorTool',
 }
 
-async function getStats() {
+async function getStats(beheerdeIds: string[] | null) {
+  // Superadmin (beheerdeIds === null) ziet alles; opleidingsadmin enkel eigen opleiding(en)
+  const studentWhere = beheerdeIds
+    ? { role: 'student', actief: true, opleidingId: { in: beheerdeIds } }
+    : { role: 'student', actief: true }
+  const docentWhere = beheerdeIds
+    ? { role: 'docent', actief: true, docentOpleidingen: { some: { opleidingId: { in: beheerdeIds } } } }
+    : { role: 'docent', actief: true }
+  const opleidingWhere = beheerdeIds ? { actief: true, id: { in: beheerdeIds } } : { actief: true }
+  const activiteitWhere = beheerdeIds ? { opleidingId: { in: beheerdeIds } } : {}
+  const pendingWhere = beheerdeIds
+    ? { status: 'in_review', opleidingId: { in: beheerdeIds } }
+    : { status: 'in_review' }
+
   const [
-    totalUsers,
     totalStudents,
     totalDocenten,
     totalOpleidingen,
     totalActiviteiten,
     pendingAanvragen,
   ] = await Promise.all([
-    prisma.user.count({ where: { actief: true } }),
-    prisma.user.count({ where: { role: 'student', actief: true } }),
-    prisma.user.count({ where: { role: 'docent', actief: true } }),
-    prisma.opleiding.count({ where: { actief: true } }),
-    prisma.activiteit.count(),
-    prisma.activiteit.count({ where: { status: 'in_review' } }),
+    prisma.user.count({ where: studentWhere }),
+    prisma.user.count({ where: docentWhere }),
+    prisma.opleiding.count({ where: opleidingWhere }),
+    prisma.activiteit.count({ where: activiteitWhere }),
+    prisma.activiteit.count({ where: pendingWhere }),
   ])
+
+  // Voor superadmin: globaal gebruikersaantal; voor opleidingsadmin: studenten + docenten in scope
+  const totalUsers = beheerdeIds
+    ? totalStudents + totalDocenten
+    : await prisma.user.count({ where: { actief: true } })
 
   return {
     totalUsers,
@@ -37,11 +53,12 @@ async function getStats() {
 export default async function AdminDashboard() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
-  const stats = await getStats()
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+  const stats = await getStats(beheerdeIds)
 
   return (
     <div className="space-y-8">

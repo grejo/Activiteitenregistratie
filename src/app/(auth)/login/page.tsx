@@ -13,7 +13,7 @@ export default async function LoginPage() {
   // Als al ingelogd, stuur door op basis van rol
   if (session?.user) {
     const role = session.user.role
-    if (role === 'admin') redirect('/admin')
+    if (role === 'superadmin' || role === 'admin') redirect('/admin')
     if (role === 'docent') redirect('/docent')
     if (role === 'student') redirect('/student')
     redirect('/no-access')

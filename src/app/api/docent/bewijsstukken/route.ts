@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (session.user.role !== 'docent' && session.user.role !== 'admin') {
+    if (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 

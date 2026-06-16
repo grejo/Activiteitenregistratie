@@ -42,7 +42,7 @@ export default async function ActiviteitDetailPage({
 }) {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 

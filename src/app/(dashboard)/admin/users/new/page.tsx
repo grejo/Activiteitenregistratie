@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import NewUserForm from './NewUserForm'
@@ -7,9 +7,12 @@ export const metadata = {
   title: 'Nieuwe Gebruiker - Admin',
 }
 
-async function getOpleidingen() {
+async function getOpleidingen(beheerdeIds: string[] | null) {
   return await prisma.opleiding.findMany({
-    where: { actief: true },
+    where: {
+      actief: true,
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+    },
     orderBy: { naam: 'asc' },
   })
 }
@@ -17,11 +20,13 @@ async function getOpleidingen() {
 export default async function NewUserPage() {
   const session = await auth()
 
-  if (session?.user.role !== 'admin') {
+  if (session?.user.role !== 'admin' && session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
 
-  const opleidingen = await getOpleidingen()
+  const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+  const opleidingen = await getOpleidingen(beheerdeIds)
+  const canAssignSuperadmin = session.user.role === 'superadmin'
 
   return (
     <div className="space-y-8">
@@ -37,7 +42,7 @@ export default async function NewUserPage() {
 
       {/* Form */}
       <div className="card max-w-2xl">
-        <NewUserForm opleidingen={opleidingen} />
+        <NewUserForm opleidingen={opleidingen} canAssignSuperadmin={canAssignSuperadmin} />
       </div>
     </div>
   )

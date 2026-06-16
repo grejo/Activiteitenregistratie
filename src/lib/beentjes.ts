@@ -20,6 +20,19 @@ export const NIVEAUS = [1, 2, 3, 4] as const
 
 export type NiveauType = (typeof NIVEAUS)[number]
 
+/** Generieke (opleiding-onafhankelijke) duiding per niveau, getoond in dropdowns. */
+export const NIVEAU_LABELS: Record<number, string> = {
+  1: 'Niveau 1: deelnemen',
+  2: 'Niveau 2: toepassen',
+  3: 'Niveau 3: verdiepen',
+  4: 'Niveau 4: excelleren',
+}
+
+/** Veld op Opleiding met de opleidingsspecifieke omschrijving per niveau. */
+export function getNiveauBeschrijvingVeld(niveau: number): string {
+  return `niveau${niveau}Beschrijving`
+}
+
 /** Geeft de veldnaam in StudentVoortgang terug (bijv. 'aantalPassieN1') */
 export function getVeldNaam(beentje: string, niveau: number): string {
   const map: Record<string, string> = {

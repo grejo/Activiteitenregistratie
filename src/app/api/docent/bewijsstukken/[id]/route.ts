@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
+import { notifyBewijsBeoordeeld } from '@/lib/mail'
 
 // Docent beoordeelt bewijsstukken
 export async function PATCH(
@@ -15,7 +16,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (session.user.role !== 'docent' && session.user.role !== 'admin') {
+    if (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 
@@ -117,6 +118,9 @@ export async function PATCH(
       await recalculateStudentVoortgang(inschrijving.studentId)
     }
 
+    // De student krijgt bericht van de beoordeling van zijn bewijsstuk
+    await notifyBewijsBeoordeeld(inschrijvingId)
+
     return NextResponse.json(updatedInschrijving)
   } catch (error) {
     console.error('Error reviewing bewijsstukken:', error)
@@ -139,7 +143,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (session.user.role !== 'docent' && session.user.role !== 'admin') {
+    if (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 

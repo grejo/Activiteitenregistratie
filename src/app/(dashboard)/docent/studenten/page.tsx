@@ -70,7 +70,7 @@ async function getStudenten(opleidingIds: string[]) {
 export default async function StudentenPage() {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 

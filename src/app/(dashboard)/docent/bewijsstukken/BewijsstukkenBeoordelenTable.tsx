@@ -324,7 +324,14 @@ export default function BewijsstukkenBeoordelenTable({
                         </span>
                       </button>
 
-                      {previewBewijsstuk?.id === bewijsstuk.id && (
+                      {previewBewijsstuk?.id === bewijsstuk.id && !bewijsstuk.bestandspad && (
+                        <div className="mt-2 rounded-lg border bg-gray-50 p-6 text-center text-gray-500">
+                          <div className="text-3xl mb-2">🗑️</div>
+                          <p className="text-sm">Bestand verwijderd volgens het bewaarbeleid. De registratie blijft bewaard.</p>
+                        </div>
+                      )}
+
+                      {previewBewijsstuk?.id === bewijsstuk.id && bewijsstuk.bestandspad && (
                         <div className="mt-2 rounded-lg overflow-hidden border bg-gray-900">
                           {isImage(bewijsstuk.bestandsnaam) ? (
                             <div className="relative w-full" style={{ minHeight: '200px' }}>

@@ -31,7 +31,7 @@ export function Navbar() {
     try {
       // Bepaal de juiste API endpoint op basis van rol
       let endpoint = ''
-      if (session.user.role === 'docent' || session.user.role === 'admin') {
+      if (session.user.role === 'docent' || session.user.role === 'admin' || session.user.role === 'superadmin') {
         endpoint = '/api/docent/counts'
       } else if (session.user.role === 'student') {
         endpoint = '/api/student/counts'
@@ -74,6 +74,16 @@ export function Navbar() {
     if (!session) return []
 
     switch (session.user.role) {
+      case 'superadmin':
+        return [
+          { href: '/admin', label: 'Dashboard' },
+          { href: '/admin/users', label: 'Gebruikers' },
+          { href: '/admin/studenten', label: 'Studenten' },
+          { href: '/admin/opleidingen', label: 'Opleidingen' },
+          { href: '/admin/activiteiten', label: 'Activiteiten' },
+          { href: '/admin/opschoning', label: 'Opschoning' },
+          { href: '/admin/import', label: 'Import' },
+        ]
       case 'admin':
         return [
           { href: '/admin', label: 'Dashboard' },
@@ -81,7 +91,6 @@ export function Navbar() {
           { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
-          { href: '/admin/import', label: 'Import' },
         ]
       case 'docent':
         return [
@@ -118,6 +127,8 @@ export function Navbar() {
 
   const getRoleBadgeColor = () => {
     switch (session?.user.role) {
+      case 'superadmin':
+        return 'bg-purple-700'
       case 'admin':
         return 'bg-purple-500'
       case 'docent':
@@ -176,7 +187,9 @@ export function Navbar() {
                 <span
                   className={`px-2 py-0.5 text-xs font-semibold rounded ${getRoleBadgeColor()}`}
                 >
-                  {session.user.role.charAt(0).toUpperCase() + session.user.role.slice(1)}
+                  {session.user.role === 'superadmin'
+                    ? 'Superadmin'
+                    : session.user.role.charAt(0).toUpperCase() + session.user.role.slice(1)}
                 </span>
               </div>
               <button

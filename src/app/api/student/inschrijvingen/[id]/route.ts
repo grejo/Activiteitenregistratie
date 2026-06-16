@@ -9,7 +9,7 @@ export async function DELETE(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -29,17 +29,21 @@ export async function DELETE(
     }
 
     // Verify ownership
-    if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin') {
+    if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json(
         { error: 'Je kunt alleen je eigen inschrijvingen annuleren' },
         { status: 403 }
       )
     }
 
-    // Check if activity is in the past
-    if (new Date(inschrijving.activiteit.datum) < new Date()) {
+    // Uitschrijven kan tot 24 uur voor aanvang van de activiteit
+    const msTotActiviteit = new Date(inschrijving.activiteit.datum).getTime() - Date.now()
+    if (msTotActiviteit < 24 * 60 * 60 * 1000) {
       return NextResponse.json(
-        { error: 'Je kunt je niet uitschrijven voor een activiteit die al is geweest' },
+        {
+          error:
+            'Uitschrijven kan tot 24 uur voor de activiteit. Neem contact op met de organisator als je je toch wilt uitschrijven.',
+        },
         { status: 400 }
       )
     }
@@ -78,7 +82,7 @@ export async function GET(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'student' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -106,7 +110,7 @@ export async function GET(
     }
 
     // Verify ownership
-    if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin') {
+    if (inschrijving.studentId !== session.user.id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
       return NextResponse.json(
         { error: 'Je kunt alleen je eigen inschrijvingen bekijken' },
         { status: 403 }

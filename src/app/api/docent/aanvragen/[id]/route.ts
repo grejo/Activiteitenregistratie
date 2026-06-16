@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Beentje } from '@prisma/client'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
+import { notifyPublicatie, notifyAanvraagBeoordeeld } from '@/lib/mail'
 
 export async function PATCH(
   request: Request,
@@ -11,25 +12,21 @@ export async function PATCH(
   try {
     const session = await auth()
 
-    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+    if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Get docent's opleidingen
-    const docentOpleidingen = await prisma.docentOpleiding.findMany({
-      where: { docentId: session.user.id },
-      select: { opleidingId: true },
-    })
-    const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
+    // Beheerde opleidingen: superadmin = alle (null), admin/docent = gekoppelde
+    const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
 
-    // Check if aanvraag exists and belongs to a opleiding this docent manages
+    // Check if aanvraag exists and belongs to a opleiding this user manages
     const aanvraag = await prisma.activiteit.findFirst({
       where: {
         id,
         typeAanvraag: 'student',
-        opleidingId: { in: opleidingIds },
+        ...(beheerdeIds ? { opleidingId: { in: beheerdeIds } } : {}),
       },
     })
 
@@ -42,6 +39,8 @@ export async function PATCH(
 
     const body = await request.json()
     const { status, opmerkingen, beentje, niveau } = body
+    // Verstuurder beslist expliciet of medestudenten een mail krijgen
+    const verstuurMail = body.verstuurMail === true
 
     if (!['goedgekeurd', 'afgekeurd'].includes(status)) {
       return NextResponse.json(
@@ -60,6 +59,8 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {
       status: finaleStatus,
       opmerkingen: opmerkingen || null,
+      // Mailgoedkeuring enkel zinvol bij publicatie op het prikbord
+      verwittigPerMail: finaleStatus === 'gepubliceerd' ? verstuurMail : false,
     }
 
     if (beentje !== undefined) {
@@ -104,6 +105,14 @@ export async function PATCH(
         },
         update: {},
       })
+    }
+
+    // De indiener krijgt altijd bericht van de uitslag (goedgekeurd/afgekeurd)
+    await notifyAanvraagBeoordeeld(id)
+
+    // Mail naar medestudenten enkel als de verstuurder dat aanvinkte (vlag bewaakt)
+    if (finaleStatus === 'gepubliceerd') {
+      await notifyPublicatie(id)
     }
 
     // Herbereken voortgang voor alle ingeschreven studenten bij goedkeuring of aanpassing beentje/niveau

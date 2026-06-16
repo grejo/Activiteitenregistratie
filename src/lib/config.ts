@@ -24,6 +24,9 @@ interface Config {
     mockData: boolean
     emailNotifications: boolean
   }
+  mail: {
+    powerAutomateWebhookUrl?: string
+  }
 }
 
 const getEnvironment = (): Environment => {
@@ -66,7 +69,11 @@ export const config: Config = {
   features: {
     debugMode: env !== 'production',
     mockData: env === 'local',
-    emailNotifications: env === 'production',
+    emailNotifications: !!process.env.POWER_AUTOMATE_WEBHOOK_URL,
+  },
+
+  mail: {
+    powerAutomateWebhookUrl: process.env.POWER_AUTOMATE_WEBHOOK_URL,
   },
 }
 

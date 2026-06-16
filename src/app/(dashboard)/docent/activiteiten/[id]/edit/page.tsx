@@ -14,6 +14,9 @@ async function getActiviteit(id: string, userId: string) {
       id,
       aangemaaktDoorId: userId,
     },
+    include: {
+      opleidingen: { select: { opleidingId: true } },
+    },
   })
 }
 
@@ -41,7 +44,7 @@ export default async function EditActiviteitPage({
 }) {
   const session = await auth()
 
-  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin')) {
+  if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
     redirect('/dashboard')
   }
 
