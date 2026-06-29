@@ -31,12 +31,25 @@ type ActiviteitMeta = {
   prikbordUrl: string
 }
 
-function mailingEnabled(): boolean {
-  if (!config.mail.powerAutomateWebhookUrl) {
-    console.log('[MAIL] Geen POWER_AUTOMATE_WEBHOOK_URL — mailing overgeslagen')
-    return false
+async function getWebhookUrl(): Promise<string | null> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'power_automate_webhook_url' },
+    })
+    if (setting?.value) return setting.value
+  } catch {
+    // DB niet bereikbaar — val terug op env-var
   }
-  return true
+  return config.mail.powerAutomateWebhookUrl ?? null
+}
+
+async function mailingEnabled(): Promise<string | null> {
+  const url = await getWebhookUrl()
+  if (!url) {
+    console.log('[MAIL] Geen webhook-URL — mailing overgeslagen')
+    return null
+  }
+  return url
 }
 
 function dedupeOntvangers(ontvangers: Ontvanger[]): Ontvanger[] {
@@ -59,7 +72,7 @@ async function deliver(
   ontvangers: Ontvanger[],
   meta: ActiviteitMeta
 ): Promise<boolean> {
-  const webhookUrl = config.mail.powerAutomateWebhookUrl
+  const webhookUrl = await getWebhookUrl()
   if (!webhookUrl) return false
   if (ontvangers.length === 0) {
     console.log('[MAIL] Geen ontvangers — niets verstuurd:', subject)
@@ -112,7 +125,7 @@ function metaFrom(a: {
  * gepubliceerde activiteit, en nooit twee keer (mailVerstuurdOp).
  */
 export async function notifyPublicatie(activiteitId: string): Promise<void> {
-  if (!mailingEnabled()) return
+  if (!(await mailingEnabled())) return
   try {
     const activiteit = await prisma.activiteit.findUnique({
       where: { id: activiteitId },
@@ -179,7 +192,7 @@ export async function notifyPublicatie(activiteitId: string): Promise<void> {
 
 /** Naar de student die de aanvraag indiende: goedgekeurd of afgekeurd. */
 export async function notifyAanvraagBeoordeeld(activiteitId: string): Promise<void> {
-  if (!mailingEnabled()) return
+  if (!(await mailingEnabled())) return
   try {
     const a = await prisma.activiteit.findUnique({
       where: { id: activiteitId },
@@ -207,7 +220,7 @@ export async function notifyAanvraagBeoordeeld(activiteitId: string): Promise<vo
 
 /** Naar de student: zijn ingediende bewijsstuk is goedgekeurd of afgekeurd. */
 export async function notifyBewijsBeoordeeld(inschrijvingId: string): Promise<void> {
-  if (!mailingEnabled()) return
+  if (!(await mailingEnabled())) return
   try {
     const i = await prisma.inschrijving.findUnique({
       where: { id: inschrijvingId },
@@ -238,7 +251,7 @@ export async function notifyBewijsBeoordeeld(inschrijvingId: string): Promise<vo
 
 /** Naar de docenten/admins van de opleiding: een nieuwe aanvraag wacht op goedkeuring. */
 export async function notifyNieuweAanvraag(activiteitId: string): Promise<void> {
-  if (!mailingEnabled()) return
+  if (!(await mailingEnabled())) return
   try {
     const a = await prisma.activiteit.findUnique({
       where: { id: activiteitId },
@@ -289,7 +302,7 @@ export async function notifyActiviteitWijziging(
   activiteitId: string,
   opts: { geannuleerd?: boolean; wijzigingen?: string[] }
 ): Promise<void> {
-  if (!mailingEnabled()) return
+  if (!(await mailingEnabled())) return
   try {
     const a = await prisma.activiteit.findUnique({
       where: { id: activiteitId },
