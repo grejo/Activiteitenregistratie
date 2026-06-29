@@ -83,6 +83,7 @@ export function Navbar() {
           { href: '/admin/activiteiten', label: 'Activiteiten' },
           { href: '/admin/opschoning', label: 'Opschoning' },
           { href: '/admin/import', label: 'Import' },
+          { href: '/admin/instellingen', label: 'Instellingen' },
         ]
       case 'admin':
         return [
