@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { AftekendocumentButton } from '@/components/AftekendocumentButton'
 
 type Activiteit = {
   id: string
@@ -15,8 +16,9 @@ type Activiteit = {
   einduur: string
   locatie: string | null
   weblink: string | null
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
   bewijslink: string | null
   verplichtProfiel: string | null
   maxPlaatsen: number | null
@@ -24,6 +26,10 @@ type Activiteit = {
   status: string
   opmerkingen: string | null
   typeAanvraag: string
+  beentje: string | null
+  niveau: number | null
+  aftekenlijstVereist: boolean
+  verplicht: boolean
   aangemaaktDoor: {
     id: string
     naam: string
@@ -79,6 +85,33 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
   const [success, setSuccess] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [opmerking, setOpmerking] = useState('')
+  const [niveauUpdating, setNiveauUpdating] = useState(false)
+
+  const handleNiveauChange = async (nieuwNiveau: number) => {
+    if (nieuwNiveau === activiteit.niveau) return
+    const reden = window.prompt(
+      `Niveau wordt aangepast van ${activiteit.niveau ?? '—'} naar ${nieuwNiveau}. Reden (optioneel):`,
+      ''
+    )
+    setNiveauUpdating(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const response = await fetch(`/api/admin/activiteiten/${activiteit.id}/niveau`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niveau: nieuwNiveau, reden: reden?.trim() || null }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Er is iets misgegaan')
+      setSuccess(`Niveau bijgewerkt naar ${nieuwNiveau}.`)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Er is iets misgegaan')
+    } finally {
+      setNiveauUpdating(false)
+    }
+  }
 
   const handleStatusChange = async (newStatus: string) => {
     setIsLoading(true)
@@ -156,18 +189,72 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="font-heading font-bold text-xl mb-2">{activiteit.titel}</h2>
-            <span
-              className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${
-                statusColors[activiteit.status] || 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {statusLabels[activiteit.status] || activiteit.status}
-            </span>
+            <div className="flex gap-2 flex-wrap">
+              <span
+                className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${
+                  statusColors[activiteit.status] || 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {statusLabels[activiteit.status] || activiteit.status}
+              </span>
+              {activiteit.verplicht && (
+                <span className="px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-pxl-gold text-white">
+                  ⭐ Verplicht
+                </span>
+              )}
+              {activiteit.aftekenlijstVereist && (
+                <span className="px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-gray-800 text-white">
+                  📄 Aftekenlijst
+                </span>
+              )}
+            </div>
           </div>
           <Link href="/admin/activiteiten" className="btn-secondary">
             ← Terug
           </Link>
         </div>
+
+        {/* Aftekendocument PDF (alleen wanneer aftekenlijstVereist is aangevinkt) */}
+        {activiteit.aftekenlijstVereist && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="font-semibold mb-2">Aftekendocument</h3>
+            <p className="text-xs text-gray-500 mb-2">
+              Genereer een PDF met de PXL-huisstijl om te laten aftekenen door de organisator.
+            </p>
+            <AftekendocumentButton activiteitId={activiteit.id} />
+          </div>
+        )}
+
+        {/* Niveau-aanpassing (met audit) */}
+        {activiteit.beentje && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="font-semibold mb-2">Toegekend niveau</h3>
+            <p className="text-xs text-gray-500 mb-2">
+              Wijzigingen worden gelogd (wie, wanneer, van welk niveau naar welk niveau, en waarom).
+            </p>
+            <div className="flex items-center gap-2">
+              <label htmlFor="niveau-select" className="text-sm text-gray-700">
+                Niveau:
+              </label>
+              <select
+                id="niveau-select"
+                value={activiteit.niveau ?? ''}
+                onChange={(e) => handleNiveauChange(Number(e.target.value))}
+                disabled={niveauUpdating}
+                className="input-field w-28"
+              >
+                <option value="" disabled>—</option>
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+              </select>
+              {niveauUpdating && (
+                <span className="text-sm text-gray-500">Bijwerken…</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         {activiteit.status === 'in_review' && (

@@ -43,13 +43,14 @@ export async function PATCH(
       einduur,
       locatie,
       weblink,
-      organisatorPxl,
-      organisatorExtern,
+      organisator,
       bewijslink,
       verplichtProfiel,
       maxPlaatsen,
       status,
       opleidingId,
+      aftekenlijstVereist,
+      verplicht,
     } = body
     const verwittigPerMail = body.verwittigPerMail === true
 
@@ -102,13 +103,14 @@ export async function PATCH(
         einduur,
         locatie: locatie || null,
         weblink: weblink || null,
-        organisatorPxl: organisatorPxl || null,
-        organisatorExtern: organisatorExtern || null,
+        organisator: organisator || null,
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
         status: status || existingActiviteit.status,
         opleidingId: opleidingId || null,
+        aftekenlijstVereist: aftekenlijstVereist === true,
+        verplicht: verplicht === true,
         verwittigPerMail,
         opleidingen: {
           deleteMany: {},

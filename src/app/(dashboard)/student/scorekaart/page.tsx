@@ -47,11 +47,48 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
     },
   })
 
+  // Inschrijvingen waarvoor geen effectieve deelname is (no-show, geen bewijs, of gewoon
+  // voorbij zonder bewijs goedgekeurd).
+  const nietDeelgenomen = await prisma.inschrijving.findMany({
+    where: {
+      studentId: userId,
+      OR: [
+        { noShow: true },
+        {
+          activiteit: { datum: { lt: new Date() } },
+          effectieveDeelname: false,
+          NOT: { bewijsStatus: 'goedgekeurd' },
+        },
+      ],
+    },
+    include: {
+      activiteit: {
+        include: {
+          opleiding: true,
+          duurzaamheid: { include: { duurzaamheid: true } },
+        },
+      },
+    },
+    orderBy: { activiteit: { datum: 'desc' } },
+  })
+
   return {
     schooljaar,
     voortgang: voortgang as Record<string, number> | null,
     target: target as import('@/app/(dashboard)/student/scorekaart/ScorekaartView').OpleidingTarget | null,
     inschrijvingen: inschrijvingen.map((i) => ({
+      ...i,
+      createdAt: i.createdAt.toISOString(),
+      updatedAt: i.updatedAt.toISOString(),
+      uitgeschrevenOp: i.uitgeschrevenOp?.toISOString() || null,
+      activiteit: {
+        ...i.activiteit,
+        datum: i.activiteit.datum.toISOString(),
+        createdAt: i.activiteit.createdAt.toISOString(),
+        updatedAt: i.activiteit.updatedAt.toISOString(),
+      },
+    })),
+    nietDeelgenomen: nietDeelgenomen.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),
       updatedAt: i.updatedAt.toISOString(),

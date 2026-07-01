@@ -46,6 +46,7 @@ export default async function StudentBewijsstukkenPage() {
           einduur: true,
           locatie: true,
           typeAanvraag: true,
+          aftekenlijstVereist: true,
         },
       },
       bewijsstukken: {

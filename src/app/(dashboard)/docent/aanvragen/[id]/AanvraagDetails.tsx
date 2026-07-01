@@ -16,8 +16,9 @@ type Aanvraag = {
   aard: string | null
   locatie: string | null
   weblink: string | null
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
   bewijslink: string | null
   status: string
   beentje: string | null
@@ -208,19 +209,15 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
           )}
 
           {/* Organisator */}
-          {(aanvraag.organisatorPxl || aanvraag.organisatorExtern) && (
+          {(aanvraag.organisator || aanvraag.organisatorPxl || aanvraag.organisatorExtern) && (
             <div className="border-t pt-4 mt-4">
               <div className="text-sm text-gray-500 mb-2">Organisator</div>
-              {aanvraag.organisatorPxl && (
-                <div className="text-sm">
-                  <span className="font-medium">PXL:</span> {aanvraag.organisatorPxl}
-                </div>
-              )}
-              {aanvraag.organisatorExtern && (
-                <div className="text-sm">
-                  <span className="font-medium">Extern:</span> {aanvraag.organisatorExtern}
-                </div>
-              )}
+              <div className="text-sm">
+                {aanvraag.organisator ||
+                  [aanvraag.organisatorPxl, aanvraag.organisatorExtern]
+                    .filter(Boolean)
+                    .join(' / ')}
+              </div>
             </div>
           )}
 

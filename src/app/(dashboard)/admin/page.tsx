@@ -4,7 +4,7 @@ import Link from 'next/link'
 import prisma from '@/lib/prisma'
 
 export const metadata = {
-  title: 'Admin Dashboard - X-FactorTool',
+  title: 'Admin Dashboard - Xfactorapp',
 }
 
 async function getStats(beheerdeIds: string[] | null) {

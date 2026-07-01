@@ -33,12 +33,24 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { effectieveDeelname } = body
+    const { effectieveDeelname, noShow, noShowOpmerking } = body
+
+    // No-show impliceert dat de student niet effectief heeft deelgenomen.
+    const effectief = noShow === true
+      ? false
+      : effectieveDeelname ?? inschrijving.effectieveDeelname
 
     const updatedInschrijving = await prisma.inschrijving.update({
       where: { id },
       data: {
-        effectieveDeelname: effectieveDeelname ?? inschrijving.effectieveDeelname,
+        effectieveDeelname: effectief,
+        noShow: noShow ?? inschrijving.noShow,
+        noShowOpmerking:
+          noShow === false
+            ? null
+            : noShowOpmerking !== undefined
+              ? noShowOpmerking
+              : inschrijving.noShowOpmerking,
       },
     })
 

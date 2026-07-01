@@ -55,8 +55,7 @@ export async function POST(request: Request) {
       einduur,
       locatie,
       weblink,
-      organisatorPxl,
-      organisatorExtern,
+      organisator,
       bewijslink,
       verplichtProfiel,
       maxPlaatsen,
@@ -64,6 +63,8 @@ export async function POST(request: Request) {
       opleidingId,
       niveau,
       duurzaamheidId,
+      aftekenlijstVereist,
+      verplicht,
     } = body
     const verwittigPerMail = body.verwittigPerMail === true
 
@@ -106,8 +107,7 @@ export async function POST(request: Request) {
         einduur,
         locatie: locatie || null,
         weblink: weblink || null,
-        organisatorPxl: organisatorPxl || null,
-        organisatorExtern: organisatorExtern || null,
+        organisator: organisator || null,
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
@@ -117,6 +117,8 @@ export async function POST(request: Request) {
         typeAanvraag: 'docent',
         aangemaaktDoorId: session.user.id,
         opleidingId: opleidingId || null,
+        aftekenlijstVereist: aftekenlijstVereist === true,
+        verplicht: verplicht === true,
         // Cross-opleiding zichtbaarheid
         opleidingen: {
           create: opleidingIds.map((opId) => ({ opleidingId: opId })),

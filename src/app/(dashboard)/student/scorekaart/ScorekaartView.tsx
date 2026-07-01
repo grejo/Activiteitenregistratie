@@ -53,12 +53,15 @@ type Activiteit = {
   duurzaamheid: {
     duurzaamheid: { naam: string; icoon: string | null }
   }[]
+  verplicht?: boolean
 }
 
 type Inschrijving = {
   id: string
   effectieveDeelname: boolean
   activiteit: Activiteit
+  noShow?: boolean
+  noShowOpmerking?: string | null
 }
 
 export type OpleidingTarget = {
@@ -79,6 +82,9 @@ type ScorekaartData = {
   voortgang: Record<string, number> | null
   target: OpleidingTarget | null
   inschrijvingen: Inschrijving[]
+  // Inschrijvingen waar student wél was ingeschreven maar niet effectief deelnam
+  // (no-show, geen bewijs goedgekeurd, of activiteit reeds voorbij zonder deelname).
+  nietDeelgenomen?: Inschrijving[]
 }
 
 // Helper: totaal activiteiten voor een beentje (alle niveaus)
@@ -455,6 +461,52 @@ export default function ScorekaartView({
           <p className="text-pxl-black-light">
             Dien bewijsstukken in voor je activiteiten om je scorekaart te vullen.
           </p>
+        </div>
+      )}
+
+      {/* Ingeschreven maar niet deelgenomen (no-show of geen bewijs goedgekeurd) */}
+      {data.nietDeelgenomen && data.nietDeelgenomen.length > 0 && (
+        <div className="mt-6">
+          <Accordion
+            title="Ingeschreven, niet deelgenomen"
+            badge={
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                {data.nietDeelgenomen.length}
+              </span>
+            }
+          >
+            <p className="text-sm text-gray-500 mb-4">
+              Activiteiten waarvoor de student was ingeschreven maar niet effectief heeft deelgenomen.
+            </p>
+            <div className="space-y-2">
+              {data.nietDeelgenomen.map((i) => (
+                <div
+                  key={i.id}
+                  className="border border-gray-200 rounded p-3 flex justify-between items-start gap-3"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">
+                      {i.activiteit.titel}
+                      {i.activiteit.verplicht && (
+                        <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-pxl-gold text-white">
+                          Verplicht
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(i.activiteit.datum).toLocaleDateString('nl-BE')} — {i.activiteit.locatie ?? '—'}
+                    </div>
+                    {(i.noShow || i.noShowOpmerking) && (
+                      <div className="text-xs text-red-600 mt-1">
+                        {i.noShow ? 'No-show' : 'Geen bewijs goedgekeurd'}
+                        {i.noShowOpmerking ? ` — ${i.noShowOpmerking}` : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Accordion>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD } 
 import type { OpleidingTarget } from '@/app/(dashboard)/student/scorekaart/ScorekaartView'
 
 export const metadata = {
-  title: 'Student Dashboard - X-FactorTool',
+  title: 'Student Dashboard - Xfactorapp',
 }
 
 async function getStudentStats(userId: string, opleidingId: string | null) {
