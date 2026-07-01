@@ -18,10 +18,18 @@ export default async function ActiviteitenPage() {
 
   const [activiteiten, opleidingen] = await Promise.all([
     prisma.activiteit.findMany({
-      where: beheerdeIds ? { opleidingId: { in: beheerdeIds } } : {},
+      where: beheerdeIds
+        ? {
+            OR: [
+              { opleidingId: { in: beheerdeIds } },
+              { opleidingen: { some: { opleidingId: { in: beheerdeIds } } } },
+            ],
+          }
+        : {},
       include: {
         aangemaaktDoor: { include: { opleiding: true } },
         opleiding: true,
+        opleidingen: { include: { opleiding: true } },
         duurzaamheid: { include: { duurzaamheid: true } },
         inschrijvingen: { include: { student: true } },
       },

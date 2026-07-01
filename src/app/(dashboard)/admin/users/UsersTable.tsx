@@ -49,8 +49,18 @@ export default function UsersTable({
     let result = users
     if (opleidingFilter !== 'all') {
       result = opleidingFilter === 'none'
-        ? result.filter((u) => !u.opleiding)
-        : result.filter((u) => u.opleiding?.id === opleidingFilter)
+        ? result.filter(
+            (u) =>
+              !u.opleiding &&
+              u.docentOpleidingen.length === 0 &&
+              u.adminOpleidingen.length === 0
+          )
+        : result.filter(
+            (u) =>
+              u.opleiding?.id === opleidingFilter ||
+              u.docentOpleidingen.some((d) => d.opleiding.id === opleidingFilter) ||
+              u.adminOpleidingen.some((a) => a.opleiding.id === opleidingFilter)
+          )
     }
     if (search) {
       const q = search.toLowerCase()

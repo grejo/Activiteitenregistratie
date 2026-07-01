@@ -32,6 +32,28 @@ export default async function ImportPage() {
         </p>
       </div>
 
+      <div className="card">
+        <h2 className="font-heading font-bold text-lg mb-2">Sjablonen downloaden</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Gebruik onderstaande Excel-sjablonen als startpunt. Elk sjabloon bevat een
+          voorbeeldrij en een tweede tab met uitleg per kolom.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="/api/admin/import/template?type=activiteiten"
+            className="inline-flex items-center px-4 py-2 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium"
+          >
+            📄 Sjabloon activiteiten (.xlsx)
+          </a>
+          <a
+            href="/api/admin/import/template?type=gebruikers"
+            className="inline-flex items-center px-4 py-2 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium"
+          >
+            👥 Sjabloon gebruikers (.xlsx)
+          </a>
+        </div>
+      </div>
+
       <ImportModule opleidingen={opleidingen} />
     </div>
   )

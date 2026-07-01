@@ -1,7 +1,7 @@
 {
-  "name": "pxl-factortool",
+  "name": "xfactorapp",
   "version": "1.0.0",
-  "description": "X-FactorTool webapp voor PXL Hogeschool",
+  "description": "Xfactorapp webapp voor PXL Hogeschool",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -27,6 +27,7 @@
   "homepage": "https://github.com/grejo/Activiteitenregistratie#readme",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
@@ -34,6 +35,7 @@
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "next": "^15.0.0",
     "next-auth": "^5.0.0-beta.30",
     "pg": "^8.20.0",

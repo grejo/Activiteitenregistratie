@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
+import { AftekendocumentButton } from '@/components/AftekendocumentButton'
 
 type Bewijsstuk = {
   id: string
@@ -21,6 +22,7 @@ type Activiteit = {
   einduur: string
   locatie: string | null
   typeAanvraag: string
+  aftekenlijstVereist?: boolean
 }
 
 type Inschrijving = {
@@ -145,8 +147,8 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {inschrijvingen.map((inschrijving) => (
-                <>
-                  <tr key={inschrijving.id} className="hover:bg-gray-50">
+                <Fragment key={inschrijving.id}>
+                  <tr className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {formatDate(inschrijving.activiteit.datum)}
@@ -248,6 +250,25 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                             </div>
                           )}
 
+                          {/* Aftekenlijst-sjabloon (alleen wanneer de activiteit dit vereist) */}
+                          {inschrijving.activiteit.aftekenlijstVereist && (
+                            <div className="mb-4 p-3 bg-yellow-50 border border-pxl-gold rounded-lg flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-pxl-black text-sm">
+                                  📄 Aftekenlijst downloaden
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Laat deze PDF invullen en ondertekenen door de organisator, upload
+                                  hem daarna als bewijsstuk.
+                                </p>
+                              </div>
+                              <AftekendocumentButton
+                                activiteitId={inschrijving.activiteit.id}
+                                label="⬇︎ Aftekenlijst (PDF)"
+                              />
+                            </div>
+                          )}
+
                           {/* Upload component */}
                           <BewijsstukkenUpload
                             inschrijvingId={inschrijving.id}
@@ -284,7 +305,7 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

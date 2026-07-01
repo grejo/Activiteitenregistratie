@@ -45,6 +45,7 @@ model Opleiding {
   duurzaamheidsThemas DuurzaamheidsThema[]
   targets             OpleidingTarget[]
   studentVoortgang    StudentVoortgang[]
+  sjablonen           Sjabloon[]
 }
 
 // ============================================
@@ -74,6 +75,8 @@ model User {
 
   impersonationsByAdmin  ImpersonationLog[] @relation("AdminImpersonations")
   impersonationsAsTarget ImpersonationLog[] @relation("TargetImpersonations")
+
+  niveauWijzigingen NiveauWijzigingLog[]
 }
 
 model DocentOpleiding {
@@ -166,7 +169,10 @@ model Activiteit {
   einduur           String
   locatie           String?
   weblink           String?
+  organisator       String?
+  /// @deprecated: samengevoegd tot `organisator`. Blijft tijdelijk staan tot data-migratie geverifieerd.
   organisatorPxl    String?
+  /// @deprecated: samengevoegd tot `organisator`. Blijft tijdelijk staan tot data-migratie geverifieerd.
   organisatorExtern String?
   bewijslink        String?
   verplichtProfiel  String?
@@ -177,6 +183,12 @@ model Activiteit {
   niveau  Int?     // 1-4
 
   openVoorMedestudenten Boolean  @default(false)
+
+  // Vinkjes bij aanmaak activiteit (§8):
+  // - aftekenlijstVereist: toon "Aftekendocument (PDF)"-knop op de detailpagina
+  // - verplicht: activiteit is verplicht voor studenten (badge in scorekaart)
+  aftekenlijstVereist Boolean @default(false)
+  verplicht           Boolean @default(false)
 
   // Mailing: een docent/admin/superadmin moet expliciet goedkeuren of studenten
   // per e-mail verwittigd worden. Studenten kunnen dit nooit zelf zetten.
@@ -199,6 +211,8 @@ model Activiteit {
   inschrijvingen Inschrijving[]
   duurzaamheid   ActiviteitDuurzaamheid[]
   opleidingen    ActiviteitOpleiding[]
+  niveauWijzigingen NiveauWijzigingLog[]
+  sjablonen         ActiviteitSjabloon[]
 
   @@index([opleidingId, status, openVoorMedestudenten])
 }
@@ -250,6 +264,10 @@ model Inschrijving {
   bewijsBeoordeeldOp       DateTime?
   bewijsFeedback           String?
   bewijsAfgekeurdBekekenOp DateTime?
+
+  // No-show markering door docent/admin: student was ingeschreven maar heeft niet deelgenomen.
+  noShow           Boolean @default(false)
+  noShowOpmerking  String?
 
   activiteitId String
   activiteit   Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
@@ -340,6 +358,57 @@ model StudentVoortgang {
   opleiding   Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, schooljaar])
+}
+
+// ============================================
+// SJABLONEN
+// ============================================
+
+model Sjabloon {
+  id           String   @id @default(uuid())
+  naam         String
+  beschrijving String?
+  bestandspad  String?
+  bestandsnaam String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  opleidingId  String
+  opleiding    Opleiding @relation(fields: [opleidingId], references: [id], onDelete: Cascade)
+
+  activiteiten ActiviteitSjabloon[]
+}
+
+model ActiviteitSjabloon {
+  activiteitId String
+  sjabloonId   String
+  verplicht    Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  activiteit Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  sjabloon   Sjabloon   @relation(fields: [sjabloonId], references: [id], onDelete: Cascade)
+
+  @@id([activiteitId, sjabloonId])
+  @@index([sjabloonId])
+}
+
+// ============================================
+// NIVEAU AUDIT
+// ============================================
+
+model NiveauWijzigingLog {
+  id              String   @id @default(uuid())
+  vanNiveau       Int?
+  naarNiveau      Int
+  reden           String?
+  createdAt       DateTime @default(now())
+
+  activiteitId    String
+  activiteit      Activiteit @relation(fields: [activiteitId], references: [id], onDelete: Cascade)
+  gewijzigdDoorId String
+  gewijzigdDoor   User @relation(fields: [gewijzigdDoorId], references: [id])
+
+  @@index([activiteitId])
 }
 
 // ============================================

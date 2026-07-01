@@ -15,8 +15,9 @@ type Activiteit = {
   aard: string | null
   locatie: string | null
   weblink: string | null
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
   maxPlaatsen: number | null
   opleiding: {
     naam: string
@@ -25,6 +26,8 @@ type Activiteit = {
     id: string
     effectieveDeelname: boolean
     inschrijvingsstatus: string
+    noShow: boolean
+    noShowOpmerking: string | null
     student: {
       id: string
       naam: string
@@ -81,6 +84,39 @@ export default function DocentActiviteitDetails({
       }
     } catch (error) {
       console.error('Error updating deelname:', error)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const handleToggleNoShow = async (
+    inschrijvingId: string,
+    currentValue: boolean
+  ) => {
+    setUpdatingId(inschrijvingId)
+    try {
+      const nieuw = !currentValue
+      let opmerking: string | null | undefined
+      if (nieuw) {
+        const reden = window.prompt(
+          'Reden voor no-show (optioneel):',
+          ''
+        )
+        opmerking = reden?.trim() || null
+      } else {
+        opmerking = null
+      }
+      const response = await fetch(`/api/docent/inschrijvingen/${inschrijvingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noShow: nieuw, noShowOpmerking: opmerking }),
+      })
+
+      if (response.ok) {
+        router.refresh()
+      }
+    } catch (error) {
+      console.error('Error updating no-show:', error)
     } finally {
       setUpdatingId(null)
     }
@@ -165,17 +201,17 @@ export default function DocentActiviteitDetails({
             </div>
           )}
 
-          {activiteit.organisatorPxl && (
+          {(activiteit.organisator ||
+            activiteit.organisatorPxl ||
+            activiteit.organisatorExtern) && (
             <div>
-              <h3 className="font-semibold text-gray-700 mb-1">Organisator PXL</h3>
-              <p>{activiteit.organisatorPxl}</p>
-            </div>
-          )}
-
-          {activiteit.organisatorExtern && (
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-1">Externe Organisator</h3>
-              <p>{activiteit.organisatorExtern}</p>
+              <h3 className="font-semibold text-gray-700 mb-1">Organisator</h3>
+              <p>
+                {activiteit.organisator ||
+                  [activiteit.organisatorPxl, activiteit.organisatorExtern]
+                    .filter(Boolean)
+                    .join(' / ')}
+              </p>
             </div>
           )}
 
@@ -227,9 +263,14 @@ export default function DocentActiviteitDetails({
                     Opleiding
                   </th>
                   {isPast && (
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Deelname
-                    </th>
+                    <>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Deelname
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        No-show
+                      </th>
+                    </>
                   )}
                 </tr>
               </thead>
@@ -248,28 +289,55 @@ export default function DocentActiviteitDetails({
                       {inschrijving.student.opleiding?.naam || '-'}
                     </td>
                     {isPast && (
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() =>
-                            handleToggleDeelname(
-                              inschrijving.id,
+                      <>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() =>
+                              handleToggleDeelname(
+                                inschrijving.id,
+                                inschrijving.effectieveDeelname
+                              )
+                            }
+                            disabled={updatingId === inschrijving.id || inschrijving.noShow}
+                            title={
+                              inschrijving.noShow
+                                ? 'Kan niet aangevinkt worden zolang no-show gemarkeerd is'
+                                : undefined
+                            }
+                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                               inschrijving.effectieveDeelname
-                            )
-                          }
-                          disabled={updatingId === inschrijving.id}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                            inschrijving.effectieveDeelname
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {updatingId === inschrijving.id
-                            ? '...'
-                            : inschrijving.effectieveDeelname
-                            ? 'Aanwezig'
-                            : 'Niet bevestigd'}
-                        </button>
-                      </td>
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            } ${inschrijving.noShow ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {updatingId === inschrijving.id
+                              ? '...'
+                              : inschrijving.effectieveDeelname
+                              ? 'Aanwezig'
+                              : 'Niet bevestigd'}
+                          </button>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() =>
+                              handleToggleNoShow(inschrijving.id, inschrijving.noShow)
+                            }
+                            disabled={updatingId === inschrijving.id}
+                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                              inschrijving.noShow
+                                ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                            title={inschrijving.noShowOpmerking || undefined}
+                          >
+                            {updatingId === inschrijving.id
+                              ? '...'
+                              : inschrijving.noShow
+                              ? 'No-show'
+                              : 'Aanwezig'}
+                          </button>
+                        </td>
+                      </>
                     )}
                   </tr>
                 ))}

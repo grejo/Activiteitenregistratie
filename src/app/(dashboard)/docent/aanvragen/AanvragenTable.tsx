@@ -24,8 +24,9 @@ type Aanvraag = {
   einduur: string
   locatie: string | null
   weblink: string | null
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
   bewijslink: string | null
   openVoorMedestudenten: boolean
   aangemaaktDoor: {
@@ -332,15 +333,17 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
                 )}
 
                 {/* Organisator */}
-                {(selectedAanvraag.organisatorPxl || selectedAanvraag.organisatorExtern) && (
+                {(selectedAanvraag.organisator ||
+                  selectedAanvraag.organisatorPxl ||
+                  selectedAanvraag.organisatorExtern) && (
                   <div className="mb-4">
                     <div className="text-sm text-gray-500 mb-1">Organisator</div>
-                    {selectedAanvraag.organisatorPxl && (
-                      <div className="text-sm"><span className="font-medium">PXL:</span> {selectedAanvraag.organisatorPxl}</div>
-                    )}
-                    {selectedAanvraag.organisatorExtern && (
-                      <div className="text-sm"><span className="font-medium">Extern:</span> {selectedAanvraag.organisatorExtern}</div>
-                    )}
+                    <div className="text-sm">
+                      {selectedAanvraag.organisator ||
+                        [selectedAanvraag.organisatorPxl, selectedAanvraag.organisatorExtern]
+                          .filter(Boolean)
+                          .join(' / ')}
+                    </div>
                   </div>
                 )}
 

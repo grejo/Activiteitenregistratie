@@ -23,13 +23,14 @@ export async function POST(request: Request) {
       einduur,
       locatie,
       weblink,
-      organisatorPxl,
-      organisatorExtern,
+      organisator,
       bewijslink,
       verplichtProfiel,
       maxPlaatsen,
       status,
       opleidingId,
+      aftekenlijstVereist,
+      verplicht,
     } = body
     const verwittigPerMail = body.verwittigPerMail === true
 
@@ -72,8 +73,7 @@ export async function POST(request: Request) {
         einduur,
         locatie: locatie || null,
         weblink: weblink || null,
-        organisatorPxl: organisatorPxl || null,
-        organisatorExtern: organisatorExtern || null,
+        organisator: organisator || null,
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
@@ -81,6 +81,8 @@ export async function POST(request: Request) {
         typeAanvraag: 'docent', // Admin creates as docent type
         aangemaaktDoorId: session.user.id,
         opleidingId: opleidingId || null,
+        aftekenlijstVereist: aftekenlijstVereist === true,
+        verplicht: verplicht === true,
         verwittigPerMail,
         opleidingen: {
           create: opleidingIds.map((opId) => ({ opleidingId: opId })),

@@ -62,8 +62,7 @@ const initialFormData = {
   einduur: '17:00',
   locatie: '',
   weblink: '',
-  organisatorPxl: '',
-  organisatorExtern: '',
+  organisator: '',
   bewijslink: '',
   verplichtProfiel: '',
   maxPlaatsen: null as number | null,
@@ -91,6 +90,12 @@ export default function DocentActiviteitenTable({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState(initialFormData)
+  // Extra opleidingen waarvoor de activiteit ook zichtbaar is (cross-opleiding).
+  const [extraOpleidingIds, setExtraOpleidingIds] = useState<string[]>([])
+  const toggleExtraOpleiding = (id: string) =>
+    setExtraOpleidingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
 
   // Filter activiteiten based on selected filters
   const filteredActiviteiten = useMemo(() => {
@@ -145,6 +150,7 @@ export default function DocentActiviteitenTable({
   const closeModal = () => {
     setShowModal(false)
     setFormData(initialFormData)
+    setExtraOpleidingIds([])
     setError(null)
   }
 
@@ -173,6 +179,9 @@ export default function DocentActiviteitenTable({
           ...formData,
           maxPlaatsen: formData.maxPlaatsen ? Number(formData.maxPlaatsen) : null,
           opleidingId: formData.opleidingId || null,
+          opleidingIds: Array.from(
+            new Set([formData.opleidingId, ...extraOpleidingIds].filter(Boolean))
+          ),
           niveau: formData.niveau || null,
           duurzaamheidId: formData.duurzaamheidId || null,
         }),
@@ -612,43 +621,23 @@ export default function DocentActiviteitenTable({
                 </div>
               </div>
 
-              {/* Organisatoren */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="organisatorPxl"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Organisator PXL
-                  </label>
-                  <input
-                    type="text"
-                    id="organisatorPxl"
-                    name="organisatorPxl"
-                    value={formData.organisatorPxl}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                    placeholder="Naam PXL organisator"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="organisatorExtern"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Organisator Extern
-                  </label>
-                  <input
-                    type="text"
-                    id="organisatorExtern"
-                    name="organisatorExtern"
-                    value={formData.organisatorExtern}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                    placeholder="Naam externe organisator"
-                  />
-                </div>
+              {/* Organisator */}
+              <div>
+                <label
+                  htmlFor="organisator"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Organisator
+                </label>
+                <input
+                  type="text"
+                  id="organisator"
+                  name="organisator"
+                  value={formData.organisator}
+                  onChange={handleChange}
+                  className="input-field mt-1 w-full"
+                  placeholder="Naam van de organisator (PXL of extern)"
+                />
               </div>
 
               {/* Opleiding & Max Plaatsen */}
@@ -674,6 +663,31 @@ export default function DocentActiviteitenTable({
                       </option>
                     ))}
                   </select>
+
+                  {/* Cross-opleiding: alleen relevant als er een primaire opleiding is gekozen */}
+                  {formData.opleidingId &&
+                    opleidingen.filter((o) => o.id !== formData.opleidingId).length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium text-gray-700">
+                          Ook tonen op het prikbord van:
+                        </p>
+                        <div className="mt-1 space-y-1 border border-gray-200 rounded p-2 max-h-40 overflow-y-auto">
+                          {opleidingen
+                            .filter((o) => o.id !== formData.opleidingId)
+                            .map((o) => (
+                              <label key={o.id} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={extraOpleidingIds.includes(o.id)}
+                                  onChange={() => toggleExtraOpleiding(o.id)}
+                                  className="rounded border-gray-300"
+                                />
+                                <span className="text-sm text-gray-700">{o.naam}</span>
+                              </label>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                 </div>
 
                 <div>

@@ -41,22 +41,48 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
     orderBy: { activiteit: { datum: 'desc' } },
   })
 
+  const nietDeelgenomen = await prisma.inschrijving.findMany({
+    where: {
+      studentId,
+      OR: [
+        { noShow: true },
+        {
+          activiteit: { datum: { lt: new Date() } },
+          effectieveDeelname: false,
+          NOT: { bewijsStatus: 'goedgekeurd' },
+        },
+      ],
+    },
+    include: {
+      activiteit: {
+        include: {
+          opleiding: true,
+          duurzaamheid: { include: { duurzaamheid: true } },
+        },
+      },
+    },
+    orderBy: { activiteit: { datum: 'desc' } },
+  })
+
+  const serialize = (i: (typeof inschrijvingen)[number]) => ({
+    ...i,
+    createdAt: i.createdAt.toISOString(),
+    updatedAt: i.updatedAt.toISOString(),
+    uitgeschrevenOp: i.uitgeschrevenOp?.toISOString() || null,
+    activiteit: {
+      ...i.activiteit,
+      datum: i.activiteit.datum.toISOString(),
+      createdAt: i.activiteit.createdAt.toISOString(),
+      updatedAt: i.activiteit.updatedAt.toISOString(),
+    },
+  })
+
   return {
     schooljaar,
     voortgang: voortgang as Record<string, number> | null,
     target: target as import('@/app/(dashboard)/student/scorekaart/ScorekaartView').OpleidingTarget | null,
-    inschrijvingen: inschrijvingen.map((i) => ({
-      ...i,
-      createdAt: i.createdAt.toISOString(),
-      updatedAt: i.updatedAt.toISOString(),
-      uitgeschrevenOp: i.uitgeschrevenOp?.toISOString() || null,
-      activiteit: {
-        ...i.activiteit,
-        datum: i.activiteit.datum.toISOString(),
-        createdAt: i.activiteit.createdAt.toISOString(),
-        updatedAt: i.activiteit.updatedAt.toISOString(),
-      },
-    })),
+    inschrijvingen: inschrijvingen.map(serialize),
+    nietDeelgenomen: nietDeelgenomen.map(serialize),
   }
 }
 

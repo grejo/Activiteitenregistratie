@@ -37,8 +37,9 @@ type Aanvraag = {
   opmerkingen: string | null
   bewijslink: string | null
   openVoorMedestudenten: boolean
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
   createdAt: string
   opleiding: {
     naam: string
@@ -84,8 +85,7 @@ const initialFormData = {
   einduur: '17:00',
   locatie: '',
   weblink: '',
-  organisatorPxl: '',
-  organisatorExtern: '',
+  organisator: '',
   beentje: '',
   niveau: '',
   duurzaamheidId: '',
@@ -555,20 +555,17 @@ export default function AanvragenTable({
                 )}
 
                 {/* Organisator */}
-                {(selectedAanvraag.organisatorPxl || selectedAanvraag.organisatorExtern) && (
+                {(selectedAanvraag.organisator ||
+                  selectedAanvraag.organisatorPxl ||
+                  selectedAanvraag.organisatorExtern) && (
                   <div className="mb-4">
                     <div className="text-sm text-gray-500 mb-1">Organisator</div>
-                    {selectedAanvraag.organisatorPxl && (
-                      <div className="text-sm">
-                        <span className="font-medium">PXL:</span> {selectedAanvraag.organisatorPxl}
-                      </div>
-                    )}
-                    {selectedAanvraag.organisatorExtern && (
-                      <div className="text-sm">
-                        <span className="font-medium">Extern:</span>{' '}
-                        {selectedAanvraag.organisatorExtern}
-                      </div>
-                    )}
+                    <div className="text-sm">
+                      {selectedAanvraag.organisator ||
+                        [selectedAanvraag.organisatorPxl, selectedAanvraag.organisatorExtern]
+                          .filter(Boolean)
+                          .join(' / ')}
+                    </div>
                   </div>
                 )}
 
@@ -920,37 +917,20 @@ export default function AanvragenTable({
                 </div>
               </div>
 
-              {/* Organisatoren */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="organisatorPxl" className="block text-sm font-medium text-gray-700">
-                    Organisator PXL
-                  </label>
-                  <input
-                    type="text"
-                    id="organisatorPxl"
-                    name="organisatorPxl"
-                    value={formData.organisatorPxl}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                    placeholder="Naam PXL organisator"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="organisatorExtern" className="block text-sm font-medium text-gray-700">
-                    Organisator Extern
-                  </label>
-                  <input
-                    type="text"
-                    id="organisatorExtern"
-                    name="organisatorExtern"
-                    value={formData.organisatorExtern}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                    placeholder="Naam externe organisator"
-                  />
-                </div>
+              {/* Organisator */}
+              <div>
+                <label htmlFor="organisator" className="block text-sm font-medium text-gray-700">
+                  Organisator
+                </label>
+                <input
+                  type="text"
+                  id="organisator"
+                  name="organisator"
+                  value={formData.organisator}
+                  onChange={handleChange}
+                  className="input-field mt-1 w-full"
+                  placeholder="Naam van de organisator (PXL of extern)"
+                />
               </div>
 
               {/* Beentje, Niveau & Duurzaamheid */}

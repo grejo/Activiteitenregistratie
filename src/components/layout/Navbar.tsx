@@ -81,8 +81,6 @@ export function Navbar() {
           { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
-          { href: '/admin/opschoning', label: 'Opschoning' },
-          { href: '/admin/import', label: 'Import' },
           { href: '/admin/instellingen', label: 'Instellingen' },
         ]
       case 'admin':
@@ -151,7 +149,7 @@ export function Navbar() {
               href={session ? (session.user.role === 'superadmin' ? '/admin' : `/${session.user.role}`) : '/'}
               className="font-heading font-black text-xl hover:text-pxl-gold transition-colors"
             >
-              X-FactorTool
+              Xfactorapp
             </Link>
           </div>
 

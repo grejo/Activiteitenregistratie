@@ -24,8 +24,11 @@ type Activiteit = {
   einduur: string
   locatie: string | null
   weblink: string | null
-  organisatorPxl: string | null
-  organisatorExtern: string | null
+  organisator: string | null
+  organisatorPxl?: string | null
+  organisatorExtern?: string | null
+  aftekenlijstVereist?: boolean
+  verplicht?: boolean
   bewijslink: string | null
   verplichtProfiel: string | null
   maxPlaatsen: number | null
@@ -62,14 +65,20 @@ export default function DocentActiviteitForm({
     einduur: activiteit?.einduur || '17:00',
     locatie: activiteit?.locatie || '',
     weblink: activiteit?.weblink || '',
-    organisatorPxl: activiteit?.organisatorPxl || '',
-    organisatorExtern: activiteit?.organisatorExtern || '',
+    organisator:
+      activiteit?.organisator ||
+      [activiteit?.organisatorPxl, activiteit?.organisatorExtern]
+        .filter(Boolean)
+        .join(' / ') ||
+      '',
     bewijslink: activiteit?.bewijslink || '',
     verplichtProfiel: activiteit?.verplichtProfiel || '',
     maxPlaatsen: activiteit?.maxPlaatsen || null,
     status: activiteit?.status || 'gepubliceerd',
     opleidingId: activiteit?.opleidingId || '',
     niveau: activiteit?.niveau?.toString() || '',
+    aftekenlijstVereist: activiteit?.aftekenlijstVereist ?? false,
+    verplicht: activiteit?.verplicht ?? false,
   })
 
   // Mail-verwittiging (standaard uit) — docent beslist of studenten gemaild worden
@@ -314,43 +323,23 @@ export default function DocentActiviteitForm({
         </div>
       </div>
 
-      {/* Organisatoren */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label
-            htmlFor="organisatorPxl"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Organisator PXL
-          </label>
-          <input
-            type="text"
-            id="organisatorPxl"
-            name="organisatorPxl"
-            value={formData.organisatorPxl}
-            onChange={handleChange}
-            className="input-field mt-1"
-            placeholder="Naam PXL organisator"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="organisatorExtern"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Organisator Extern
-          </label>
-          <input
-            type="text"
-            id="organisatorExtern"
-            name="organisatorExtern"
-            value={formData.organisatorExtern}
-            onChange={handleChange}
-            className="input-field mt-1"
-            placeholder="Naam externe organisator"
-          />
-        </div>
+      {/* Organisator */}
+      <div>
+        <label
+          htmlFor="organisator"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Organisator
+        </label>
+        <input
+          type="text"
+          id="organisator"
+          name="organisator"
+          value={formData.organisator}
+          onChange={handleChange}
+          className="input-field mt-1"
+          placeholder="Naam van de organisator (PXL of extern)"
+        />
       </div>
 
       {/* Opleiding & Niveau */}
@@ -492,6 +481,42 @@ export default function DocentActiviteitForm({
           <option value="gepubliceerd">Gepubliceerd</option>
           <option value="afgerond">Afgerond</option>
         </select>
+      </div>
+
+      {/* Vinkjes: aftekenlijst + verplicht */}
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.aftekenlijstVereist}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, aftekenlijstVereist: e.target.checked }))
+            }
+            className="mt-1"
+          />
+          <div>
+            <div className="text-sm font-medium">Aftekenlijst gebruiken</div>
+            <div className="text-xs text-gray-600">
+              Toon de knop om een PDF-aftekendocument te downloaden op de detailpagina.
+            </div>
+          </div>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.verplicht}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, verplicht: e.target.checked }))
+            }
+            className="mt-1"
+          />
+          <div>
+            <div className="text-sm font-medium">Verplichte activiteit</div>
+            <div className="text-xs text-gray-600">
+              Verschijnt met een badge op scorekaart en prikbord.
+            </div>
+          </div>
+        </label>
       </div>
 
       {/* Mail-verwittiging */}

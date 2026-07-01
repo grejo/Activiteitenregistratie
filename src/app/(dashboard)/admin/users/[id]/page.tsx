@@ -1,5 +1,6 @@
 import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import EditUserForm from './EditUserForm'
 
@@ -71,13 +72,23 @@ export default async function EditUserPage({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="font-heading font-black text-3xl text-pxl-black gold-underline inline-block">
-          Gebruiker Bewerken
-        </h1>
-        <p className="text-pxl-black-light mt-4">
-          Bewerk de gegevens van {user.naam}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading font-black text-3xl text-pxl-black gold-underline inline-block">
+            Gebruiker Bewerken
+          </h1>
+          <p className="text-pxl-black-light mt-4">
+            Bewerk de gegevens van {user.naam}
+          </p>
+        </div>
+        {user.role === 'student' && (
+          <Link
+            href={`/admin/users/${user.id}/bekijk-als-student`}
+            className="inline-flex items-center px-4 py-2 border border-pxl-gold text-pxl-gold rounded hover:bg-yellow-50 font-medium whitespace-nowrap"
+          >
+            👁️ Bekijk als student
+          </Link>
+        )}
       </div>
 
       {/* Form */}

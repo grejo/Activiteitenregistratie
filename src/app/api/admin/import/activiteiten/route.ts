@@ -152,7 +152,7 @@ export async function POST(request: Request) {
         const omschrijving = row['Omschrijving activiteit']
         const locatie = row['Locatie activiteit']
         const weblink = row['Weblink activiteit'] || row['URL']
-        const organisatorPxl = row['Aanwezige PXL-begeleider(s)']
+        const organisator = row['Aanwezige PXL-begeleider(s)']
         const opmerkingen = row['Opmerkingen activiteit']
 
         const activiteit = await prisma.activiteit.create({
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
             einduur: einduur ?? startuur ?? '00:00',
             locatie: typeof locatie === 'string' ? locatie.trim() : null,
             weblink: typeof weblink === 'string' ? weblink.trim() : null,
-            organisatorPxl: typeof organisatorPxl === 'string' ? organisatorPxl.trim() : null,
+            organisator: typeof organisator === 'string' ? organisator.trim() : null,
             opmerkingen: typeof opmerkingen === 'string' ? opmerkingen.trim() : null,
             beentje: beentje ?? undefined,
             niveau: niveau ?? undefined,

@@ -33,8 +33,8 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subject: 'Testbericht X-FactorTool',
-          htmlBody: '<p>Dit is een testbericht van X-FactorTool. De webhook-verbinding werkt correct.</p>',
+          subject: 'Testbericht Xfactorapp',
+          htmlBody: '<p>Dit is een testbericht van Xfactorapp. De webhook-verbinding werkt correct.</p>',
           ontvangers: [{ email: session.user.email, naam: session.user.naam }],
         }),
         signal: AbortSignal.timeout(10000),

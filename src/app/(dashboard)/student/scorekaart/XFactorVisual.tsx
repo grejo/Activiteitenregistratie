@@ -3,10 +3,10 @@
 import { NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD, BEENTJES_MET_NIVEAU } from '@/lib/beentjes'
 import type { OpleidingTarget } from './ScorekaartView'
 
-const GOLD = '#C8973B'
 const GREEN = '#16a34a'
 const GRAY = '#e5e7eb'
 const DARK = '#111827'
+const LABEL_GRAY = '#6b7280'
 
 // SVG viewport
 const VW = 720
@@ -49,7 +49,8 @@ function Checkmark({ cx, cy, r = 9 }: { cx: number; cy: number; r?: number }) {
   )
 }
 
-// 4 horizontal bars (one per niveau) — shows actual count, gold if > 0
+// 4 horizontal bars (one per niveau) — green when the student has ≥1 activity for that niveau.
+// Each bar has a "1"/"2"/"3"/"4" numeric label below it and a native SVG tooltip with the count.
 function ProgressBars({
   beentje,
   voortgang,
@@ -76,10 +77,25 @@ function ProgressBars({
         const bx = sx + i * (W + GAP)
         return (
           <g key={niveau}>
-            <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GRAY} />
+            <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GRAY}>
+              <title>{`Niveau ${niveau}: ${behaald} ${behaald === 1 ? 'activiteit' : 'activiteiten'}`}</title>
+            </rect>
             {hasActivities && (
-              <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GOLD} />
+              <rect x={bx} y={cy} width={W} height={H} rx={2.5} fill={GREEN}>
+                <title>{`Niveau ${niveau}: ${behaald} ${behaald === 1 ? 'activiteit' : 'activiteiten'}`}</title>
+              </rect>
             )}
+            <text
+              x={bx + W / 2}
+              y={cy + H + 10}
+              textAnchor="middle"
+              fontSize={9}
+              fontWeight="600"
+              fill={LABEL_GRAY}
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              {niveau}
+            </text>
           </g>
         )
       })}
@@ -153,7 +169,10 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
 
   const boxes = allBoxes.filter((box) => {
     const vereistVeld = BEENTJE_VEREIST_VELD[box.beentje] as keyof OpleidingTarget
-    return target?.[vereistVeld] ?? true // toon altijd als er geen target is
+    const vereist = target ? Boolean(target[vereistVeld]) : true
+    if (vereist) return true
+    // Niet-verplicht beentje: enkel tonen als student er minstens 1 activiteit op heeft.
+    return NIVEAUS.some((n) => (voortgang?.[getVeldNaam(box.beentje, n)] ?? 0) > 0)
   })
 
   const duurzX = 290, duurzY = 443, duurzW = 140, duurzH = 34
@@ -203,26 +222,16 @@ export default function XFactorVisual({ voortgang, target, heeftDuurzaamheid }: 
         {/* Buitenste ring */}
         <circle cx={CX} cy={CY} r={RING_R} fill="none" stroke="#111" strokeWidth={1.5} />
 
-        {/* Gevulde zwarte cirkel + X-logo */}
-        <g clipPath="url(#xf-clip)">
-          <circle cx={CX} cy={CY} r={CIRCLE_R} fill={DARK} />
-          <line x1={CX - 80} y1={CY - 90} x2={CX + 80} y2={CY + 90} stroke="white" strokeWidth={56} strokeLinecap="butt" />
-          <line x1={CX + 80} y1={CY - 90} x2={CX - 80} y2={CY + 90} stroke="white" strokeWidth={56} strokeLinecap="butt" />
-          <circle cx={CX} cy={CY} r={26} fill={DARK} />
-        </g>
-
-        {/* PXL tekst */}
-        <text
-          x={CX} y={CY + 5}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={13}
-          fontWeight="700"
-          fill="white"
-          fontFamily="system-ui, -apple-system, sans-serif"
-        >
-          PXL
-        </text>
+        {/* Officieel PXL-logo (zwarte bol met witte PXL + hartje) */}
+        <image
+          href="/pxl-logo.png"
+          x={CX - CIRCLE_R}
+          y={CY - CIRCLE_R}
+          width={CIRCLE_R * 2}
+          height={CIRCLE_R * 2}
+          clipPath="url(#xf-clip)"
+          preserveAspectRatio="xMidYMid meet"
+        />
 
         {/* 5 Beentje labels */}
         {boxes.map((box) => (

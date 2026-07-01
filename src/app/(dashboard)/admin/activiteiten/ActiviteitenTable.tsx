@@ -18,6 +18,7 @@ type Activiteit = {
     opleiding: { naam: string } | null
   }
   opleiding: { id: string; naam: string } | null
+  opleidingen: { opleiding: { id: string; naam: string } }[]
   inschrijvingen: any[]
 }
 
@@ -69,7 +70,11 @@ export default function ActiviteitenTable({
     }
 
     if (opleidingFilter !== 'all') {
-      result = result.filter((a) => a.opleiding?.id === opleidingFilter)
+      result = result.filter(
+        (a) =>
+          a.opleiding?.id === opleidingFilter ||
+          a.opleidingen.some((o) => o.opleiding.id === opleidingFilter)
+      )
     }
 
     if (beginDatum) {
