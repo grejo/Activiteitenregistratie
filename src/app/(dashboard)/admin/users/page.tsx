@@ -35,6 +35,7 @@ export default async function UsersPage() {
       include: {
         opleiding: true,
         docentOpleidingen: { include: { opleiding: true } },
+        adminOpleidingen: { include: { opleiding: true } },
       },
       orderBy: [{ actief: 'desc' }, { role: 'asc' }, { naam: 'asc' }],
     }),
