@@ -148,7 +148,7 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link
-              href={session ? `/${session.user.role}` : '/'}
+              href={session ? (session.user.role === 'superadmin' ? '/admin' : `/${session.user.role}`) : '/'}
               className="font-heading font-black text-xl hover:text-pxl-gold transition-colors"
             >
               X-FactorTool
