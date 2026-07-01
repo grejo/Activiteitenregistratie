@@ -117,7 +117,7 @@ async function main() {
   // Departementaal beheerder (superadmin): toegang tot alle opleidingen
   const superadmin = await prisma.user.upsert({
     where: { email: 'admin@pxl.be' },
-    update: {},
+    update: { passwordHash: hashedAdmin, role: 'superadmin', actief: true },
     create: { email: 'admin@pxl.be', passwordHash: hashedAdmin, naam: 'Departementaal Beheerder', role: 'superadmin' },
   })
   console.log('  ✅ Superadmin:', superadmin.email)
@@ -125,7 +125,7 @@ async function main() {
   // Opleidingsadmin: beheert enkel de eigen opleiding (Bouwkunde)
   const adminBouw = await prisma.user.upsert({
     where: { email: 'admin.bouw@pxl.be' },
-    update: {},
+    update: { passwordHash: hashedAdmin, role: 'admin', actief: true },
     create: {
       email: 'admin.bouw@pxl.be',
       passwordHash: hashedAdmin,
@@ -134,12 +134,17 @@ async function main() {
       adminOpleidingen: { create: [{ opleidingId: bouw.id }] },
     },
   })
+  await prisma.adminOpleiding.upsert({
+    where: { adminId_opleidingId: { adminId: adminBouw.id, opleidingId: bouw.id } },
+    update: {},
+    create: { adminId: adminBouw.id, opleidingId: bouw.id },
+  })
   console.log('  ✅ Admin (opleiding):', adminBouw.email)
 
   // Docenten
   const docentBouw = await prisma.user.upsert({
     where: { email: 'docent.bouw@pxl.be' },
-    update: {},
+    update: { passwordHash: hashedDocent, role: 'docent', actief: true },
     create: { email: 'docent.bouw@pxl.be', passwordHash: hashedDocent, naam: 'Jan Docent', role: 'docent' },
   })
   await prisma.docentOpleiding.upsert({
@@ -150,7 +155,7 @@ async function main() {
 
   const docentMulti = await prisma.user.upsert({
     where: { email: 'docent.multi@pxl.be' },
-    update: {},
+    update: { passwordHash: hashedDocent, role: 'docent', actief: true },
     create: { email: 'docent.multi@pxl.be', passwordHash: hashedDocent, naam: 'Piet Coordinator', role: 'docent' },
   })
   await prisma.docentOpleiding.upsert({
@@ -168,13 +173,13 @@ async function main() {
   // Studenten
   const studentBouw = await prisma.user.upsert({
     where: { email: 'student.bouw@student.pxl.be' },
-    update: {},
+    update: { passwordHash: hashedStudent, role: 'student', actief: true, opleidingId: bouw.id },
     create: { email: 'student.bouw@student.pxl.be', passwordHash: hashedStudent, naam: 'Lisa Student', role: 'student', opleidingId: bouw.id },
   })
 
   const studentIT = await prisma.user.upsert({
     where: { email: 'student.it@student.pxl.be' },
-    update: {},
+    update: { passwordHash: hashedStudent, role: 'student', actief: true, opleidingId: it.id },
     create: { email: 'student.it@student.pxl.be', passwordHash: hashedStudent, naam: 'Tom Developer', role: 'student', opleidingId: it.id },
   })
 
@@ -187,7 +192,7 @@ async function main() {
   for (const s of extraStudenten) {
     await prisma.user.upsert({
       where: { email: s.email },
-      update: {},
+      update: { passwordHash: hashedStudent, role: 'student', actief: true, opleidingId: s.opleidingId },
       create: { email: s.email, passwordHash: hashedStudent, naam: s.naam, role: 'student', opleidingId: s.opleidingId },
     })
   }

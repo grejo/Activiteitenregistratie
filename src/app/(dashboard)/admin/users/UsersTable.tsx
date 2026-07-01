@@ -11,6 +11,7 @@ type User = {
   actief: boolean
   opleiding: { id: string; naam: string } | null
   docentOpleidingen: { opleiding: { id: string; naam: string } }[]
+  adminOpleidingen: { opleiding: { id: string; naam: string } }[]
 }
 
 type Opleiding = {
@@ -180,6 +181,12 @@ export default function UsersTable({
                       ? user.docentOpleidingen.length > 0
                         ? user.docentOpleidingen.map((d) => d.opleiding.naam).join(', ')
                         : '-'
+                      : user.role === 'admin'
+                      ? user.adminOpleidingen.length > 0
+                        ? user.adminOpleidingen.map((a) => a.opleiding.naam).join(', ')
+                        : '-'
+                      : user.role === 'superadmin'
+                      ? 'Alle opleidingen'
                       : user.opleiding?.naam || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
