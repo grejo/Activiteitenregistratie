@@ -46,14 +46,11 @@ export default async function LoginPage() {
             <Suspense fallback={<div className="text-center">Laden...</div>}>
               <LoginForm />
             </Suspense>
-          </div>
 
-          <p className="text-center text-sm text-pxl-black-light mt-6">
-            Problemen met inloggen?{' '}
-            <a href="mailto:support@pxl.be" className="text-pxl-gold hover:underline">
-              Neem contact op
-            </a>
-          </p>
+            <p className="text-center text-sm text-pxl-black-light mt-6">
+              Enkel toegankelijk voor PXL-medewerkers en studenten
+            </p>
+          </div>
         </div>
       </main>
 

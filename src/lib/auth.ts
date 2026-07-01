@@ -56,51 +56,58 @@ const azureProviders =
       ]
     : []
 
+// Credentials-login (email + wachtwoord) is uitsluitend beschikbaar in development
+// voor lokaal testen met seed-accounts. In productie kan er enkel via PXL SSO
+// worden aangemeld.
+const credentialsProvider =
+  process.env.NODE_ENV === 'production'
+    ? []
+    : [
+        Credentials({
+          name: 'credentials',
+          credentials: {
+            email: { label: 'Email', type: 'email' },
+            password: { label: 'Wachtwoord', type: 'password' },
+          },
+          async authorize(credentials) {
+            if (!credentials?.email || !credentials?.password) {
+              return null
+            }
+
+            const email = credentials.email as string
+            const password = credentials.password as string
+
+            const user = await prisma.user.findUnique({
+              where: { email },
+              include: { opleiding: true, adminOpleidingen: true },
+            })
+
+            if (!user || !user.actief || !user.passwordHash) {
+              return null
+            }
+
+            const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
+
+            if (!isPasswordValid) {
+              return null
+            }
+
+            return {
+              id: user.id,
+              email: user.email,
+              naam: user.naam,
+              role: user.role as UserRole,
+              opleidingId: user.opleidingId,
+              opleidingNaam: user.opleiding?.naam || null,
+              adminOpleidingIds: user.adminOpleidingen.map((o) => o.opleidingId),
+            }
+          },
+        }),
+      ]
+
 export const authConfig: NextAuthConfig = {
   trustHost: true,
-  providers: [
-    ...azureProviders,
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Wachtwoord', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const email = credentials.email as string
-        const password = credentials.password as string
-
-        const user = await prisma.user.findUnique({
-          where: { email },
-          include: { opleiding: true, adminOpleidingen: true },
-        })
-
-        if (!user || !user.actief || !user.passwordHash) {
-          return null
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          naam: user.naam,
-          role: user.role as UserRole,
-          opleidingId: user.opleidingId,
-          opleidingNaam: user.opleiding?.naam || null,
-          adminOpleidingIds: user.adminOpleidingen.map((o) => o.opleidingId),
-        }
-      },
-    }),
-  ],
+  providers: [...azureProviders, ...credentialsProvider],
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === 'microsoft-entra-id' && profile) {
