@@ -12,7 +12,9 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "reset-passwords": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/reset-seed-passwords.ts"
+    "reset-passwords": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/reset-seed-passwords.ts",
+    "demo:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-demo.ts",
+    "demo:reset": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/reset-demo.ts"
   },
   "repository": {
     "type": "git",

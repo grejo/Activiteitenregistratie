@@ -4,6 +4,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import type { NextAuthConfig } from 'next-auth'
+import { DEMO_OPLEIDING_CODE, DEMO_OPLEIDING_NAAM, readDemoCookie } from '@/lib/demo'
 
 const prisma = new PrismaClient()
 
@@ -28,6 +29,8 @@ declare module 'next-auth' {
       opleidingNaam?: string | null
       adminOpleidingIds?: string[]
     }
+    isDemo?: boolean
+    originalUserId?: string | null
   }
 }
 
@@ -39,6 +42,8 @@ declare module '@auth/core/jwt' {
     opleidingId?: string | null
     opleidingNaam?: string | null
     adminOpleidingIds?: string[]
+    isDemo?: boolean
+    originalUserId?: string | null
   }
 }
 
@@ -279,6 +284,50 @@ export const authConfig: NextAuthConfig = {
         session.user.opleidingNaam = token.opleidingNaam
         session.user.adminOpleidingIds = token.adminOpleidingIds ?? []
       }
+
+      // Demo-modus: als een geldig gesigneerde demo-cookie aanwezig is,
+      // overschrijven we de session met de identiteit van de demo-user
+      // (Lisa Demo / Piet Demo). De echte JWT blijft ongemoeid — bij het
+      // wissen van de cookie krijgt de gebruiker automatisch weer haar
+      // eigen account terug bij de volgende session-fetch.
+      //
+      // Skip in de Edge-runtime (middleware): Prisma werkt daar niet,
+      // en de middleware heeft de overlay ook niet nodig — die checkt
+      // enkel of er een session.user bestaat.
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        return session
+      }
+      const demo = await readDemoCookie()
+      if (demo && session.user && token) {
+        const originalRole = token.role
+        if (originalRole === 'docent' || originalRole === 'admin' || originalRole === 'superadmin') {
+          const demoUser = await prisma.user.findUnique({
+            where: { id: demo.demoUserId },
+            include: {
+              opleiding: true,
+              docentOpleidingen: { include: { opleiding: true } },
+            },
+          })
+          const demoOpleiding =
+            demoUser?.opleiding?.code === DEMO_OPLEIDING_CODE
+              ? demoUser.opleiding
+              : demoUser?.docentOpleidingen.find((d) => d.opleiding.code === DEMO_OPLEIDING_CODE)
+                  ?.opleiding ?? null
+          if (demoUser && demoUser.actief && demoOpleiding) {
+            session.user.id = demoUser.id
+            session.user.email = demoUser.email
+            session.user.naam = demoUser.naam
+            session.user.role = demo.demoRole
+            session.user.opleidingId = demoUser.opleidingId ?? demoOpleiding.id
+            session.user.opleidingNaam = demoUser.opleiding?.naam ?? DEMO_OPLEIDING_NAAM
+            session.user.adminOpleidingIds =
+              demo.demoRole === 'docent' ? [demoOpleiding.id] : []
+            session.isDemo = true
+            session.originalUserId = demo.originalUserId
+          }
+        }
+      }
+
       return session
     },
   },
