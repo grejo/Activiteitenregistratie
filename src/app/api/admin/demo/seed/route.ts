@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth, isSuperadmin } from '@/lib/auth'
-import { seedDemo } from '../../../../../../prisma/seed-demo'
+import { seedDemo } from '@/lib/seed-demo'
 
 // POST /api/admin/demo/seed
 // Initialiseert (of upsert) de DEMO-opleiding + demo-users + demo-activiteiten
