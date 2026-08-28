@@ -2,6 +2,7 @@ import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
+import { excludeDemoOpleidingWhere } from '@/lib/demo'
 import OpleidingenGrid from './OpleidingenGrid'
 
 export const metadata = {
@@ -9,8 +10,12 @@ export const metadata = {
 }
 
 async function getOpleidingen(beheerdeIds: string[] | null) {
+  const demoFilter = await excludeDemoOpleidingWhere()
   return await prisma.opleiding.findMany({
-    where: beheerdeIds ? { id: { in: beheerdeIds } } : {},
+    where: {
+      ...(beheerdeIds ? { id: { in: beheerdeIds } } : {}),
+      ...demoFilter,
+    },
     include: {
       _count: {
         select: {

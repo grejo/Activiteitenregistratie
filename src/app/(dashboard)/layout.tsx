@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { auth, isStaff } from '@/lib/auth'
 import { Navbar } from '@/components/layout/Navbar'
+import DemoBanner from '@/components/demo/DemoBanner'
+import StartDemoButton from '@/components/demo/StartDemoButton'
 
 export default async function DashboardLayout({
   children,
@@ -13,9 +15,27 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  const inDemo = session.isDemo === true
+  // De start-knop staat in-context van de ECHTE gebruiker, niet van de
+  // demo-overlay. Zolang we in demo zitten toont de banner al de acties.
+  const showStartButton = !inDemo && isStaff(session.user.role)
+
   return (
     <div className="min-h-screen flex flex-col bg-pxl-gray-light">
+      {inDemo && (
+        <DemoBanner
+          demoNaam={session.user.naam}
+          demoRol={session.user.role === 'docent' ? 'docent' : 'student'}
+        />
+      )}
       <Navbar />
+      {showStartButton && (
+        <div className="border-b border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-end">
+            <StartDemoButton />
+          </div>
+        </div>
+      )}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
