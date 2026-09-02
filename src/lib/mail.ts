@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma'
 import { config } from '@/lib/config'
+import { readDemoCookie } from '@/lib/demo'
 import {
   buildPrikbordEmail,
   buildAanvraagBeoordeeldEmail,
@@ -65,6 +66,46 @@ function dedupeOntvangers(ontvangers: Ontvanger[]): Ontvanger[] {
   return out
 }
 
+function escapeHtmlBasic(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Tijdens een demo mag er nooit post naar echte studenten of collega's gaan.
+ * Geeft de aangemelde staff-gebruiker terug (de persoon die de demo startte),
+ * of null als er geen demo loopt.
+ *
+ * Faalt zacht: buiten request-scope is cookies() niet beschikbaar, en dan
+ * gedraagt mailing zich gewoon zoals altijd.
+ */
+async function demoOntvanger(): Promise<Ontvanger | null> {
+  try {
+    const demo = await readDemoCookie()
+    if (!demo) return null
+    const staff = await prisma.user.findUnique({
+      where: { id: demo.originalUserId },
+      select: { email: true, naam: true },
+    })
+    if (!staff?.email) return null
+    return { email: staff.email, naam: staff.naam }
+  } catch {
+    return null
+  }
+}
+
+/** True zolang de huidige request in demo-modus zit. */
+async function inDemo(): Promise<boolean> {
+  try {
+    return (await readDemoCookie()) !== null
+  } catch {
+    return false
+  }
+}
+
 // Lage-niveau verzending. Geeft true terug bij een geslaagde POST.
 async function deliver(
   subject: string,
@@ -79,7 +120,39 @@ async function deliver(
     return false
   }
 
-  const payload = { subject, htmlBody: html, activiteit: meta, ontvangers }
+  let finaalSubject = subject
+  let finaleHtml = html
+  let finaleOntvangers = ontvangers
+
+  // Demo-modus: stuur alles naar de presentator i.p.v. naar de echte ontvangers.
+  // Dit staat bewust hier, ná het opbouwen van de ontvangerslijst, zodat ook
+  // notifyNieuweAanvraag (die onvoorwaardelijk álle superadmins aanschrijft)
+  // gedekt is.
+  const demoTarget = await demoOntvanger()
+  if (demoTarget) {
+    const origineel = ontvangers.map((o) => `${o.naam} <${o.email}>`).join(', ')
+    console.log(
+      `[MAIL] Demo-modus — "${subject}" omgeleid naar ${demoTarget.email} ` +
+        `(zou gaan naar ${ontvangers.length} ontvanger(s))`
+    )
+    finaalSubject = `[DEMO] ${subject}`
+    finaleHtml =
+      `<div style="margin:0 0 16px;padding:12px 16px;border:2px solid #AE9A64;` +
+      `background:#FBF8F1;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1A1A1A;">` +
+      `<strong>🎬 Demo-mail</strong><br/>` +
+      `Deze mail is naar jou omgeleid omdat je in demo-modus werkt. ` +
+      `In een echte situatie zou hij gaan naar: ${escapeHtmlBasic(origineel)}` +
+      `</div>` +
+      html
+    finaleOntvangers = [demoTarget]
+  }
+
+  const payload = {
+    subject: finaalSubject,
+    htmlBody: finaleHtml,
+    activiteit: meta,
+    ontvangers: finaleOntvangers,
+  }
 
   const res = await fetch(webhookUrl, {
     method: 'POST',
@@ -91,7 +164,7 @@ async function deliver(
     console.error('[MAIL] Webhook gaf status', res.status, await res.text().catch(() => ''))
     return false
   }
-  console.log(`[MAIL] "${subject}" verstuurd naar ${ontvangers.length} ontvanger(s)`)
+  console.log(`[MAIL] "${finaalSubject}" verstuurd naar ${finaleOntvangers.length} ontvanger(s)`)
   return true
 }
 
@@ -179,7 +252,10 @@ export async function notifyPublicatie(activiteitId: string): Promise<void> {
     })
 
     const verstuurd = await deliver(subject, html, dedupeOntvangers(studenten), metaFrom(activiteit, opleidingNamen))
-    if (verstuurd) {
+    // In demo-modus laten we mailVerstuurdOp bewust ongemoeid: anders kan de
+    // publicatiemail tijdens een presentatie maar één keer getoond worden
+    // (de guard bovenaan deze functie blokkeert dan elke volgende poging).
+    if (verstuurd && !(await inDemo())) {
       await prisma.activiteit.update({
         where: { id: activiteit.id },
         data: { mailVerstuurdOp: new Date() },

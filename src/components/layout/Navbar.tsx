@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSession, signOut } from 'next-auth/react'
-import { usePathname } from 'next/navigation'
+import { signOut } from 'next-auth/react'
+import { usePathname, useRouter } from 'next/navigation'
 
 interface NavLink {
   href: string
@@ -16,9 +16,21 @@ interface PendingCounts {
   bewijsstukken: number
 }
 
-export function Navbar() {
-  const { data: session } = useSession()
+interface NavbarProps {
+  /**
+   * Rol zoals de server die ziet — inclusief de demo-overlay. Bewust een prop
+   * en geen useSession(): de client-side sessiecache van next-auth wordt na
+   * het starten/stoppen van een demo niet ververst, waardoor de balk anders
+   * de oude rol bleef tonen.
+   */
+  role: string
+  naam: string
+  isDemo?: boolean
+}
+
+export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [pendingCounts, setPendingCounts] = useState<PendingCounts>({
     aanvragen: 0,
@@ -26,14 +38,14 @@ export function Navbar() {
   })
 
   const fetchPendingCounts = useCallback(async () => {
-    if (!session?.user.role) return
+    if (!role) return
 
     try {
       // Bepaal de juiste API endpoint op basis van rol
       let endpoint = ''
-      if (session.user.role === 'docent' || session.user.role === 'admin' || session.user.role === 'superadmin') {
+      if (role === 'docent' || role === 'admin' || role === 'superadmin') {
         endpoint = '/api/docent/counts'
-      } else if (session.user.role === 'student') {
+      } else if (role === 'student') {
         endpoint = '/api/student/counts'
       } else {
         return
@@ -47,7 +59,7 @@ export function Navbar() {
     } catch (error) {
       console.error('Error fetching pending counts:', error)
     }
-  }, [session?.user.role])
+  }, [role])
 
   useEffect(() => {
     fetchPendingCounts()
@@ -71,9 +83,9 @@ export function Navbar() {
   }, [fetchPendingCounts])
 
   const getNavLinks = (): NavLink[] => {
-    if (!session) return []
+    if (!role) return []
 
-    switch (session.user.role) {
+    switch (role) {
       case 'superadmin':
         return [
           { href: '/admin', label: 'Dashboard' },
@@ -121,11 +133,26 @@ export function Navbar() {
   }
 
   const handleSignOut = async () => {
+    // Tijdens een demo mag "Uitloggen" de echte SSO-sessie niet beëindigen:
+    // één misklik zou midden in een presentatie een volledige herlogin kosten.
+    // We stoppen dan enkel de demo en keren terug naar het eigen account.
+    if (isDemo) {
+      await fetch('/api/demo/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: false }),
+      }).catch(() => {
+        /* faalt zacht — hieronder navigeren we sowieso terug */
+      })
+      router.push('/dashboard')
+      router.refresh()
+      return
+    }
     await signOut({ callbackUrl: '/login' })
   }
 
   const getRoleBadgeColor = () => {
-    switch (session?.user.role) {
+    switch (role) {
       case 'superadmin':
         return 'bg-purple-700'
       case 'admin':
@@ -146,7 +173,7 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link
-              href={session ? (session.user.role === 'superadmin' ? '/admin' : `/${session.user.role}`) : '/'}
+              href={role ? (role === 'superadmin' ? '/admin' : `/${role}`) : '/'}
               className="font-heading font-black text-xl hover:text-pxl-gold transition-colors"
             >
               Xfactorapp
@@ -177,18 +204,18 @@ export function Navbar() {
           </div>
 
           {/* User info & Logout */}
-          {session && (
+          {role && (
             <div className="hidden md:flex items-center space-x-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-300">
-                  {session.user.naam}
+                  {naam}
                 </span>
                 <span
                   className={`px-2 py-0.5 text-xs font-semibold rounded ${getRoleBadgeColor()}`}
                 >
-                  {session.user.role === 'superadmin'
+                  {role === 'superadmin'
                     ? 'Superadmin'
-                    : session.user.role.charAt(0).toUpperCase() + session.user.role.slice(1)}
+                    : role.charAt(0).toUpperCase() + role.slice(1)}
                 </span>
               </div>
               <button
@@ -261,11 +288,11 @@ export function Navbar() {
               )
             })}
 
-            {session && (
+            {role && (
               <>
                 <div className="border-t border-gray-800 mt-2 pt-2">
                   <div className="px-3 py-2 text-sm text-gray-400">
-                    Ingelogd als {session.user.naam}
+                    Ingelogd als {naam}
                   </div>
                 </div>
                 <button
