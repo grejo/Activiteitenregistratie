@@ -28,7 +28,9 @@ export default async function DashboardLayout({
           demoRol={session.user.role === 'docent' ? 'docent' : 'student'}
         />
       )}
-      <Navbar />
+      {/* Rol/naam komen van de server-sessie (incl. demo-overlay) i.p.v. uit
+          useSession(): die client-cache loopt achter na start/stop van een demo. */}
+      <Navbar role={session.user.role} naam={session.user.naam} isDemo={inDemo} />
       {showStartButton && (
         <div className="border-b border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-end">
