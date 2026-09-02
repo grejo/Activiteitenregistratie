@@ -12,9 +12,11 @@ import {
   readDemoCookie,
   type DemoRole,
 } from '@/lib/demo'
+import { seedDemo } from '@/lib/seed-demo'
 
 // POST /api/demo/start — start een demo-sessie als demo-student of -docent.
 // Alleen bereikbaar voor ingelogde staff (docent/admin/superadmin).
+// Als de demo-data nog niet bestaat, wordt die automatisch aangemaakt.
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user) {
@@ -36,22 +38,44 @@ export async function POST(request: Request) {
   }
   const role: DemoRole = body.role === 'docent' ? 'docent' : 'student'
 
-  const email = role === 'docent' ? DEMO_DOCENT_EMAIL : DEMO_STUDENT_EMAIL
-  const demoUser = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      opleiding: true,
-      docentOpleidingen: { include: { opleiding: true } },
-    },
-  })
-  const koppelt =
-    demoUser?.opleiding?.code === DEMO_OPLEIDING_CODE ||
-    demoUser?.docentOpleidingen.some((d) => d.opleiding.code === DEMO_OPLEIDING_CODE)
-  if (!demoUser || !demoUser.actief || !koppelt) {
-    return NextResponse.json(
-      { error: 'Demo-omgeving niet klaargezet. Draai `npm run demo:seed`.' },
-      { status: 500 }
+  async function findDemoUser(email: string) {
+    return prisma.user.findUnique({
+      where: { email },
+      include: {
+        opleiding: true,
+        docentOpleidingen: { include: { opleiding: true } },
+      },
+    })
+  }
+
+  function isGekoppeld(user: Awaited<ReturnType<typeof findDemoUser>>) {
+    return (
+      user?.opleiding?.code === DEMO_OPLEIDING_CODE ||
+      user?.docentOpleidingen.some((d) => d.opleiding.code === DEMO_OPLEIDING_CODE)
     )
+  }
+
+  const email = role === 'docent' ? DEMO_DOCENT_EMAIL : DEMO_STUDENT_EMAIL
+  let demoUser = await findDemoUser(email)
+
+  if (!demoUser || !demoUser.actief || !isGekoppeld(demoUser)) {
+    // Demo-data ontbreekt of is incompleet — automatisch aanmaken.
+    try {
+      await seedDemo()
+    } catch (e) {
+      console.error('[demo/start] auto-seed gefaald:', e)
+      return NextResponse.json(
+        { error: 'Demo-omgeving kon niet worden klaargezet. Probeer opnieuw of contacteer de beheerder.' },
+        { status: 500 }
+      )
+    }
+    demoUser = await findDemoUser(email)
+    if (!demoUser || !demoUser.actief || !isGekoppeld(demoUser)) {
+      return NextResponse.json(
+        { error: 'Demo-omgeving kon niet worden klaargezet. Probeer opnieuw of contacteer de beheerder.' },
+        { status: 500 }
+      )
+    }
   }
 
   const hdrs = await headers()

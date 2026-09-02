@@ -1,13 +1,12 @@
 /**
- * Reset de DEMO-omgeving: cascade-delete van Opleiding code=DEMO
- * (verwijdert alle demo-activiteiten, inschrijvingen, bewijsstukken,
- * targets, thema's en sjablonen) en her-seed daarna via seed-demo.ts.
- *
- * De twee demo-users (demo.student@demo.local, demo.docent@demo.local)
- * blijven behouden — hun opleidingId wordt door de cascade op null gezet
- * en het seed-script hangt ze terug aan de nieuwe DEMO-opleiding.
+ * Reset de DEMO-omgeving: verwijder alle demo-data en seed opnieuw.
  *
  * Gebruik: `npm run demo:reset`
+ *
+ * Verwijdert eerst alle demo-activiteiten expliciet zodat cascade
+ * naar Inschrijving, Bewijsstuk etc. correct verloopt (Activiteit.opleidingId
+ * heeft geen onDelete: Cascade, anders worden activiteiten als wezen achtergelaten).
+ * Daarna wordt de opleiding gewist en opnieuw geseed via seed-demo.ts.
  */
 import { PrismaClient } from '@prisma/client'
 import { seedDemo } from './seed-demo'
@@ -15,26 +14,28 @@ import { seedDemo } from './seed-demo'
 const prisma = new PrismaClient()
 
 const DEMO_CODE = 'DEMO'
+const DEMO_ACT_IDS = [
+  'seed-act-demo-passie-1',
+  'seed-act-demo-samen-1',
+  'seed-act-demo-multi-1',
+  'seed-act-demo-onder-1',
+  'seed-act-demo-reflectie-1',
+  'seed-act-demo-voorbij-1',
+]
 
 export async function resetDemo(): Promise<void> {
   console.log('🎬 Reset demo-omgeving...')
   const existing = await prisma.opleiding.findUnique({ where: { code: DEMO_CODE } })
   if (existing) {
-    // Verwijder de bewijsstukken expliciet (cascade regelt de rest).
-    const inschrijvingen = await prisma.inschrijving.findMany({
-      where: { activiteit: { opleidingId: existing.id } },
-      select: { id: true },
-    })
-    if (inschrijvingen.length) {
-      await prisma.bewijsstuk.deleteMany({
-        where: { inschrijvingId: { in: inschrijvingen.map((i) => i.id) } },
-      })
-    }
+    // Verwijder activiteiten expliciet — Activiteit.opleidingId heeft geen Cascade.
+    await prisma.activiteit.deleteMany({ where: { opleidingId: existing.id } })
     await prisma.opleiding.delete({ where: { id: existing.id } })
     console.log('  ✅ Oude DEMO-opleiding gewist (cascade)')
   } else {
     console.log('  ℹ️  Geen bestaande DEMO-opleiding gevonden — sla delete over.')
   }
+  // Verwijder eventuele verweesde demo-activiteiten van een eerdere mislukte reset.
+  await prisma.activiteit.deleteMany({ where: { id: { in: DEMO_ACT_IDS } } })
   await seedDemo()
 }
 
