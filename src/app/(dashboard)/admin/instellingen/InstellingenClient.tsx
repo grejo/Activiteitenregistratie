@@ -10,6 +10,10 @@ export default function InstellingenClient() {
   const [testStatus, setTestStatus] = useState<'idle' | 'ok' | 'fout'>('idle')
   const [testFout, setTestFout] = useState('')
 
+  const [demoBezig, setDemoBezig] = useState(false)
+  const [demoStatus, setDemoStatus] = useState<'idle' | 'ok' | 'fout'>('idle')
+  const [demoFout, setDemoFout] = useState('')
+
   useEffect(() => {
     fetch('/api/admin/instellingen')
       .then((r) => r.json())
@@ -49,6 +53,21 @@ export default function InstellingenClient() {
       const d = await res.json()
       setTestStatus('fout')
       setTestFout(d.error ?? 'Onbekende fout')
+    }
+  }
+
+  async function demoSeed() {
+    setDemoBezig(true)
+    setDemoStatus('idle')
+    setDemoFout('')
+    const res = await fetch('/api/admin/demo/seed', { method: 'POST' })
+    setDemoBezig(false)
+    if (res.ok) {
+      setDemoStatus('ok')
+    } else {
+      const d = await res.json().catch(() => ({}))
+      setDemoStatus('fout')
+      setDemoFout(d.error ?? 'Onbekende fout')
     }
   }
 
@@ -109,6 +128,30 @@ export default function InstellingenClient() {
           )}
           {testStatus === 'fout' && (
             <p className="text-sm text-red-600">Testbericht mislukt: {testFout}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 className="text-lg font-semibold mb-2">Demo-omgeving</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Maak de demo-opleiding, demo-users en demo-activiteiten aan in de database.
+          Gebruik dit als de &quot;Start demo&quot;-knop een foutmelding geeft, of om de demo-data
+          expliciet te herinitialiseren. De bewerking is idempotent.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={demoSeed}
+            disabled={demoBezig}
+            className="btn-secondary"
+          >
+            {demoBezig ? 'Bezig…' : '🎬 Demo-omgeving klaarzetten'}
+          </button>
+          {demoStatus === 'ok' && (
+            <p className="text-sm text-green-600 font-medium">Demo-omgeving klaargezet.</p>
+          )}
+          {demoStatus === 'fout' && (
+            <p className="text-sm text-red-600">Mislukt: {demoFout}</p>
           )}
         </div>
       </div>
