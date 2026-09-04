@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie, notifyActiviteitWijziging } from '@/lib/mail'
+import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 // Bepaal welke voor studenten relevante velden gewijzigd zijn
 function bepaalWijzigingen(
@@ -139,6 +140,9 @@ export async function PATCH(
       }
     }
 
+    const nieuwNiveau = niveau ? parseInt(niveau) : null
+    const niveauGewijzigd = nieuwNiveau !== existingActiviteit.niveau
+
     const activiteit = await prisma.activiteit.update({
       where: { id },
       data: {
@@ -157,7 +161,7 @@ export async function PATCH(
         maxPlaatsen: maxPlaatsen || null,
         status,
         opleidingId: opleidingId || null,
-        niveau: niveau ? parseInt(niveau) : null,
+        niveau: nieuwNiveau,
         aftekenlijstVereist: aftekenlijstVereist === true,
         verplicht: verplicht === true,
         verwittigPerMail,
@@ -167,6 +171,31 @@ export async function PATCH(
         },
       },
     })
+
+    // Niveauwijziging loggen (consistent met de admin-flow) en de voortgang van
+    // elke ingeschreven student herberekenen. Loggen kan enkel naar een concreet
+    // niveau: NiveauWijzigingLog.naarNiveau is verplicht.
+    if (niveauGewijzigd) {
+      if (nieuwNiveau !== null) {
+        await prisma.niveauWijzigingLog.create({
+          data: {
+            activiteitId: id,
+            gewijzigdDoorId: session.user.id,
+            vanNiveau: existingActiviteit.niveau,
+            naarNiveau: nieuwNiveau,
+            reden: null,
+          },
+        })
+      }
+      const inschrijvingen = await prisma.inschrijving.findMany({
+        where: { activiteitId: id },
+        select: { studentId: true },
+      })
+      const studentIds = Array.from(new Set(inschrijvingen.map((i) => i.studentId)))
+      for (const sid of studentIds) {
+        await recalculateStudentVoortgang(sid)
+      }
+    }
 
     // notifyPublicatie is idempotent en bewaakt zelf de vlag + reeds-verstuurd;
     // zo vertrekt de mail ook als de docent 'verwittigen' pas later aanvinkt.

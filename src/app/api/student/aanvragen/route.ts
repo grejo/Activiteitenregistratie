@@ -137,13 +137,35 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const { id, openVoorMedestudenten } = body
+    const { id, openVoorMedestudenten, niveau } = body
 
-    if (!id || typeof openVoorMedestudenten !== 'boolean') {
+    if (!id) {
+      return NextResponse.json({ error: 'id is verplicht' }, { status: 400 })
+    }
+
+    if (openVoorMedestudenten === undefined && niveau === undefined) {
       return NextResponse.json(
-        { error: 'id en openVoorMedestudenten zijn verplicht' },
+        { error: 'Geef minstens openVoorMedestudenten of niveau mee' },
         { status: 400 }
       )
+    }
+
+    if (openVoorMedestudenten !== undefined && typeof openVoorMedestudenten !== 'boolean') {
+      return NextResponse.json(
+        { error: 'openVoorMedestudenten moet een boolean zijn' },
+        { status: 400 }
+      )
+    }
+
+    let niveauInt: number | undefined
+    if (niveau !== undefined) {
+      niveauInt = parseInt(niveau)
+      if (!Number.isInteger(niveauInt) || niveauInt < 1 || niveauInt > 4) {
+        return NextResponse.json(
+          { error: 'Niveau moet 1, 2, 3 of 4 zijn' },
+          { status: 400 }
+        )
+      }
     }
 
     const aanvraag = await prisma.activiteit.findFirst({
@@ -168,12 +190,34 @@ export async function PATCH(request: Request) {
       )
     }
 
-    const updated = await prisma.activiteit.update({
-      where: { id },
-      data: { openVoorMedestudenten },
+    const data: { openVoorMedestudenten?: boolean; niveau?: number } = {}
+    if (openVoorMedestudenten !== undefined) data.openVoorMedestudenten = openVoorMedestudenten
+    if (niveauInt !== undefined) data.niveau = niveauInt
+
+    // Niveauwijziging vóór goedkeuring loggen, consistent met de admin-/docent-flow.
+    const niveauGewijzigd = niveauInt !== undefined && niveauInt !== aanvraag.niveau
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.activiteit.update({ where: { id }, data })
+      if (niveauGewijzigd) {
+        await tx.niveauWijzigingLog.create({
+          data: {
+            activiteitId: id,
+            gewijzigdDoorId: session.user.id,
+            vanNiveau: aanvraag.niveau,
+            naarNiveau: niveauInt!,
+            reden: 'Aangepast door student vóór goedkeuring',
+          },
+        })
+      }
+      return u
     })
 
-    return NextResponse.json({ success: true, openVoorMedestudenten: updated.openVoorMedestudenten })
+    return NextResponse.json({
+      success: true,
+      openVoorMedestudenten: updated.openVoorMedestudenten,
+      niveau: updated.niveau,
+    })
   } catch (error) {
     console.error('Error updating aanvraag:', error)
     return NextResponse.json({ error: 'Er is een fout opgetreden' }, { status: 500 })

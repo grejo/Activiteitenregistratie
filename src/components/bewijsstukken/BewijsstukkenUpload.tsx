@@ -47,14 +47,39 @@ export default function BewijsstukkenUpload({
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
-    const file = files[0]
-    await uploadFile(file)
-  }
-
-  const uploadFile = async (file: File) => {
     setUploading(true)
     setError(null)
 
+    // Bestanden één voor één uploaden; elk wordt een apart bewijsstuk zodat een
+    // student meerdere documenten per activiteit kan toevoegen (bv. aanwezigheids-
+    // bewijs én verslag). Mislukkingen worden verzameld en samen getoond.
+    const fouten: string[] = []
+    for (const file of Array.from(files)) {
+      const foutmelding = await uploadFile(file)
+      if (foutmelding) fouten.push(`${file.name}: ${foutmelding}`)
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
+    if (fouten.length > 0) {
+      setError(fouten.join(' • '))
+    }
+
+    // Refresh data
+    if (onUpdate) {
+      onUpdate()
+    } else {
+      router.refresh()
+    }
+
+    setUploading(false)
+  }
+
+  // Uploadt één bestand. Geeft null terug bij succes, of een foutmelding-string.
+  const uploadFile = async (file: File): Promise<string | null> => {
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -74,24 +99,12 @@ export default function BewijsstukkenUpload({
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Upload mislukt')
+        return data.error || 'Upload mislukt'
       }
 
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-
-      // Refresh data
-      if (onUpdate) {
-        onUpdate()
-      } else {
-        router.refresh()
-      }
+      return null
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload mislukt')
-    } finally {
-      setUploading(false)
+      return err instanceof Error ? err.message : 'Upload mislukt'
     }
   }
 
@@ -198,6 +211,7 @@ export default function BewijsstukkenUpload({
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
+              multiple
               onChange={(e) => handleFileSelect(e.target.files)}
               className="hidden"
             />
@@ -210,10 +224,10 @@ export default function BewijsstukkenUpload({
               <>
                 <div className="text-4xl mb-2">📤</div>
                 <p className="text-gray-600 font-medium">
-                  Sleep een bestand hierheen of klik om te selecteren
+                  Sleep één of meerdere bestanden hierheen of klik om te selecteren
                 </p>
                 <p className="text-sm text-gray-400 mt-1">
-                  JPG, PNG, GIF, WEBP of PDF (max 10MB)
+                  JPG, PNG, GIF, WEBP of PDF (max 10MB per bestand)
                 </p>
               </>
             )}

@@ -36,6 +36,7 @@ type Aanvraag = {
   status: string
   opmerkingen: string | null
   bewijslink: string | null
+  niveau: number | null
   openVoorMedestudenten: boolean
   organisator: string | null
   organisatorPxl?: string | null
@@ -282,6 +283,32 @@ export default function AanvragenTable({
       router.refresh()
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const [niveauUpdating, setNiveauUpdating] = useState(false)
+
+  const handleUpdateNiveau = async (id: string, nieuwNiveau: number) => {
+    setNiveauUpdating(true)
+    try {
+      const response = await fetch('/api/student/aanvragen', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, niveau: nieuwNiveau }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Niveau aanpassen mislukt')
+      }
+      // Houd de geopende detailweergave in sync met het nieuwe niveau.
+      setSelectedAanvraag((huidig) =>
+        huidig && huidig.id === id ? { ...huidig, niveau: nieuwNiveau } : huidig
+      )
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Niveau aanpassen mislukt')
+    } finally {
+      setNiveauUpdating(false)
     }
   }
 
@@ -543,6 +570,48 @@ export default function AanvragenTable({
                       <div className="font-medium">{selectedAanvraag.opleiding.naam}</div>
                     </div>
                   )}
+                  <div>
+                    <div className="text-sm text-gray-500">Niveau</div>
+                    {(selectedAanvraag.status === 'concept' || selectedAanvraag.status === 'in_review') ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedAanvraag.niveau ?? ''}
+                          disabled={niveauUpdating}
+                          onChange={(e) => {
+                            const val = Number(e.target.value)
+                            if (val >= 1 && val <= 4) handleUpdateNiveau(selectedAanvraag.id, val)
+                          }}
+                          className="input-field py-1 text-sm disabled:opacity-50"
+                          title={
+                            selectedAanvraag.niveau
+                              ? niveauBeschrijvingen[selectedAanvraag.niveau] ?? undefined
+                              : undefined
+                          }
+                        >
+                          <option value="" disabled>
+                            Selecteer niveau
+                          </option>
+                          {[1, 2, 3, 4].map((n) => (
+                            <option key={n} value={n} title={niveauBeschrijvingen[n] ?? undefined}>
+                              Niveau {n}
+                            </option>
+                          ))}
+                        </select>
+                        {niveauUpdating && (
+                          <span className="text-xs text-gray-400">bezig…</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="font-medium">
+                        {selectedAanvraag.niveau ? `Niveau ${selectedAanvraag.niveau}` : '—'}
+                      </div>
+                    )}
+                    {(selectedAanvraag.status === 'concept' || selectedAanvraag.status === 'in_review') && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Zolang je aanvraag nog niet is goedgekeurd, kun je het niveau zelf aanpassen.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {selectedAanvraag.omschrijving && (
