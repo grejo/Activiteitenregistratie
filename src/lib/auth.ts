@@ -251,6 +251,7 @@ export const authConfig: NextAuthConfig = {
 
         if (dbUser) {
           token.id = dbUser.id
+          token.email = dbUser.email
           token.role = (dbUser.role || 'student') as UserRole
           token.naam = dbUser.naam
           token.opleidingId = dbUser.opleidingId
@@ -267,6 +268,7 @@ export const authConfig: NextAuthConfig = {
       // Credentials login (niet voor OAuth — die verwerkt het blok hierboven)
       if (user && account?.type === 'credentials') {
         token.id = user.id
+        token.email = user.email
         token.role = user.role
         token.naam = user.naam
         token.opleidingId = user.opleidingId
@@ -278,6 +280,7 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id
+        if (token.email) session.user.email = token.email
         session.user.role = token.role
         session.user.naam = token.naam
         session.user.opleidingId = token.opleidingId
