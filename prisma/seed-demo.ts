@@ -211,6 +211,22 @@ async function main() {
       niveau: 2,
       maxPlaatsen: 15,
     },
+    {
+      id: 'seed-act-demo-aftekenlijst-1',
+      titel: '🎬 DEMO — Bedrijfsbezoek innovatielab (aftekenlijst)',
+      typeActiviteit: 'Bedrijfsbezoek',
+      omschrijving:
+        'Demo-activiteit met verplichte aftekenlijst — geschikt om het aftekendocument en een nog niet ingediend bewijs te tonen.',
+      datum: geleden,
+      startuur: '13:00',
+      einduur: '16:00',
+      locatie: 'Demo Innovatielab',
+      organisator: 'Piet Demo',
+      beentje: 'ONDERNEMEND' as const,
+      niveau: 1,
+      maxPlaatsen: 20,
+      aftekenlijstVereist: true,
+    },
   ]
 
   for (const a of acts) {
@@ -228,6 +244,7 @@ async function main() {
         niveau: a.niveau,
         maxPlaatsen: a.maxPlaatsen,
         status: 'gepubliceerd',
+        aftekenlijstVereist: 'aftekenlijstVereist' in a ? a.aftekenlijstVereist : false,
         opleidingId: opleiding.id,
       },
       create: {
@@ -244,6 +261,7 @@ async function main() {
         niveau: a.niveau,
         maxPlaatsen: a.maxPlaatsen,
         status: 'gepubliceerd',
+        aftekenlijstVereist: 'aftekenlijstVereist' in a ? a.aftekenlijstVereist : false,
         typeAanvraag: 'docent',
         aangemaaktDoorId: docent.id,
         opleidingId: opleiding.id,
@@ -304,6 +322,32 @@ async function main() {
     })
   }
   console.log('  ✅ Inschrijving + bewijs voor Lisa Demo op voorbije activiteit')
+
+  // Inschrijving voor Lisa op de aftekenlijst-activiteit, bewust zonder bewijsstuk
+  // en op 'niet_ingediend' — toont "aftekenlijst vereist" + "student heeft nog niets
+  // ingediend" samen op één rij in de student-weergave.
+  await prisma.inschrijving.upsert({
+    where: {
+      activiteitId_studentId: {
+        activiteitId: 'seed-act-demo-aftekenlijst-1',
+        studentId: student.id,
+      },
+    },
+    update: {
+      effectieveDeelname: true,
+      bewijsStatus: 'niet_ingediend',
+      bewijsIngediendOp: null,
+    },
+    create: {
+      id: 'seed-insch-demo-aftekenlijst-1',
+      activiteitId: 'seed-act-demo-aftekenlijst-1',
+      studentId: student.id,
+      inschrijvingsstatus: 'ingeschreven',
+      effectieveDeelname: true,
+      bewijsStatus: 'niet_ingediend',
+    },
+  })
+  console.log('  ✅ Inschrijving zonder bewijs voor Lisa Demo op aftekenlijst-activiteit')
 
   console.log('🎬 Demo-seed compleet.')
 }
