@@ -21,6 +21,7 @@ const DEMO_ACT_IDS = [
   'seed-act-demo-onder-1',
   'seed-act-demo-reflectie-1',
   'seed-act-demo-voorbij-1',
+  'seed-act-demo-aftekenlijst-1',
 ]
 
 export async function resetDemo(): Promise<void> {
