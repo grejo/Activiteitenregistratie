@@ -10,6 +10,7 @@
  * enkel bereikbaar via het impersonation-mechanisme (/api/demo/start).
  */
 import { PrismaClient } from '@prisma/client'
+import { maakSdgThemas, sdgThemaIds } from '../src/lib/sdgs'
 
 const prisma = new PrismaClient()
 
@@ -103,19 +104,10 @@ async function main() {
     },
   })
 
-  // Duurzaamheidsthema's
-  const themas = [
-    { id: 'seed-dt-demo-0', naam: 'SDG 4 - Kwaliteitsonderwijs', icoon: '📚', volgorde: 0 },
-    { id: 'seed-dt-demo-1', naam: 'SDG 9 - Innovatie & infrastructuur', icoon: '💡', volgorde: 1 },
-    { id: 'seed-dt-demo-2', naam: 'SDG 12 - Verantwoorde consumptie', icoon: '♻️', volgorde: 2 },
-  ]
-  for (const t of themas) {
-    await prisma.duurzaamheidsThema.upsert({
-      where: { id: t.id },
-      update: {},
-      create: { ...t, opleidingId: opleiding.id },
-    })
-  }
+  // Duurzaamheidsthema's: alle 17 SDG's
+  await maakSdgThemas(prisma, opleiding.id)
+  const sdgIds = await sdgThemaIds(prisma, opleiding.id)
+  console.log('  ✅ 17 SDG-thema\'s')
 
   // Activiteiten (allemaal 'gepubliceerd' → verschijnen op prikbord).
   // Datums: een mix van toekomstige (inschrijven mogelijk) en een reeds
@@ -270,13 +262,15 @@ async function main() {
   }
   console.log(`  ✅ ${acts.length} demo-activiteiten (gepubliceerd op prikbord)`)
 
-  // Duurzaamheidskoppeling voor 2 activiteiten
-  const dtLinks: [string, string][] = [
-    ['seed-act-demo-passie-1', 'seed-dt-demo-0'],
-    ['seed-act-demo-multi-1', 'seed-dt-demo-1'],
-    ['seed-act-demo-onder-1', 'seed-dt-demo-2'],
+  // Duurzaamheidskoppeling voor 3 activiteiten
+  const dtLinks: [string, number][] = [
+    ['seed-act-demo-passie-1', 4],  // SDG 4 - Kwaliteitsonderwijs
+    ['seed-act-demo-multi-1', 9],   // SDG 9 - Industrie, innovatie en infrastructuur
+    ['seed-act-demo-onder-1', 12],  // SDG 12 - Verantwoorde consumptie en productie
   ]
-  for (const [aid, tid] of dtLinks) {
+  for (const [aid, sdgNummer] of dtLinks) {
+    const tid = sdgIds.get(sdgNummer)
+    if (!tid) continue
     await prisma.activiteitDuurzaamheid.upsert({
       where: { activiteitId_duurzaamheidId: { activiteitId: aid, duurzaamheidId: tid } },
       update: {},

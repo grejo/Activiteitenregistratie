@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import { getCurrentSchooljaar } from '@/lib/utils'
+import { getCurrentSchooljaar, afgelopenWhere } from '@/lib/utils'
 import ScorekaartView from './ScorekaartView'
 
 export const metadata = {
@@ -55,7 +55,7 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
       OR: [
         { noShow: true },
         {
-          activiteit: { datum: { lt: new Date() } },
+          activiteit: afgelopenWhere(),
           effectieveDeelname: false,
           NOT: { bewijsStatus: 'goedgekeurd' },
         },
@@ -84,6 +84,7 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
       activiteit: {
         ...i.activiteit,
         datum: i.activiteit.datum.toISOString(),
+        einddatum: i.activiteit.einddatum?.toISOString() || null,
         createdAt: i.activiteit.createdAt.toISOString(),
         updatedAt: i.activiteit.updatedAt.toISOString(),
       },
@@ -96,6 +97,7 @@ async function getScorekaartData(userId: string, opleidingId: string | null) {
       activiteit: {
         ...i.activiteit,
         datum: i.activiteit.datum.toISOString(),
+        einddatum: i.activiteit.einddatum?.toISOString() || null,
         createdAt: i.activiteit.createdAt.toISOString(),
         updatedAt: i.activiteit.updatedAt.toISOString(),
       },

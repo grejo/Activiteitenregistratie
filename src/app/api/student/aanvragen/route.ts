@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { Beentje } from '@prisma/client'
 import { notifyNieuweAanvraag } from '@/lib/mail'
+import { parsePeriodeEnUren } from '@/lib/utils'
 
 export async function POST(request: Request) {
   try {
@@ -65,6 +66,30 @@ export async function POST(request: Request) {
       initialStatus = openVoorMedestudenten ? 'gepubliceerd' : 'goedgekeurd'
     }
 
+    // Het gekozen duurzaamheidsthema moet bij de eigen opleiding horen
+    if (duurzaamheidId) {
+      const thema = await prisma.duurzaamheidsThema.findUnique({
+        where: { id: duurzaamheidId },
+        select: { opleidingId: true },
+      })
+      if (!thema || thema.opleidingId !== student?.opleidingId) {
+        return NextResponse.json(
+          { error: 'Ongeldig duurzaamheidsthema voor deze opleiding' },
+          { status: 400 }
+        )
+      }
+    }
+
+    let periodeEnUren
+    try {
+      periodeEnUren = parsePeriodeEnUren(body, datum)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Ongeldige periode' },
+        { status: 400 }
+      )
+    }
+
     // Create the aanvraag (activiteit with typeAanvraag = 'student')
     const aanvraag = await prisma.activiteit.create({
       data: {
@@ -73,8 +98,10 @@ export async function POST(request: Request) {
         aard: aard || null,
         omschrijving: omschrijving || null,
         datum: new Date(datum),
+        einddatum: periodeEnUren.einddatum,
         startuur,
         einduur,
+        aantalUren: periodeEnUren.aantalUren,
         locatie: locatie || null,
         weblink: weblink || null,
         organisator: organisator || null,

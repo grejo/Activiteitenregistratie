@@ -165,8 +165,10 @@ model Activiteit {
   aard              String?
   omschrijving      String?
   datum             DateTime
+  einddatum         DateTime?
   startuur          String
   einduur           String
+  aantalUren        Float?
   locatie           String?
   weblink           String?
   organisator       String?

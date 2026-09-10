@@ -2,14 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { activiteitEinde, formatPeriode, formatUren } from '@/lib/utils'
 
 type Activiteit = {
   id: string
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   startuur: string
   einduur: string
+  aantalUren: number | null
   status: string
   typeActiviteit: string
   aard: string | null
@@ -65,7 +68,7 @@ export default function DocentActiviteitDetails({
   const router = useRouter()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  const isPast = new Date(activiteit.datum) < new Date()
+  const isPast = activiteitEinde(activiteit) < new Date()
   const ingeschrevenStudenten = activiteit.inschrijvingen.filter(
     (i) => i.inschrijvingsstatus === 'ingeschreven'
   )
@@ -129,16 +132,16 @@ export default function DocentActiviteitDetails({
         <div className="card">
           <h3 className="font-semibold text-gray-700 mb-2">Datum & Tijd</h3>
           <p className="text-2xl font-bold text-pxl-gold">
-            {new Date(activiteit.datum).toLocaleDateString('nl-BE', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {formatPeriode(activiteit.datum, activiteit.einddatum)}
           </p>
           <p className="text-gray-600">
             {activiteit.startuur} - {activiteit.einduur}
           </p>
+          {activiteit.aantalUren !== null && (
+            <p className="text-sm text-gray-500 mt-1">
+              {formatUren(activiteit.aantalUren)}u in totaal
+            </p>
+          )}
         </div>
 
         <div className="card">

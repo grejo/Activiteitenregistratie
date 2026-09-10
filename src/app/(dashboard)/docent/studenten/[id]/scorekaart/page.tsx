@@ -53,6 +53,7 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
       activiteit: {
         ...i.activiteit,
         datum: i.activiteit.datum.toISOString(),
+        einddatum: i.activiteit.einddatum?.toISOString() || null,
         createdAt: i.activiteit.createdAt.toISOString(),
         updatedAt: i.activiteit.updatedAt.toISOString(),
       },

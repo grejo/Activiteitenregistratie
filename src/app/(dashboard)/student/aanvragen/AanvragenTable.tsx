@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
 import { BEENTJES, BEENTJE_LABELS, NIVEAUS, NIVEAU_LABELS } from '@/lib/beentjes'
+import { formatPeriode, formatUren } from '@/lib/utils'
 
 type Bewijsstuk = {
   id: string
@@ -27,8 +28,10 @@ type Aanvraag = {
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   startuur: string
   einduur: string
+  aantalUren: number | null
   locatie: string | null
   weblink: string | null
   typeActiviteit: string
@@ -82,8 +85,10 @@ const initialFormData = {
   aard: '',
   omschrijving: '',
   datum: '',
+  einddatum: '',
   startuur: '09:00',
   einduur: '17:00',
+  aantalUren: '',
   locatie: '',
   weblink: '',
   organisator: '',
@@ -254,7 +259,11 @@ export default function AanvragenTable({
       const response = await fetch('/api/student/aanvragen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          einddatum: formData.einddatum || null,
+          aantalUren: formData.aantalUren || null,
+        }),
       })
 
       const data = await response.json()
@@ -430,7 +439,7 @@ export default function AanvragenTable({
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(aanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(aanvraag.datum, aanvraag.einddatum)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span
@@ -539,7 +548,7 @@ export default function AanvragenTable({
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedAanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(selectedAanvraag.datum, selectedAanvraag.einddatum)}
                     </div>
                   </div>
                   <div>
@@ -548,6 +557,12 @@ export default function AanvragenTable({
                       {selectedAanvraag.startuur} - {selectedAanvraag.einduur}
                     </div>
                   </div>
+                  {selectedAanvraag.aantalUren && (
+                    <div>
+                      <div className="text-sm text-gray-500">Aantal uren</div>
+                      <div className="font-medium">{formatUren(selectedAanvraag.aantalUren)}u</div>
+                    </div>
+                  )}
                   <div>
                     <div className="text-sm text-gray-500">Type</div>
                     <div className="font-medium capitalize">{selectedAanvraag.typeActiviteit}</div>
@@ -909,7 +924,7 @@ export default function AanvragenTable({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="datum" className="block text-sm font-medium text-gray-700">
-                    Datum *
+                    Startdatum *
                   </label>
                   <input
                     type="date"
@@ -938,6 +953,21 @@ export default function AanvragenTable({
                 </div>
 
                 <div>
+                  <label htmlFor="einddatum" className="block text-sm font-medium text-gray-700">
+                    Einddatum (optioneel)
+                  </label>
+                  <input
+                    type="date"
+                    id="einddatum"
+                    name="einddatum"
+                    min={formData.datum || undefined}
+                    value={formData.einddatum}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  />
+                </div>
+
+                <div>
                   <label htmlFor="einduur" className="block text-sm font-medium text-gray-700">
                     Einduur *
                   </label>
@@ -949,6 +979,23 @@ export default function AanvragenTable({
                     value={formData.einduur}
                     onChange={handleChange}
                     className="input-field mt-1 w-full"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="aantalUren" className="block text-sm font-medium text-gray-700">
+                    Aantal uren (optioneel)
+                  </label>
+                  <input
+                    type="number"
+                    id="aantalUren"
+                    name="aantalUren"
+                    step="0.5"
+                    min="0.5"
+                    value={formData.aantalUren}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                    placeholder="Bv. 15 of 30"
                   />
                 </div>
               </div>

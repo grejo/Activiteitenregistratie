@@ -59,6 +59,7 @@ async function getActiviteiten(opleidingId: string | null, userId: string) {
   return activiteiten.map((a) => ({
     ...a,
     datum: a.datum.toISOString(),
+    einddatum: a.einddatum?.toISOString() || null,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   }))

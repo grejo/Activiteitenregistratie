@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from 'clsx'
+import type { Prisma } from '@prisma/client'
 
 /**
  * Combineert class names met clsx (simpele versie zonder tailwind-merge)
@@ -50,6 +51,18 @@ export function formatDateTime(date: Date | string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+/**
+ * Formatteert de periode van een activiteit: enkel de startdatum wanneer er
+ * geen (of een gelijke) einddatum is, anders "startdatum – einddatum".
+ */
+export function formatPeriode(datum: Date | string, einddatum?: Date | string | null): string {
+  if (!einddatum) return formatDate(datum)
+  const start = typeof datum === 'string' ? new Date(datum) : datum
+  const eind = typeof einddatum === 'string' ? new Date(einddatum) : einddatum
+  if (start.toDateString() === eind.toDateString()) return formatDate(datum)
+  return `${formatDate(start)} – ${formatDate(eind)}`
 }
 
 /**
@@ -106,6 +119,81 @@ export function isActiviteitGestart(datum: Date | string, startuur: string): boo
   const startMoment = new Date(d)
   startMoment.setHours(hours, minutes, 0, 0)
   return new Date() >= startMoment
+}
+
+/**
+ * Geeft het einde van een activiteit terug: de einddatum als die er is,
+ * anders de (start)datum. Gebruikt om "afgelopen" te bepalen bij activiteiten
+ * die over meerdere dagen lopen.
+ */
+export function activiteitEinde(activiteit: {
+  datum: Date | string
+  einddatum?: Date | string | null
+}): Date {
+  const eind = activiteit.einddatum ?? activiteit.datum
+  return typeof eind === 'string' ? new Date(eind) : eind
+}
+
+/**
+ * Prisma-where-fragment dat activiteiten selecteert waarvan het einde vóór
+ * het opgegeven tijdstip ligt (standaard nu). Houdt rekening met de
+ * (optionele) einddatum: een activiteit zonder einddatum is voorbij zodra de
+ * startdatum voorbij is, een meerdaagse activiteit pas na de einddatum.
+ */
+export function afgelopenWhere(voor: Date = new Date()): Prisma.ActiviteitWhereInput {
+  return {
+    OR: [
+      { einddatum: null, datum: { lt: voor } },
+      { einddatum: { lt: voor } },
+    ],
+  }
+}
+
+export type PeriodeEnUrenInput = {
+  einddatum?: string | null
+  aantalUren?: string | number | null
+}
+
+export type PeriodeEnUrenResultaat = {
+  einddatum: Date | null
+  aantalUren: number | null
+}
+
+/**
+ * Parseert en valideert de (optionele) einddatum en het (optionele) aantal
+ * uren zoals aangeleverd door een activiteitformulier. Gooit een Error met
+ * een gebruiksvriendelijke boodschap bij een ongeldige combinatie.
+ */
+export function parsePeriodeEnUren(
+  body: PeriodeEnUrenInput,
+  datum: Date | string
+): PeriodeEnUrenResultaat {
+  const start = typeof datum === 'string' ? new Date(datum) : datum
+
+  let einddatum: Date | null = null
+  if (body.einddatum) {
+    const parsed = new Date(body.einddatum)
+    if (isNaN(parsed.getTime())) {
+      throw new Error('Ongeldige einddatum')
+    }
+    if (parsed.toDateString() !== start.toDateString()) {
+      einddatum = parsed
+    }
+  }
+  if (einddatum && einddatum < start) {
+    throw new Error('De einddatum mag niet vóór de startdatum liggen')
+  }
+
+  let aantalUren: number | null = null
+  if (body.aantalUren !== undefined && body.aantalUren !== null && body.aantalUren !== '') {
+    const parsed = Number(body.aantalUren)
+    if (isNaN(parsed) || parsed <= 0) {
+      throw new Error('Ongeldig aantal uren')
+    }
+    aantalUren = parsed
+  }
+
+  return { einddatum, aantalUren }
 }
 
 /**

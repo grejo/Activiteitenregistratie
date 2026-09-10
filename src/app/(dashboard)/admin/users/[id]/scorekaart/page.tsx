@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import { getCurrentSchooljaar } from '@/lib/utils'
+import { getCurrentSchooljaar, afgelopenWhere } from '@/lib/utils'
 import Link from 'next/link'
 import ScorekaartView from '@/app/(dashboard)/student/scorekaart/ScorekaartView'
 
@@ -47,7 +47,7 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
       OR: [
         { noShow: true },
         {
-          activiteit: { datum: { lt: new Date() } },
+          activiteit: afgelopenWhere(),
           effectieveDeelname: false,
           NOT: { bewijsStatus: 'goedgekeurd' },
         },
@@ -72,6 +72,7 @@ async function getScorekaartData(studentId: string, opleidingId: string | null) 
     activiteit: {
       ...i.activiteit,
       datum: i.activiteit.datum.toISOString(),
+      einddatum: i.activiteit.einddatum?.toISOString() || null,
       createdAt: i.activiteit.createdAt.toISOString(),
       updatedAt: i.activiteit.updatedAt.toISOString(),
     },

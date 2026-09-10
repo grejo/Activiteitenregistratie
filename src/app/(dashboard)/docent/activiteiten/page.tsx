@@ -27,6 +27,7 @@ async function getDocentActiviteiten(userId: string) {
   return activiteiten.map((a) => ({
     ...a,
     datum: a.datum.toISOString(),
+    einddatum: a.einddatum?.toISOString() || null,
   }))
 }
 
@@ -65,6 +66,7 @@ async function getDuurzaamheidsThemas(userId: string) {
     select: {
       id: true,
       naam: true,
+      opleidingId: true,
     },
     orderBy: { volgorde: 'asc' },
   })

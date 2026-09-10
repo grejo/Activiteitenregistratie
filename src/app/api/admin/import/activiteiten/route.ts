@@ -122,13 +122,28 @@ export async function POST(request: Request) {
         }
 
         const { datum: beginDatum, uur: startuur } = parseDatumUur(row['Begindatum en beginuur activiteit'])
-        const { uur: einduur } = parseDatumUur(row['Einddatum en einduur activiteit'])
+        const { datum: eindDatum, uur: einduur } = parseDatumUur(row['Einddatum en einduur activiteit'])
         const { beentje, niveau } = parseBeentje(row['Code deelnemer(s)'])
 
         // Gebruik fallback als datum leeg of ongeldig is
         const geldigeDatum = beginDatum && !isNaN(beginDatum.getTime())
           ? beginDatum
           : new Date('2020-01-01T00:00:00')
+
+        // Enkel een echte einddatum als die geldig is én op een andere dag valt
+        // dan de startdatum (anders is het gewoon het einduur op dezelfde dag).
+        const geldigeEinddatum =
+          eindDatum && !isNaN(eindDatum.getTime()) && eindDatum.toDateString() !== geldigeDatum.toDateString()
+            ? eindDatum
+            : null
+
+        const aantalUrenRaw = row['Aantal uren']
+        const aantalUren =
+          typeof aantalUrenRaw === 'string' && aantalUrenRaw.trim() !== '' && !isNaN(Number(aantalUrenRaw))
+            ? Number(aantalUrenRaw)
+            : typeof aantalUrenRaw === 'number'
+            ? aantalUrenRaw
+            : null
 
         const studentEmail = getStudentEmail(row)
         const docentEmail = getDocentEmail(row)
@@ -162,8 +177,10 @@ export async function POST(request: Request) {
             aard: typeof row['Aard activiteit'] === 'string' ? row['Aard activiteit'].trim() : null,
             omschrijving: typeof omschrijving === 'string' ? omschrijving.trim() : null,
             datum: geldigeDatum,
+            einddatum: geldigeEinddatum,
             startuur: startuur ?? '00:00',
             einduur: einduur ?? startuur ?? '00:00',
+            aantalUren,
             locatie: typeof locatie === 'string' ? locatie.trim() : null,
             weblink: typeof weblink === 'string' ? weblink.trim() : null,
             organisator: typeof organisator === 'string' ? organisator.trim() : null,

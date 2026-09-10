@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
+import { formatPeriode } from '@/lib/utils'
 
 type Inschrijving = {
   id: string
@@ -12,6 +13,7 @@ type Inschrijving = {
     id: string
     titel: string
     datum: string
+    einddatum: string | null
     status: string
   }
 }
@@ -274,7 +276,7 @@ export default function AdminStudentenTable({
                               {laatsteInschrijving.activiteit.titel}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {new Date(laatsteInschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              {formatPeriode(laatsteInschrijving.activiteit.datum, laatsteInschrijving.activiteit.einddatum)}
                             </div>
                           </div>
                         ) : (
@@ -453,7 +455,7 @@ export default function AdminStudentenTable({
                             {inschrijving.activiteit.titel}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {formatPeriode(inschrijving.activiteit.datum, inschrijving.activiteit.einddatum)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

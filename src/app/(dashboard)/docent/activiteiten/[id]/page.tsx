@@ -40,6 +40,7 @@ async function getActiviteit(id: string, userId: string) {
   return {
     ...activiteit,
     datum: activiteit.datum.toISOString(),
+    einddatum: activiteit.einddatum?.toISOString() || null,
   }
 }
 

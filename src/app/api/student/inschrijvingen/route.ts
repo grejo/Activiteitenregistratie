@@ -48,6 +48,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Inschrijven kan niet meer nadat de activiteit (of het traject) gestart is
+    if (activiteit.datum < new Date()) {
+      return NextResponse.json(
+        { error: 'Deze activiteit is al gestart; inschrijven is niet meer mogelijk' },
+        { status: 400 }
+      )
+    }
+
     // Check if activity is full
     if (
       activiteit.maxPlaatsen !== null &&

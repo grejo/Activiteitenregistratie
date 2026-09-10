@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { activiteitEinde, formatPeriode } from '@/lib/utils'
 
 type Inschrijving = {
   id: string
@@ -15,6 +16,7 @@ type Inschrijving = {
     titel: string
     omschrijving: string | null
     datum: string
+    einddatum: string | null
     startuur: string
     einduur: string
     locatie: string | null
@@ -86,7 +88,7 @@ export default function InschrijvingenTable({
     const komende = inschrijvingen.filter(
       (i) =>
         i.inschrijvingsstatus === 'ingeschreven' &&
-        new Date(i.activiteit.datum) >= new Date()
+        activiteitEinde(i.activiteit) >= new Date()
     ).length
     const deelgenomen = inschrijvingen.filter(
       (i) => i.effectieveDeelname
@@ -118,8 +120,9 @@ export default function InschrijvingenTable({
     }
   }
 
-  const isPast = (datum: string) => new Date(datum) < new Date()
-  // Uitschrijven kan tot 24 uur voor aanvang van de activiteit
+  const isPast = (activiteit: { datum: string; einddatum: string | null }) =>
+    activiteitEinde(activiteit) < new Date()
+  // Uitschrijven kan tot 24 uur voor aanvang van de activiteit (de startdatum)
   const binnen24u = (datum: string) =>
     new Date(datum).getTime() - Date.now() < 24 * 60 * 60 * 1000
 
@@ -236,7 +239,7 @@ export default function InschrijvingenTable({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredInschrijvingen.map((inschrijving) => {
-                  const past = isPast(inschrijving.activiteit.datum)
+                  const past = isPast(inschrijving.activiteit)
                   return (
                     <tr
                       key={inschrijving.id}
@@ -244,7 +247,7 @@ export default function InschrijvingenTable({
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          {formatPeriode(inschrijving.activiteit.datum, inschrijving.activiteit.einddatum)}
                         </div>
                         <div className="text-xs text-gray-500">
                           {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
@@ -379,14 +382,9 @@ export default function InschrijvingenTable({
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedInschrijving.activiteit.datum).toLocaleDateString(
-                        'nl-BE',
-                        {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        }
+                      {formatPeriode(
+                        selectedInschrijving.activiteit.datum,
+                        selectedInschrijving.activiteit.einddatum
                       )}
                     </div>
                   </div>
@@ -475,7 +473,7 @@ export default function InschrijvingenTable({
                 Sluiten
               </button>
               {selectedInschrijving.inschrijvingsstatus === 'ingeschreven' &&
-                !isPast(selectedInschrijving.activiteit.datum) &&
+                !isPast(selectedInschrijving.activiteit) &&
                 (binnen24u(selectedInschrijving.activiteit.datum) ? (
                   <span className="self-center text-sm text-gray-500">
                     Uitschrijven kan tot 24 uur voor de activiteit

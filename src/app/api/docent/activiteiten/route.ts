@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie } from '@/lib/mail'
+import { parsePeriodeEnUren } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -95,6 +96,30 @@ export async function POST(request: Request) {
       }
     }
 
+    // Het gekozen duurzaamheidsthema moet bij de (primaire) opleiding horen
+    if (duurzaamheidId) {
+      const thema = await prisma.duurzaamheidsThema.findUnique({
+        where: { id: duurzaamheidId },
+        select: { opleidingId: true },
+      })
+      if (!thema || thema.opleidingId !== opleidingId) {
+        return NextResponse.json(
+          { error: 'Ongeldig duurzaamheidsthema voor deze opleiding' },
+          { status: 400 }
+        )
+      }
+    }
+
+    let periodeEnUren
+    try {
+      periodeEnUren = parsePeriodeEnUren(body, datum)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Ongeldige periode' },
+        { status: 400 }
+      )
+    }
+
     // Create activiteit
     const activiteit = await prisma.activiteit.create({
       data: {
@@ -103,8 +128,10 @@ export async function POST(request: Request) {
         aard: aard || null,
         omschrijving: omschrijving || null,
         datum: new Date(datum),
+        einddatum: periodeEnUren.einddatum,
         startuur,
         einduur,
+        aantalUren: periodeEnUren.aantalUren,
         locatie: locatie || null,
         weblink: weblink || null,
         organisator: organisator || null,

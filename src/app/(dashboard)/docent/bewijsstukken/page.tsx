@@ -44,6 +44,7 @@ async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
           titel: true,
           typeActiviteit: true,
           datum: true,
+          einddatum: true,
           startuur: true,
           einduur: true,
           locatie: true,
@@ -73,6 +74,7 @@ async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
     activiteit: {
       ...i.activiteit,
       datum: i.activiteit.datum.toISOString(),
+      einddatum: i.activiteit.einddatum?.toISOString() || null,
     },
     bewijsstukken: i.bewijsstukken.map((b) => ({
       ...b,

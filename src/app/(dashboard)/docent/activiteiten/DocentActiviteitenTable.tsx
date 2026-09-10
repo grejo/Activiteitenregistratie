@@ -3,12 +3,14 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { activiteitEinde, formatPeriode } from '@/lib/utils'
 
 type Activiteit = {
   id: string
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   status: string
   typeActiviteit: string
   maxPlaatsen: number | null
@@ -32,6 +34,7 @@ type Opleiding = {
 type DuurzaamheidsThema = {
   id: string
   naam: string
+  opleidingId: string
 }
 
 const statusLabels: Record<string, string> = {
@@ -58,8 +61,10 @@ const initialFormData = {
   aard: '',
   omschrijving: '',
   datum: '',
+  einddatum: '',
   startuur: '09:00',
   einduur: '17:00',
+  aantalUren: '',
   locatie: '',
   weblink: '',
   organisator: '',
@@ -135,7 +140,7 @@ export default function DocentActiviteitenTable({
       0
     )
     const past = activiteiten.filter(
-      (a) => new Date(a.datum) < new Date()
+      (a) => activiteitEinde(a) < new Date()
     ).length
 
     return { upcoming, totalInschrijvingen, past, total: activiteiten.length }
@@ -163,8 +168,16 @@ export default function DocentActiviteitenTable({
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+      // Bij opleidingwissel is het eerder gekozen SDG-thema (van de vorige
+      // opleiding) niet meer geldig.
+      ...(name === 'opleidingId' ? { duurzaamheidId: '' } : {}),
     }))
   }
+
+  const beschikbareThemas = useMemo(
+    () => duurzaamheidsThemas.filter((t) => t.opleidingId === formData.opleidingId),
+    [duurzaamheidsThemas, formData.opleidingId]
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -184,6 +197,8 @@ export default function DocentActiviteitenTable({
           ),
           niveau: formData.niveau || null,
           duurzaamheidId: formData.duurzaamheidId || null,
+          einddatum: formData.einddatum || null,
+          aantalUren: formData.aantalUren || null,
         }),
       })
 
@@ -320,11 +335,11 @@ export default function DocentActiviteitenTable({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedActiviteiten.map((activiteit) => {
-                const isPast = new Date(activiteit.datum) < new Date()
+                const isPast = activiteitEinde(activiteit) < new Date()
                 return (
                   <tr key={activiteit.id} className={isPast ? 'bg-gray-50' : ''}>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(activiteit.datum, activiteit.einddatum)}
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{activiteit.titel}</div>
@@ -541,7 +556,7 @@ export default function DocentActiviteitenTable({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="datum" className="block text-sm font-medium text-gray-700">
-                    Datum *
+                    Startdatum *
                   </label>
                   <input
                     type="date"
@@ -573,6 +588,21 @@ export default function DocentActiviteitenTable({
                 </div>
 
                 <div>
+                  <label htmlFor="einddatum" className="block text-sm font-medium text-gray-700">
+                    Einddatum (optioneel)
+                  </label>
+                  <input
+                    type="date"
+                    id="einddatum"
+                    name="einddatum"
+                    min={formData.datum || undefined}
+                    value={formData.einddatum}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                  />
+                </div>
+
+                <div>
                   <label htmlFor="einduur" className="block text-sm font-medium text-gray-700">
                     Einduur *
                   </label>
@@ -584,6 +614,23 @@ export default function DocentActiviteitenTable({
                     value={formData.einduur}
                     onChange={handleChange}
                     className="input-field mt-1 w-full"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="aantalUren" className="block text-sm font-medium text-gray-700">
+                    Aantal uren (optioneel)
+                  </label>
+                  <input
+                    type="number"
+                    id="aantalUren"
+                    name="aantalUren"
+                    step="0.5"
+                    min="0.5"
+                    value={formData.aantalUren}
+                    onChange={handleChange}
+                    className="input-field mt-1 w-full"
+                    placeholder="Bv. 15 of 30"
                   />
                 </div>
               </div>
@@ -744,15 +791,19 @@ export default function DocentActiviteitenTable({
                     name="duurzaamheidId"
                     value={formData.duurzaamheidId}
                     onChange={handleChange}
-                    className="input-field mt-1 w-full"
+                    disabled={!formData.opleidingId}
+                    className="input-field mt-1 w-full disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     <option value="">Geen duurzaamheidsthema</option>
-                    {duurzaamheidsThemas.map((thema) => (
+                    {beschikbareThemas.map((thema) => (
                       <option key={thema.id} value={thema.id}>
                         {thema.naam}
                       </option>
                     ))}
                   </select>
+                  {!formData.opleidingId && (
+                    <p className="text-xs text-gray-500 mt-1">Kies eerst een opleiding.</p>
+                  )}
                 </div>
               </div>
 

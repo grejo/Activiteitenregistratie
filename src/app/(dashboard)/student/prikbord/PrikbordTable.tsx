@@ -2,14 +2,17 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatPeriode, formatUren } from '@/lib/utils'
 
 type Activiteit = {
   id: string
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   startuur: string
   einduur: string
+  aantalUren: number | null
   locatie: string | null
   weblink: string | null
   typeActiviteit: string
@@ -260,7 +263,7 @@ export default function PrikbordTable({
                 <div className="space-y-1 text-sm text-gray-600 mb-4">
                   <div className="flex items-center gap-2">
                     <span>📅</span>
-                    <span>{new Date(activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    <span>{formatPeriode(activiteit.datum, activiteit.einddatum)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span>🕐</span>
@@ -386,12 +389,7 @@ export default function PrikbordTable({
                 <div>
                   <div className="text-sm text-gray-500">Datum</div>
                   <div className="font-medium">
-                    {new Date(selectedActiviteit.datum).toLocaleDateString('nl-BE', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    {formatPeriode(selectedActiviteit.datum, selectedActiviteit.einddatum)}
                   </div>
                 </div>
                 <div>
@@ -400,6 +398,12 @@ export default function PrikbordTable({
                     {selectedActiviteit.startuur} - {selectedActiviteit.einduur}
                   </div>
                 </div>
+                {selectedActiviteit.aantalUren !== null && (
+                  <div>
+                    <div className="text-sm text-gray-500">Aantal uren</div>
+                    <div className="font-medium">{formatUren(selectedActiviteit.aantalUren)}u</div>
+                  </div>
+                )}
                 {selectedActiviteit.locatie && (
                   <div>
                     <div className="text-sm text-gray-500">Locatie</div>

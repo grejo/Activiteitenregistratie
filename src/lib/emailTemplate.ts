@@ -145,16 +145,29 @@ export function renderEmail(c: EmailContent): { subject: string; html: string } 
 type ActiviteitKern = {
   titel: string
   datumISO: string
+  einddatumISO?: string | null
   startuur: string
   einduur: string
+  aantalUren?: number | null
   locatie?: string | null
+}
+
+// Periode-notatie voor mails: enkel de startdatum, of "start – einde" bij een
+// meerdaags traject.
+function formatPeriodeMail(datumISO: string, einddatumISO?: string | null): string {
+  if (!einddatumISO) return formatDatum(datumISO)
+  const start = new Date(datumISO)
+  const eind = new Date(einddatumISO)
+  if (start.toDateString() === eind.toDateString()) return formatDatum(datumISO)
+  return `${formatDatum(datumISO)} – ${formatDatum(einddatumISO)}`
 }
 
 function activiteitDetailRows(a: ActiviteitKern, opleidingen?: string[]): { label: string; waarde: string }[] {
   const rows = [
-    { label: 'Datum', waarde: formatDatum(a.datumISO) },
+    { label: 'Datum', waarde: formatPeriodeMail(a.datumISO, a.einddatumISO) },
     { label: 'Tijd', waarde: `${a.startuur} – ${a.einduur}` },
   ]
+  if (a.aantalUren) rows.push({ label: 'Aantal uren', waarde: `${a.aantalUren}u` })
   if (a.locatie) rows.push({ label: 'Locatie', waarde: a.locatie })
   if (opleidingen && opleidingen.length > 0) rows.push({ label: 'Opleiding', waarde: opleidingen.join(', ') })
   return rows
@@ -164,8 +177,10 @@ function activiteitDetailRows(a: ActiviteitKern, opleidingen?: string[]): { labe
 export function buildPrikbordEmail(data: {
   titel: string
   datumISO: string
+  einddatumISO?: string | null
   startuur: string
   einduur: string
+  aantalUren?: number | null
   locatie?: string | null
   omschrijving?: string | null
   weblink?: string | null
@@ -242,16 +257,19 @@ export function buildNieuweAanvraagEmail(data: {
   studentNaam: string
   opleidingNaam?: string | null
   datumISO: string
+  einddatumISO?: string | null
   startuur: string
   einduur: string
+  aantalUren?: number | null
   locatie?: string | null
   reviewUrl: string
 }): { subject: string; html: string } {
   const rows = [
     { label: 'Student', waarde: data.studentNaam },
     ...(data.opleidingNaam ? [{ label: 'Opleiding', waarde: data.opleidingNaam }] : []),
-    { label: 'Datum', waarde: formatDatum(data.datumISO) },
+    { label: 'Datum', waarde: formatPeriodeMail(data.datumISO, data.einddatumISO) },
     { label: 'Tijd', waarde: `${data.startuur} – ${data.einduur}` },
+    ...(data.aantalUren ? [{ label: 'Aantal uren', waarde: `${data.aantalUren}u` }] : []),
     ...(data.locatie ? [{ label: 'Locatie', waarde: data.locatie }] : []),
   ]
   return renderEmail({
@@ -271,8 +289,10 @@ export function buildActiviteitWijzigingEmail(data: {
   geannuleerd: boolean
   wijzigingen?: string[]
   datumISO: string
+  einddatumISO?: string | null
   startuur: string
   einduur: string
+  aantalUren?: number | null
   locatie?: string | null
   prikbordUrl: string
 }): { subject: string; html: string } {

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AftekendocumentButton } from '@/components/AftekendocumentButton'
+import { formatPeriode, formatUren } from '@/lib/utils'
 
 type Activiteit = {
   id: string
@@ -12,8 +13,10 @@ type Activiteit = {
   aard: string | null
   omschrijving: string | null
   datum: Date
+  einddatum: Date | null
   startuur: string
   einduur: string
+  aantalUren: number | null
   locatie: string | null
   weblink: string | null
   organisator: string | null
@@ -204,7 +207,7 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
               )}
               {activiteit.aftekenlijstVereist && (
                 <span className="px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-gray-800 text-white">
-                  📄 Aftekenlijst
+                  📄 Aanwezigheidsattest
                 </span>
               )}
             </div>
@@ -214,12 +217,12 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
           </Link>
         </div>
 
-        {/* Aftekendocument PDF (alleen wanneer aftekenlijstVereist is aangevinkt) */}
+        {/* Aanwezigheidsattest PDF (alleen wanneer aftekenlijstVereist is aangevinkt) */}
         {activiteit.aftekenlijstVereist && (
           <div className="border-t pt-4 mt-4">
-            <h3 className="font-semibold mb-2">Aftekendocument</h3>
+            <h3 className="font-semibold mb-2">Aanwezigheidsattest</h3>
             <p className="text-xs text-gray-500 mb-2">
-              Genereer een PDF met de PXL-huisstijl om te laten aftekenen door de organisator.
+              Genereer een PDF met de PXL-huisstijl om te laten ondertekenen door de organisator.
             </p>
             <AftekendocumentButton activiteitId={activiteit.id} />
           </div>
@@ -314,12 +317,7 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
           <div>
             <span className="text-sm font-medium text-gray-500">Datum</span>
             <p className="text-gray-900">
-              {new Date(activiteit.datum).toLocaleDateString('nl-BE', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formatPeriode(activiteit.datum, activiteit.einddatum)}
             </p>
           </div>
 
@@ -329,6 +327,13 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
               {activiteit.startuur} - {activiteit.einduur}
             </p>
           </div>
+
+          {activiteit.aantalUren !== null && (
+            <div>
+              <span className="text-sm font-medium text-gray-500">Aantal uren</span>
+              <p className="text-gray-900">{formatUren(activiteit.aantalUren)}u</p>
+            </div>
+          )}
 
           {activiteit.locatie && (
             <div>

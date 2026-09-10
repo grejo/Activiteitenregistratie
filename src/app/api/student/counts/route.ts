@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { afgelopenWhere } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -31,10 +32,10 @@ export async function GET() {
         studentId,
         OR: [
           {
-            // Bewijs moet nog ingediend worden (activiteit is in het verleden)
+            // Bewijs moet nog ingediend worden (activiteit is voorbij)
             bewijsStatus: 'niet_ingediend',
             activiteit: {
-              datum: { lt: new Date() },
+              ...afgelopenWhere(),
               status: { in: ['gepubliceerd', 'goedgekeurd', 'afgerond'] },
             },
           },

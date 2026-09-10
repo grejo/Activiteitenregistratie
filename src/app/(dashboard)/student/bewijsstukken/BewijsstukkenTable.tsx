@@ -18,6 +18,7 @@ type Activiteit = {
   titel: string
   typeActiviteit: string
   datum: string
+  einddatum: string | null
   startuur: string
   einduur: string
   locatie: string | null
@@ -89,6 +90,14 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
     })
   }
 
+  const formatPeriode = (datum: string, einddatum: string | null) => {
+    if (!einddatum) return formatDate(datum)
+    if (new Date(datum).toDateString() === new Date(einddatum).toDateString()) {
+      return formatDate(datum)
+    }
+    return `${formatDate(datum)} – ${formatDate(einddatum)}`
+  }
+
   const canUpload = (inschrijving: Inschrijving) => {
     return inschrijving.bewijsStatus === 'niet_ingediend' || inschrijving.bewijsStatus === 'afgekeurd'
   }
@@ -151,7 +160,7 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                   <tr className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {formatDate(inschrijving.activiteit.datum)}
+                        {formatPeriode(inschrijving.activiteit.datum, inschrijving.activiteit.einddatum)}
                       </div>
                       <div className="text-sm text-gray-500">
                         {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
@@ -250,12 +259,12 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                             </div>
                           )}
 
-                          {/* Aftekenlijst-sjabloon (alleen wanneer de activiteit dit vereist) */}
+                          {/* Aanwezigheidsattest-sjabloon (alleen wanneer de activiteit dit vereist) */}
                           {inschrijving.activiteit.aftekenlijstVereist && (
                             <div className="mb-4 p-3 bg-yellow-50 border border-pxl-gold rounded-lg flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-semibold text-pxl-black text-sm">
-                                  📄 Aftekenlijst downloaden
+                                  📄 Aanwezigheidsattest downloaden
                                 </p>
                                 <p className="text-xs text-gray-600 mt-1">
                                   Laat deze PDF invullen en ondertekenen door de organisator, upload
@@ -264,7 +273,7 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                               </div>
                               <AftekendocumentButton
                                 activiteitId={inschrijving.activiteit.id}
-                                label="⬇︎ Aftekenlijst (PDF)"
+                                label="⬇︎ Aanwezigheidsattest (PDF)"
                               />
                             </div>
                           )}

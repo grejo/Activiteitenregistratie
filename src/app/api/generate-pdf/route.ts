@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { getCurrentSchooljaar } from '@/lib/utils'
+import { getCurrentSchooljaar, formatPeriode } from '@/lib/utils'
 import { AftekendocumentPDF } from '@/components/pdf/AftekendocumentPDF'
 import type { AftekendocumentData } from '@/lib/aftekendocument.types'
 
@@ -92,7 +92,7 @@ export async function GET(request: Request) {
       titel: activiteit.titel,
       doelstelling: activiteit.omschrijving,
       beoordelaar: null,
-      datum: activiteit.datum.toLocaleDateString('nl-BE'),
+      datum: formatPeriode(activiteit.datum, activiteit.einddatum),
       locatie: activiteit.locatie,
       organisator:
         activiteit.organisator ||
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
           .filter(Boolean)
           .join(' / ') ||
         null,
-      geschatteUren: null,
+      geschatteUren: activiteit.aantalUren,
       verslagMaken: null,
       andereDoc: null,
     },
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="aftekendocument-${safeTitel}.pdf"`,
+      'Content-Disposition': `attachment; filename="aanwezigheidsattest-${safeTitel}.pdf"`,
       'Cache-Control': 'no-store',
     },
   })

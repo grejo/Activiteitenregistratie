@@ -51,6 +51,7 @@ export async function GET() {
             titel: true,
             typeActiviteit: true,
             datum: true,
+            einddatum: true,
             startuur: true,
             einduur: true,
           },

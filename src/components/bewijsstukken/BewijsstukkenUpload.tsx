@@ -21,7 +21,8 @@ type BewijsstukkenUploadProps = {
 }
 
 const typeLabels: Record<string, string> = {
-  handtekeninglijst: 'Handtekeninglijst',
+  aanwezigheidsattest: 'Aanwezigheidsattest (ondertekend)',
+  handtekeninglijst: 'Handtekeninglijst (alle deelnemers)',
   foto_deelnemers: 'Foto deelnemers',
   extra_bijlage: 'Extra bijlage',
   certificaat: 'Certificaat',
@@ -187,9 +188,10 @@ export default function BewijsstukkenUpload({
                 className="input-field w-full"
               >
                 <option value="bewijs_deelname">Bewijs deelname</option>
+                <option value="aanwezigheidsattest">Aanwezigheidsattest (ondertekend)</option>
+                <option value="handtekeninglijst">Handtekeninglijst (alle deelnemers)</option>
                 <option value="certificaat">Certificaat</option>
                 <option value="foto_deelnemers">Foto</option>
-                <option value="handtekeninglijst">Handtekeninglijst</option>
                 <option value="extra_bijlage">Extra bijlage</option>
               </select>
             </div>
