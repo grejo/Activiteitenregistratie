@@ -20,8 +20,10 @@ type Activiteit = {
   aard: string | null
   omschrijving: string | null
   datum: Date
+  einddatum?: Date | string | null
   startuur: string
   einduur: string
+  aantalUren?: number | null
   locatie: string | null
   weblink: string | null
   organisator: string | null
@@ -61,8 +63,12 @@ export default function DocentActiviteitForm({
     datum: activiteit
       ? new Date(activiteit.datum).toISOString().split('T')[0]
       : '',
+    einddatum: activiteit?.einddatum
+      ? new Date(activiteit.einddatum).toISOString().split('T')[0]
+      : '',
     startuur: activiteit?.startuur || '09:00',
     einduur: activiteit?.einduur || '17:00',
+    aantalUren: activiteit?.aantalUren?.toString() || '',
     locatie: activiteit?.locatie || '',
     weblink: activiteit?.weblink || '',
     organisator:
@@ -120,6 +126,8 @@ export default function DocentActiviteitForm({
             new Set([formData.opleidingId, ...extraOpleidingIds].filter(Boolean))
           ),
           niveau: formData.niveau ? Number(formData.niveau) : null,
+          einddatum: formData.einddatum || null,
+          aantalUren: formData.aantalUren || null,
           verwittigPerMail,
         }),
       })
@@ -243,7 +251,7 @@ export default function DocentActiviteitForm({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label htmlFor="datum" className="block text-sm font-medium text-gray-700">
-            Datum *
+            Startdatum *
           </label>
           <input
             type="date"
@@ -275,6 +283,21 @@ export default function DocentActiviteitForm({
         </div>
 
         <div>
+          <label htmlFor="einddatum" className="block text-sm font-medium text-gray-700">
+            Einddatum (optioneel)
+          </label>
+          <input
+            type="date"
+            id="einddatum"
+            name="einddatum"
+            min={formData.datum || undefined}
+            value={formData.einddatum}
+            onChange={handleChange}
+            className="input-field mt-1"
+          />
+        </div>
+
+        <div>
           <label htmlFor="einduur" className="block text-sm font-medium text-gray-700">
             Einduur *
           </label>
@@ -286,6 +309,23 @@ export default function DocentActiviteitForm({
             value={formData.einduur}
             onChange={handleChange}
             className="input-field mt-1"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="aantalUren" className="block text-sm font-medium text-gray-700">
+            Aantal uren (optioneel)
+          </label>
+          <input
+            type="number"
+            id="aantalUren"
+            name="aantalUren"
+            step="0.5"
+            min="0.5"
+            value={formData.aantalUren}
+            onChange={handleChange}
+            className="input-field mt-1"
+            placeholder="Bv. 15 of 30"
           />
         </div>
       </div>
@@ -495,9 +535,9 @@ export default function DocentActiviteitForm({
             className="mt-1"
           />
           <div>
-            <div className="text-sm font-medium">Aftekenlijst gebruiken</div>
+            <div className="text-sm font-medium">Aanwezigheidsattest gebruiken</div>
             <div className="text-xs text-gray-600">
-              Toon de knop om een PDF-aftekendocument te downloaden op de detailpagina.
+              Toon de knop om een PDF-aanwezigheidsattest te downloaden op de detailpagina.
             </div>
           </div>
         </label>

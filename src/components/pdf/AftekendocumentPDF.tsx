@@ -164,10 +164,11 @@ export function AftekendocumentPDF({ data }: { data: AftekendocumentData }) {
           <Image src={PXL_LOGO_PATH} style={styles.logoImage} />
           <View>
             <Text style={styles.headerTitle}>
-              Bevestiging van deelname of uitgevoerde activiteit
+              Aanwezigheidsattest
             </Text>
             <Text style={styles.headerSub}>
-              voor vergaderingen geldt het verslag met de aanwezigheidslijst
+              Bevestiging van deelname of uitgevoerde activiteit — voor vergaderingen geldt het
+              verslag met de aanwezigheidslijst
             </Text>
           </View>
         </View>

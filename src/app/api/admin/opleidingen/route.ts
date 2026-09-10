@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { maakSdgThemas } from '@/lib/sdgs'
 
 export async function POST(request: Request) {
   try {
@@ -34,15 +35,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create opleiding
-    const opleiding = await prisma.opleiding.create({
-      data: {
-        naam,
-        code,
-        beschrijving: beschrijving || null,
-        actief: actief ?? true,
-        autoGoedkeuringStudentActiviteiten: autoGoedkeuringStudentActiviteiten ?? false,
-      },
+    // Create opleiding + alle 17 SDG's als duurzaamheidsthema's, in één transactie
+    const opleiding = await prisma.$transaction(async (tx) => {
+      const nieuweOpleiding = await tx.opleiding.create({
+        data: {
+          naam,
+          code,
+          beschrijving: beschrijving || null,
+          actief: actief ?? true,
+          autoGoedkeuringStudentActiviteiten: autoGoedkeuringStudentActiviteiten ?? false,
+        },
+      })
+      await maakSdgThemas(tx, nieuweOpleiding.id)
+      return nieuweOpleiding
     })
 
     return NextResponse.json({

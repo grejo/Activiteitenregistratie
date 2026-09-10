@@ -34,6 +34,7 @@ async function getStudenten(opleidingIds: string[]) {
               id: true,
               titel: true,
               datum: true,
+              einddatum: true,
               status: true,
             },
           },
@@ -62,6 +63,7 @@ async function getStudenten(opleidingIds: string[]) {
       activiteit: {
         ...i.activiteit,
         datum: i.activiteit.datum.toISOString(),
+        einddatum: i.activiteit.einddatum?.toISOString() || null,
       },
     })),
   }))

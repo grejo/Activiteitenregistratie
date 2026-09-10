@@ -44,6 +44,7 @@ async function getAanvragen(opleidingIds: string[]) {
   return aanvragen.map((a) => ({
     ...a,
     datum: a.datum.toISOString(),
+    einddatum: a.einddatum?.toISOString() || null,
     createdAt: a.createdAt.toISOString(),
   }))
 }

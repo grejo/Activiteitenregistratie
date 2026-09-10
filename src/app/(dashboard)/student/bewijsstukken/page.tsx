@@ -42,6 +42,7 @@ export default async function StudentBewijsstukkenPage() {
           titel: true,
           typeActiviteit: true,
           datum: true,
+          einddatum: true,
           startuur: true,
           einduur: true,
           locatie: true,
@@ -90,6 +91,7 @@ export default async function StudentBewijsstukkenPage() {
     activiteit: {
       ...i.activiteit,
       datum: i.activiteit.datum.toISOString(),
+      einddatum: i.activiteit.einddatum?.toISOString() || null,
     },
     bewijsstukken: i.bewijsstukken.map((b) => ({
       ...b,

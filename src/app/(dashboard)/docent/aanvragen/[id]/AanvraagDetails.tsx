@@ -3,15 +3,18 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BEENTJES, BEENTJE_LABELS } from '@/lib/beentjes'
+import { formatPeriode, formatUren } from '@/lib/utils'
 
 type Aanvraag = {
   id: string
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   createdAt: string
   startuur: string
   einduur: string
+  aantalUren: number | null
   typeActiviteit: string
   aard: string | null
   locatie: string | null
@@ -122,7 +125,7 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
             <div>
               <div className="text-sm text-gray-500">Datum</div>
               <div className="font-medium">
-                {new Date(aanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {formatPeriode(aanvraag.datum, aanvraag.einddatum)}
               </div>
             </div>
             <div>
@@ -131,6 +134,12 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
                 {aanvraag.startuur} - {aanvraag.einduur}
               </div>
             </div>
+            {aanvraag.aantalUren !== null && (
+              <div>
+                <div className="text-sm text-gray-500">Aantal uren</div>
+                <div className="font-medium">{formatUren(aanvraag.aantalUren)}u</div>
+              </div>
+            )}
             <div>
               <div className="text-sm text-gray-500">Type</div>
               <div className="font-medium capitalize">{aanvraag.typeActiviteit}</div>

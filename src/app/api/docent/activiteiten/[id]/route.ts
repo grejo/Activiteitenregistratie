@@ -3,21 +3,23 @@ import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie, notifyActiviteitWijziging } from '@/lib/mail'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
+import { parsePeriodeEnUren } from '@/lib/utils'
 
 // Bepaal welke voor studenten relevante velden gewijzigd zijn
 function bepaalWijzigingen(
-  oud: { datum: Date; startuur: string; einduur: string; locatie: string | null },
-  nieuw: { datum?: string; startuur?: string; einduur?: string; locatie?: string | null }
+  oud: { datum: Date; einddatum: Date | null; startuur: string; einduur: string; locatie: string | null },
+  nieuw: { datum?: string; einddatum?: Date | null; startuur?: string; einduur?: string; locatie?: string | null }
 ): string[] {
   const w: string[] = []
   if (nieuw.datum && oud.datum.toISOString().slice(0, 10) !== nieuw.datum) w.push('datum')
+  if ((oud.einddatum?.getTime() ?? null) !== (nieuw.einddatum?.getTime() ?? null)) w.push('datum')
   if (
     (nieuw.startuur !== undefined && nieuw.startuur !== oud.startuur) ||
     (nieuw.einduur !== undefined && nieuw.einduur !== oud.einduur)
   )
     w.push('tijdstip')
   if (nieuw.locatie !== undefined && (oud.locatie ?? '') !== (nieuw.locatie ?? '')) w.push('locatie')
-  return w
+  return Array.from(new Set(w))
 }
 
 export async function GET(
@@ -143,6 +145,16 @@ export async function PATCH(
     const nieuwNiveau = niveau ? parseInt(niveau) : null
     const niveauGewijzigd = nieuwNiveau !== existingActiviteit.niveau
 
+    let periodeEnUren
+    try {
+      periodeEnUren = parsePeriodeEnUren(body, datum ?? existingActiviteit.datum)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Ongeldige periode' },
+        { status: 400 }
+      )
+    }
+
     const activiteit = await prisma.activiteit.update({
       where: { id },
       data: {
@@ -151,8 +163,10 @@ export async function PATCH(
         aard: aard || null,
         omschrijving: omschrijving || null,
         datum: datum ? new Date(datum) : undefined,
+        einddatum: periodeEnUren.einddatum,
         startuur,
         einduur,
+        aantalUren: periodeEnUren.aantalUren,
         locatie: locatie || null,
         weblink: weblink || null,
         organisator: organisator || null,
@@ -204,7 +218,13 @@ export async function PATCH(
     }
 
     // Ingeschreven studenten verwittigen bij wijziging van datum/tijd/locatie
-    const wijzigingen = bepaalWijzigingen(existingActiviteit, { datum, startuur, einduur, locatie })
+    const wijzigingen = bepaalWijzigingen(existingActiviteit, {
+      datum,
+      einddatum: periodeEnUren.einddatum,
+      startuur,
+      einduur,
+      locatie,
+    })
     if (wijzigingen.length > 0) {
       await notifyActiviteitWijziging(activiteit.id, { wijzigingen })
     }

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { formatPeriode } from '@/lib/utils'
 
 type Bewijsstuk = {
   id: string
@@ -22,6 +23,7 @@ type Inschrijving = {
     titel: string
     typeActiviteit: string
     datum: string
+    einddatum: string | null
     startuur: string
     einduur: string
     locatie: string | null
@@ -38,7 +40,8 @@ type Inschrijving = {
 }
 
 const typeLabels: Record<string, string> = {
-  handtekeninglijst: 'Handtekeninglijst',
+  aanwezigheidsattest: 'Aanwezigheidsattest (ondertekend)',
+  handtekeninglijst: 'Handtekeninglijst (alle deelnemers)',
   foto_deelnemers: 'Foto deelnemers',
   extra_bijlage: 'Extra bijlage',
   certificaat: 'Certificaat',
@@ -184,7 +187,7 @@ export default function BewijsstukkenBeoordelenTable({
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{inschrijving.activiteit.titel}</div>
                       <div className="text-sm text-gray-500">
-                        {new Date(inschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
+                        {formatPeriode(inschrijving.activiteit.datum, inschrijving.activiteit.einddatum)} | {inschrijving.activiteit.startuur} - {inschrijving.activiteit.einduur}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -262,7 +265,7 @@ export default function BewijsstukkenBeoordelenTable({
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedInschrijving.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(selectedInschrijving.activiteit.datum, selectedInschrijving.activiteit.einddatum)}
                     </div>
                   </div>
                   <div>

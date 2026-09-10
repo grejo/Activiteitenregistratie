@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { maakSdgThemas, sdgThemaIds } from '../src/lib/sdgs'
 
 const prisma = new PrismaClient()
 
@@ -52,36 +53,15 @@ async function main() {
   // ============================================
   // DUURZAAMHEIDSTHEMAS
   // ============================================
-  console.log('🌱 Creating duurzaamheidsthemas...')
+  console.log('🌱 Creating duurzaamheidsthemas (alle 17 SDG\'s per opleiding)...')
 
-  const themasBouw = [
-    { id: 'seed-dt-bouw-0', naam: 'SDG 7 - Betaalbare en duurzame energie', icoon: '⚡', volgorde: 0 },
-    { id: 'seed-dt-bouw-1', naam: 'SDG 9 - Industrie, innovatie en infrastructuur', icoon: '🏭', volgorde: 1 },
-    { id: 'seed-dt-bouw-2', naam: 'SDG 11 - Duurzame steden en gemeenschappen', icoon: '🏙️', volgorde: 2 },
-    { id: 'seed-dt-bouw-3', naam: 'SDG 12 - Verantwoorde consumptie en productie', icoon: '♻️', volgorde: 3 },
-    { id: 'seed-dt-bouw-4', naam: 'Circulaire economie', icoon: '🔄', volgorde: 4 },
-  ]
-  const themasIT = [
-    { id: 'seed-dt-it-0', naam: 'SDG 4 - Kwaliteitsonderwijs', icoon: '📚', volgorde: 0 },
-    { id: 'seed-dt-it-1', naam: 'SDG 9 - Industrie, innovatie en infrastructuur', icoon: '💡', volgorde: 1 },
-    { id: 'seed-dt-it-2', naam: 'SDG 10 - Ongelijkheid verminderen', icoon: '⚖️', volgorde: 2 },
-    { id: 'seed-dt-it-3', naam: 'Digitale inclusie', icoon: '🌐', volgorde: 3 },
-  ]
+  await maakSdgThemas(prisma, bouw.id)
+  await maakSdgThemas(prisma, it.id)
+  await maakSdgThemas(prisma, elek.id)
 
-  for (const t of themasBouw) {
-    await prisma.duurzaamheidsThema.upsert({
-      where: { id: t.id },
-      update: {},
-      create: { ...t, opleidingId: bouw.id },
-    })
-  }
-  for (const t of themasIT) {
-    await prisma.duurzaamheidsThema.upsert({
-      where: { id: t.id },
-      update: {},
-      create: { ...t, opleidingId: it.id },
-    })
-  }
+  const sdgIdsBouw = await sdgThemaIds(prisma, bouw.id)
+  const sdgIdsIT = await sdgThemaIds(prisma, it.id)
+
   console.log('✅ Duurzaamheidsthemas aangemaakt')
 
   // ============================================
@@ -728,54 +708,55 @@ async function main() {
   // ============================================
   console.log('🌿 Linking duurzaamheidsthemas to activiteiten...')
 
-  // [activiteitId, duurzaamheidsThemaId]
-  const duurzaamheidLinks: [string, string][] = [
+  // [activiteitId, opleidingSdgIds, sdgNummer]
+  const duurzaamheidLinks: [string, Map<number, string>, number][] = [
     // BOUW activiteiten
-    ['seed-act-passie-n1-a', 'seed-dt-bouw-2'],  // SDG 11 steden
-    ['seed-act-passie-n1-a', 'seed-dt-bouw-4'],  // Circulaire economie
-    ['seed-act-passie-n1-b', 'seed-dt-bouw-0'],  // SDG 7 energie
-    ['seed-act-passie-n1-b', 'seed-dt-bouw-3'],  // SDG 12 consumptie
-    ['seed-act-passie-n1-b', 'seed-dt-bouw-4'],  // Circulaire economie
-    ['seed-act-passie-n1-c', 'seed-dt-bouw-2'],  // SDG 11 steden
-    ['seed-act-passie-n2-a', 'seed-dt-bouw-2'],  // SDG 11 steden
-    ['seed-act-passie-n2-b', 'seed-dt-bouw-1'],  // SDG 9 industrie
-    ['seed-act-passie-n3-a', 'seed-dt-bouw-0'],  // SDG 7 energie
-    ['seed-act-passie-n3-a', 'seed-dt-bouw-2'],  // SDG 11 steden
-    ['seed-act-samen-n1-a', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-samen-n1-c', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-samen-n2-a', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-samen-n2-b', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-samen-n2-b', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-samen-n3-a', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-samen-n4-a', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-multi-n1-a', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-multi-n1-b', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-multi-n1-c', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-multi-n1-c', 'seed-dt-bouw-2'],   // SDG 11 steden
-    ['seed-act-multi-n2-a', 'seed-dt-bouw-1'],   // SDG 9 industrie
-    ['seed-act-multi-n2-a', 'seed-dt-bouw-4'],   // Circulaire economie
+    ['seed-act-passie-n1-a', sdgIdsBouw, 11],   // SDG 11 steden
+    ['seed-act-passie-n1-a', sdgIdsBouw, 12],   // SDG 12 consumptie (was "Circulaire economie")
+    ['seed-act-passie-n1-b', sdgIdsBouw, 7],    // SDG 7 energie
+    ['seed-act-passie-n1-b', sdgIdsBouw, 12],   // SDG 12 consumptie (was ook "Circulaire economie")
+    ['seed-act-passie-n1-c', sdgIdsBouw, 11],   // SDG 11 steden
+    ['seed-act-passie-n2-a', sdgIdsBouw, 11],   // SDG 11 steden
+    ['seed-act-passie-n2-b', sdgIdsBouw, 9],    // SDG 9 industrie
+    ['seed-act-passie-n3-a', sdgIdsBouw, 7],    // SDG 7 energie
+    ['seed-act-passie-n3-a', sdgIdsBouw, 11],   // SDG 11 steden
+    ['seed-act-samen-n1-a', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-samen-n1-c', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-samen-n2-a', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-samen-n2-b', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-samen-n2-b', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-samen-n3-a', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-samen-n4-a', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-multi-n1-a', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-multi-n1-b', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-multi-n1-c', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-multi-n1-c', sdgIdsBouw, 11],    // SDG 11 steden
+    ['seed-act-multi-n2-a', sdgIdsBouw, 9],     // SDG 9 industrie
+    ['seed-act-multi-n2-a', sdgIdsBouw, 12],    // SDG 12 consumptie (was "Circulaire economie")
     // IT activiteiten
-    ['seed-act-reflectie-n1-it-a', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n1-it-b', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n1-it-c', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n2-it-a', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n2-it-b', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n3-it-a', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-reflectie-n3-it-a', 'seed-dt-it-2'],   // SDG 10 ongelijkheid
-    ['seed-act-reflectie-n4-it-a', 'seed-dt-it-0'],   // SDG 4 onderwijs
-    ['seed-act-ondernemend-n1-it-a', 'seed-dt-it-1'], // SDG 9 industrie
-    ['seed-act-ondernemend-n1-it-a', 'seed-dt-it-2'], // SDG 10 ongelijkheid
-    ['seed-act-ondernemend-n1-it-b', 'seed-dt-it-1'], // SDG 9 industrie
-    ['seed-act-ondernemend-n1-it-c', 'seed-dt-it-1'], // SDG 9 industrie
-    ['seed-act-ondernemend-n2-it-a', 'seed-dt-it-1'], // SDG 9 industrie
-    ['seed-act-passie-n1-it-a', 'seed-dt-it-1'],      // SDG 9 industrie
-    ['seed-act-passie-n1-it-a', 'seed-dt-it-3'],      // Digitale inclusie
-    ['seed-aanvraag-tom-1', 'seed-dt-it-0'],           // SDG 4 onderwijs
-    ['seed-aanvraag-tom-1', 'seed-dt-it-1'],           // SDG 9 industrie
+    ['seed-act-reflectie-n1-it-a', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n1-it-b', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n1-it-c', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n2-it-a', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n2-it-b', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n3-it-a', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-reflectie-n3-it-a', sdgIdsIT, 10],   // SDG 10 ongelijkheid
+    ['seed-act-reflectie-n4-it-a', sdgIdsIT, 4],    // SDG 4 onderwijs
+    ['seed-act-ondernemend-n1-it-a', sdgIdsIT, 9],  // SDG 9 industrie
+    ['seed-act-ondernemend-n1-it-a', sdgIdsIT, 10], // SDG 10 ongelijkheid
+    ['seed-act-ondernemend-n1-it-b', sdgIdsIT, 9],  // SDG 9 industrie
+    ['seed-act-ondernemend-n1-it-c', sdgIdsIT, 9],  // SDG 9 industrie
+    ['seed-act-ondernemend-n2-it-a', sdgIdsIT, 9],  // SDG 9 industrie
+    ['seed-act-passie-n1-it-a', sdgIdsIT, 9],       // SDG 9 industrie
+    ['seed-act-passie-n1-it-a', sdgIdsIT, 10],      // SDG 10 ongelijkheid (was "Digitale inclusie")
+    // Let op: 'seed-aanvraag-tom-1' bestaat pas verderop (sectie STUDENT AANVRAGEN),
+    // dus die koppeling gebeurt daar apart, niet in deze lijst.
   ]
 
   let duurzaamheidLinksCount = 0
-  for (const [activiteitId, duurzaamheidId] of duurzaamheidLinks) {
+  for (const [activiteitId, sdgIds, sdgNummer] of duurzaamheidLinks) {
+    const duurzaamheidId = sdgIds.get(sdgNummer)
+    if (!duurzaamheidId) continue
     await prisma.activiteitDuurzaamheid.upsert({
       where: { activiteitId_duurzaamheidId: { activiteitId, duurzaamheidId } },
       update: {},
@@ -860,6 +841,18 @@ async function main() {
       opleidingId: it.id,
     },
   })
+
+  // Duurzaamheidskoppeling voor 'seed-aanvraag-tom-1' (moet ná de aanmaak hierboven gebeuren)
+  for (const sdgNummer of [4, 9]) {
+    const duurzaamheidId = sdgIdsIT.get(sdgNummer)
+    if (!duurzaamheidId) continue
+    await prisma.activiteitDuurzaamheid.upsert({
+      where: { activiteitId_duurzaamheidId: { activiteitId: 'seed-aanvraag-tom-1', duurzaamheidId } },
+      update: {},
+      create: { activiteitId: 'seed-aanvraag-tom-1', duurzaamheidId },
+    })
+    duurzaamheidLinksCount++
+  }
 
   // Tom: aanvraag afgekeurd (voorbeeld)
   await prisma.activiteit.upsert({

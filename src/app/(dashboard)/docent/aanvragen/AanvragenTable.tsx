@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
+import { formatPeriode } from '@/lib/utils'
 
 type Bewijsstuk = {
   id: string
@@ -17,6 +18,7 @@ type Aanvraag = {
   titel: string
   omschrijving: string | null
   datum: string
+  einddatum: string | null
   createdAt: string
   typeActiviteit: string
   aard: string | null
@@ -206,7 +208,7 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(aanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(aanvraag.datum, aanvraag.einddatum)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
@@ -292,7 +294,7 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
                   <div>
                     <div className="text-sm text-gray-500">Datum</div>
                     <div className="font-medium">
-                      {new Date(selectedAanvraag.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatPeriode(selectedAanvraag.datum, selectedAanvraag.einddatum)}
                     </div>
                   </div>
                   <div>

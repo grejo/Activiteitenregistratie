@@ -5,7 +5,7 @@ import { useState } from 'react'
 export function AftekendocumentButton({
   activiteitId,
   studentId,
-  label = '📄 Aftekendocument (PDF)',
+  label = '📄 Aanwezigheidsattest (PDF)',
 }: {
   activiteitId: string
   studentId?: string
@@ -31,7 +31,7 @@ export function AftekendocumentButton({
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = downloadUrl
-      a.download = 'aftekendocument.pdf'
+      a.download = 'aanwezigheidsattest.pdf'
       document.body.appendChild(a)
       a.click()
       a.remove()

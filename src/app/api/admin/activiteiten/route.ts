@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie } from '@/lib/mail'
+import { parsePeriodeEnUren } from '@/lib/utils'
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +62,16 @@ export async function POST(request: Request) {
       }
     }
 
+    let periodeEnUren
+    try {
+      periodeEnUren = parsePeriodeEnUren(body, datum)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Ongeldige periode' },
+        { status: 400 }
+      )
+    }
+
     // Create activiteit
     const activiteit = await prisma.activiteit.create({
       data: {
@@ -69,8 +80,10 @@ export async function POST(request: Request) {
         aard: aard || null,
         omschrijving: omschrijving || null,
         datum: new Date(datum),
+        einddatum: periodeEnUren.einddatum,
         startuur,
         einduur,
+        aantalUren: periodeEnUren.aantalUren,
         locatie: locatie || null,
         weblink: weblink || null,
         organisator: organisator || null,

@@ -1,6 +1,17 @@
 import { headers } from 'next/headers'
 import prisma from '@/lib/prisma'
 
+// Korte datumnotatie zoals gebruikt in deze embed-widget (bv. "12 sep. 2026").
+function formatKort(datum: Date): string {
+  return datum.toLocaleDateString('nl-BE', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+// Periode-notatie: enkel de startdatum, of "start – einde" bij een meerdaags traject.
+function formatPeriodeKort(datum: Date, einddatum: Date | null): string {
+  if (!einddatum || datum.toDateString() === einddatum.toDateString()) return formatKort(datum)
+  return `${formatKort(datum)} – ${formatKort(einddatum)}`
+}
+
 export const metadata = {
   title: 'Prikbord — Xfactorapp (embed)',
 }
@@ -116,13 +127,7 @@ export default async function EmbedPrikbordPage({
                       </div>
                     </div>
                     <div className="text-right text-xs text-gray-500 whitespace-nowrap">
-                      <div>
-                        {new Date(a.datum).toLocaleDateString('nl-BE', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </div>
+                      <div>{formatPeriodeKort(a.datum, a.einddatum)}</div>
                       <div>
                         {a.startuur} – {a.einduur}
                       </div>

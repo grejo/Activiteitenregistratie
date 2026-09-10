@@ -125,6 +125,7 @@ export default async function BekijkAlsStudentPage({
               titel: i.activiteit.titel,
               typeActiviteit: i.activiteit.typeActiviteit,
               datum: i.activiteit.datum.toISOString(),
+              einddatum: i.activiteit.einddatum?.toISOString() || null,
               startuur: i.activiteit.startuur,
               einduur: i.activiteit.einduur,
               locatie: i.activiteit.locatie,

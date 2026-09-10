@@ -32,6 +32,7 @@ async function getStudenten(beheerdeIds: string[] | null) {
               id: true,
               titel: true,
               datum: true,
+              einddatum: true,
               status: true,
             },
           },
@@ -63,6 +64,7 @@ async function getStudenten(beheerdeIds: string[] | null) {
       activiteit: {
         ...i.activiteit,
         datum: i.activiteit.datum.toISOString(),
+        einddatum: i.activiteit.einddatum?.toISOString() || null,
       },
     })),
   }))

@@ -9,7 +9,7 @@ export type AftekendocumentData = {
     titel: string
     doelstelling: string | null
     beoordelaar: string | null
-    datum: string // "DD/MM/YYYY"
+    datum: string // "DD/MM/YYYY" of "DD/MM/YYYY – DD/MM/YYYY" bij een meerdaags traject
     locatie: string | null
     organisator: string | null
     geschatteUren: number | string | null

@@ -190,6 +190,7 @@ async function buildActiviteitenSheet(wb: ExcelJS.Workbook, opleidingNamen: stri
     { header: 'Code deelnemer(s)', key: 'code', width: 24 },
     { header: 'Opmerkingen activiteit', key: 'opmerkingen', width: 30 },
     { header: 'Opleiding', key: 'opleiding', width: 20 },
+    { header: 'Aantal uren', key: 'aantalUren', width: 14 },
   ]
   stylizeHeader(ws.getRow(1))
 
@@ -209,6 +210,7 @@ async function buildActiviteitenSheet(wb: ExcelJS.Workbook, opleidingNamen: stri
     code: 'MULTIDISCIPLINAIR N2',
     opmerkingen: 'Verplicht voor 2de bachelor',
     opleiding: opleidingNamen[0] ?? '',
+    aantalUren: 4,
   })
 
   // Data-validation + numFmt op ~500 lege rijen zodat het meteen werkt bij invullen.
@@ -259,7 +261,7 @@ async function buildActiviteitenSheet(wb: ExcelJS.Workbook, opleidingNamen: stri
     ],
     [
       'Einddatum en einduur activiteit',
-      'Zelfde formaat als begindatum. Moet op dezelfde dag zijn.',
+      'Zelfde formaat als begindatum. Mag op een latere dag liggen voor activiteiten die over meerdere dagen lopen (bv. een traject van 15u of 30u).',
     ],
     ['Locatie activiteit', 'Fysieke locatie of "Online".'],
     ['Weblink activiteit', 'Optionele URL. Kolom "URL" wordt ook geaccepteerd.'],
@@ -279,6 +281,7 @@ async function buildActiviteitenSheet(wb: ExcelJS.Workbook, opleidingNamen: stri
     ],
     ['Opmerkingen activiteit', 'Vrije notitie voor admins.'],
     ['Opleiding', 'Kies uit de dropdown. Bepaalt bij welke opleiding de activiteit hoort.'],
+    ['Aantal uren', 'Optioneel. Totaal aantal uren van de activiteit (bv. 15 of 30).'],
   ])
 
   // Beveiligd Lookups-sheet als laatste tab

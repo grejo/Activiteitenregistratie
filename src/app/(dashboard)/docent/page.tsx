@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
+import { afgelopenWhere } from '@/lib/utils'
 
 export const metadata = {
   title: 'Docent Dashboard - Xfactorapp',
@@ -42,7 +43,7 @@ async function getDocentStats(userId: string) {
       where: {
         activiteit: {
           aangemaaktDoorId: userId,
-          datum: { lt: new Date() },
+          ...afgelopenWhere(),
         },
         effectieveDeelname: false,
         inschrijvingsstatus: 'ingeschreven',

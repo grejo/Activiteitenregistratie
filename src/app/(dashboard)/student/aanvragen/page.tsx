@@ -34,6 +34,7 @@ async function getAanvragen(userId: string) {
   return aanvragen.map((a) => ({
     ...a,
     datum: a.datum.toISOString(),
+    einddatum: a.einddatum?.toISOString() || null,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
     inschrijving: a.inschrijvingen[0] ? {

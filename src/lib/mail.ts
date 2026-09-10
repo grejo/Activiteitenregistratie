@@ -242,8 +242,10 @@ export async function notifyPublicatie(activiteitId: string): Promise<void> {
     const { subject, html } = buildPrikbordEmail({
       titel: activiteit.titel,
       datumISO: activiteit.datum.toISOString(),
+      einddatumISO: activiteit.einddatum?.toISOString() || null,
       startuur: activiteit.startuur,
       einduur: activiteit.einduur,
+      aantalUren: activiteit.aantalUren,
       locatie: activiteit.locatie,
       omschrijving: activiteit.omschrijving,
       weblink: activiteit.weblink,
@@ -358,8 +360,10 @@ export async function notifyNieuweAanvraag(activiteitId: string): Promise<void> 
       studentNaam: a.aangemaaktDoor?.naam ?? 'Een student',
       opleidingNaam: a.opleiding?.naam,
       datumISO: a.datum.toISOString(),
+      einddatumISO: a.einddatum?.toISOString() || null,
       startuur: a.startuur,
       einduur: a.einduur,
+      aantalUren: a.aantalUren,
       locatie: a.locatie,
       reviewUrl: `${config.appUrl}/docent/aanvragen`,
     })
@@ -402,8 +406,10 @@ export async function notifyActiviteitWijziging(
       geannuleerd: opts.geannuleerd === true,
       wijzigingen: opts.wijzigingen,
       datumISO: a.datum.toISOString(),
+      einddatumISO: a.einddatum?.toISOString() || null,
       startuur: a.startuur,
       einduur: a.einduur,
+      aantalUren: a.aantalUren,
       locatie: a.locatie,
       prikbordUrl: `${config.appUrl}/student/prikbord`,
     })

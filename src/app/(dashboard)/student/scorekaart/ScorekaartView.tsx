@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { BEENTJES, BEENTJE_LABELS, NIVEAUS, getVeldNaam, BEENTJE_VEREIST_VELD, BEENTJES_MET_NIVEAU } from '@/lib/beentjes'
+import { formatPeriode } from '@/lib/utils'
 import XFactorVisual from './XFactorVisual'
 
 function Accordion({
@@ -44,6 +45,7 @@ type Activiteit = {
   titel: string
   typeActiviteit: string
   datum: string
+  einddatum: string | null
   startuur: string
   einduur: string
   locatie: string | null
@@ -428,7 +430,7 @@ export default function ScorekaartView({
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">{i.activiteit.titel}</div>
                   <div className="text-sm text-gray-500">
-                    {new Date(i.activiteit.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })} •{' '}
+                    {formatPeriode(i.activiteit.datum, i.activiteit.einddatum)} •{' '}
                     {i.activiteit.typeActiviteit}
                     {i.activiteit.beentje && (
                       <>
@@ -494,7 +496,7 @@ export default function ScorekaartView({
                       )}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {new Date(i.activiteit.datum).toLocaleDateString('nl-BE')} — {i.activiteit.locatie ?? '—'}
+                      {formatPeriode(i.activiteit.datum, i.activiteit.einddatum)} — {i.activiteit.locatie ?? '—'}
                     </div>
                     {(i.noShow || i.noShowOpmerking) && (
                       <div className="text-xs text-red-600 mt-1">
