@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, opleidingScopeFilter } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
@@ -8,20 +8,12 @@ export const metadata = {
   title: 'Aanvraag Details - Docent',
 }
 
-async function getDocentOpleidingen(userId: string) {
-  const docentOpleidingen = await prisma.docentOpleiding.findMany({
-    where: { docentId: userId },
-    select: { opleidingId: true },
-  })
-  return docentOpleidingen.map((d) => d.opleidingId)
-}
-
-async function getAanvraag(id: string, opleidingIds: string[]) {
+async function getAanvraag(id: string, opleidingIds: string[] | null) {
   const aanvraag = await prisma.activiteit.findFirst({
     where: {
       id,
       typeAanvraag: 'student',
-      opleidingId: { in: opleidingIds },
+      opleidingId: opleidingScopeFilter(opleidingIds),
     },
     include: {
       aangemaaktDoor: {
@@ -65,9 +57,9 @@ export default async function AanvraagDetailPage({
   }
 
   const { id } = await params
-  const opleidingIds = await getDocentOpleidingen(session.user.id)
+  const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
 
-  if (opleidingIds.length === 0) {
+  if (opleidingIds !== null && opleidingIds.length === 0) {
     redirect('/docent/aanvragen')
   }
 

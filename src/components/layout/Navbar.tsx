@@ -93,6 +93,8 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
           { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
+          { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
+          { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
           { href: '/admin/instellingen', label: 'Instellingen' },
         ]
       case 'admin':
@@ -102,6 +104,8 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
           { href: '/admin/studenten', label: 'Studenten' },
           { href: '/admin/opleidingen', label: 'Opleidingen' },
           { href: '/admin/activiteiten', label: 'Activiteiten' },
+          { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
+          { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
         ]
       case 'docent':
         return [

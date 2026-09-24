@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 import { notifyBewijsBeoordeeld } from '@/lib/mail'
@@ -30,9 +30,10 @@ export async function PATCH(
       )
     }
 
-    // Haal inschrijving op
-    const inschrijving = await prisma.inschrijving.findUnique({
-      where: { id: inschrijvingId },
+    // Haal inschrijving op, enkel binnen de opleidingen die deze gebruiker beoordeelt
+    const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
+    const inschrijving = await prisma.inschrijving.findFirst({
+      where: { id: inschrijvingId, ...bewijsScopeWhere(session.user.id, opleidingIds) },
       include: {
         activiteit: {
           include: {
@@ -58,21 +59,6 @@ export async function PATCH(
         { error: 'Er zijn geen bewijsstukken ingediend om te beoordelen' },
         { status: 400 }
       )
-    }
-
-    // Controleer of docent toegang heeft tot deze opleiding
-    if (session.user.role === 'docent') {
-      const docentOpleidingen = await prisma.docentOpleiding.findMany({
-        where: { docentId: session.user.id },
-        select: { opleidingId: true },
-      })
-
-      const opleidingIds = docentOpleidingen.map(d => d.opleidingId)
-      const studentOpleidingId = inschrijving.student.opleidingId
-
-      if (opleidingIds.length > 0 && studentOpleidingId && !opleidingIds.includes(studentOpleidingId)) {
-        return NextResponse.json({ error: 'Geen toegang tot deze student' }, { status: 403 })
-      }
     }
 
     // Update de inschrijving
@@ -149,8 +135,9 @@ export async function GET(
 
     const { id: inschrijvingId } = await params
 
-    const inschrijving = await prisma.inschrijving.findUnique({
-      where: { id: inschrijvingId },
+    const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
+    const inschrijving = await prisma.inschrijving.findFirst({
+      where: { id: inschrijvingId, ...bewijsScopeWhere(session.user.id, opleidingIds) },
       include: {
         bewijsstukken: {
           orderBy: { uploadedAt: 'desc' },

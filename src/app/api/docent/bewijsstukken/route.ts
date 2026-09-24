@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 // Haal alle ingediende bewijsstukken op voor docent
@@ -15,28 +15,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 
-    let whereClause = {}
-
-    // Docenten zien alleen studenten van hun opleidingen
-    if (session.user.role === 'docent') {
-      const docentOpleidingen = await prisma.docentOpleiding.findMany({
-        where: { docentId: session.user.id },
-        select: { opleidingId: true },
-      })
-
-      const opleidingIds = docentOpleidingen.map(d => d.opleidingId)
-
-      whereClause = {
-        bewijsStatus: 'ingediend',
-        student: {
-          opleidingId: { in: opleidingIds },
-        },
-      }
-    } else {
-      // Admin ziet alles
-      whereClause = {
-        bewijsStatus: 'ingediend',
-      }
+    // Docent: gekoppelde opleidingen, admin: beheerde opleidingen, superadmin: alle
+    const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
+    const whereClause = {
+      bewijsStatus: 'ingediend',
+      ...bewijsScopeWhere(session.user.id, opleidingIds),
     }
 
     const inschrijvingen = await prisma.inschrijving.findMany({

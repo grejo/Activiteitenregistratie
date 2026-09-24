@@ -1,4 +1,4 @@
-import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, activiteitScopeWhere } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ActiviteitenTable from './ActiviteitenTable'
@@ -18,14 +18,7 @@ export default async function ActiviteitenPage() {
 
   const [activiteiten, opleidingen] = await Promise.all([
     prisma.activiteit.findMany({
-      where: beheerdeIds
-        ? {
-            OR: [
-              { opleidingId: { in: beheerdeIds } },
-              { opleidingen: { some: { opleidingId: { in: beheerdeIds } } } },
-            ],
-          }
-        : {},
+      where: activiteitScopeWhere(beheerdeIds),
       include: {
         aangemaaktDoor: { include: { opleiding: true } },
         opleiding: true,
