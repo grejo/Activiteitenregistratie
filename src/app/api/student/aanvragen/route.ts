@@ -60,6 +60,12 @@ export async function POST(request: Request) {
       include: { opleiding: true },
     })
 
+    if (!student?.opleidingId) {
+      console.warn(
+        `[AANVRAAG] Student ${session.user.id} heeft geen opleiding — aanvraag is niet zichtbaar voor docenten tot een opleiding gekoppeld wordt`
+      )
+    }
+
     // Determine initial status based on opleiding settings
     let initialStatus = 'in_review'
     if (student?.opleiding?.autoGoedkeuringStudentActiviteiten) {

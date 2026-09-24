@@ -5,6 +5,7 @@ import Credentials from 'next-auth/providers/credentials'
 import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import type { NextAuthConfig } from 'next-auth'
 import { DEMO_OPLEIDING_CODE, DEMO_OPLEIDING_NAAM, readDemoCookie } from '@/lib/demo'
+import { koppelOpleidingslozeAanvragen } from '@/lib/opleidingKoppeling'
 
 const prisma = new PrismaClient()
 
@@ -64,6 +65,25 @@ const azureProviders =
 // Credentials-login (email + wachtwoord) is uitsluitend beschikbaar in development
 // voor lokaal testen met seed-accounts. In productie kan er enkel via PXL SSO
 // worden aangemeld.
+async function haalDepartmentOp(accessToken: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      'https://graph.microsoft.com/v1.0/me?$select=department,companyName,jobTitle',
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    if (!res.ok) {
+      console.warn('[AUTH] Graph /me gaf status', res.status)
+      return undefined
+    }
+    const me = (await res.json()) as { department?: string | null; companyName?: string | null; jobTitle?: string | null }
+    console.log('[AUTH] Graph /me → department:', me.department, '| companyName:', me.companyName, '| jobTitle:', me.jobTitle)
+    return me.department?.trim() || undefined
+  } catch (err) {
+    console.warn('[AUTH] Graph /me mislukt:', err)
+    return undefined
+  }
+}
+
 const credentialsProvider =
   process.env.NODE_ENV === 'production'
     ? []
@@ -135,7 +155,12 @@ export const authConfig: NextAuthConfig = {
 
         const azureAdId = (p.oid as string | undefined) || profile.sub
         const naam = (profile.name as string | undefined) || email || 'Onbekend'
-        const department = p.department as string | undefined
+        // Het ID-token van PXL bevat géén department-claim; haal hem op via Graph
+        // (/me met de User.Read-scope die we al aanvragen).
+        let department = p.department as string | undefined
+        if (!department && account.access_token) {
+          department = await haalDepartmentOp(account.access_token)
+        }
 
         console.log('[AUTH] resolved email:', email, '| naam:', naam, '| department:', department)
 
@@ -212,6 +237,9 @@ export const authConfig: NextAuthConfig = {
                   opleidingId: existing.opleidingId ?? opleidingId ?? undefined,
                 },
               })
+              if (!existing.opleidingId && opleidingId) {
+                await koppelOpleidingslozeAanvragen(existing.id, opleidingId)
+              }
             }
             console.log('[AUTH] Bestaand account ingelogd:', normalizedEmail)
           }
