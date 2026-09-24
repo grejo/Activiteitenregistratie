@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { koppelOpleidingslozeAanvragen } from '@/lib/opleidingKoppeling'
 
 export async function PATCH(
   request: Request,
@@ -114,6 +115,11 @@ export async function PATCH(
         opleiding: true,
       },
     })
+
+    // Aanvragen die de student indiende vóór hij een opleiding had, alsnog koppelen
+    if (role === 'student' && opleidingId) {
+      await koppelOpleidingslozeAanvragen(id, opleidingId)
+    }
 
     return NextResponse.json(user)
   } catch (error) {
