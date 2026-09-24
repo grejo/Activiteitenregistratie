@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, opleidingScopeFilter } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import AanvragenTable from './AanvragenTable'
@@ -7,23 +7,15 @@ export const metadata = {
   title: 'Student Aanvragen - Docent',
 }
 
-async function getDocentOpleidingen(userId: string) {
-  const docentOpleidingen = await prisma.docentOpleiding.findMany({
-    where: { docentId: userId },
-    select: { opleidingId: true },
-  })
-  return docentOpleidingen.map((d) => d.opleidingId)
-}
-
-async function getAanvragen(opleidingIds: string[]) {
+async function getAanvragen(opleidingIds: string[] | null) {
   // Get activiteiten that are student requests (typeAanvraag = 'student')
   // and are pending review (status = 'in_review')
-  // for the opleidingen this docent is responsible for
+  // for the opleidingen this user reviews (docent: gekoppeld, admin: beheerd, superadmin: alle)
   const aanvragen = await prisma.activiteit.findMany({
     where: {
       typeAanvraag: 'student',
       status: 'in_review',
-      opleidingId: { in: opleidingIds },
+      opleidingId: opleidingScopeFilter(opleidingIds),
     },
     include: {
       aangemaaktDoor: {
@@ -56,9 +48,9 @@ export default async function AanvragenPage() {
     redirect('/dashboard')
   }
 
-  const opleidingIds = await getDocentOpleidingen(session.user.id)
+  const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
 
-  if (opleidingIds.length === 0) {
+  if (opleidingIds !== null && opleidingIds.length === 0) {
     return (
       <div className="space-y-8">
         <div>

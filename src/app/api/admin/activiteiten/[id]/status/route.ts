@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, activiteitScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie } from '@/lib/mail'
 
@@ -28,15 +28,28 @@ export async function PATCH(
       )
     }
 
-    // Check if activiteit exists
-    const activiteit = await prisma.activiteit.findUnique({
-      where: { id },
+    // Activiteit moet bestaan én binnen de beheerde opleidingen vallen
+    const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
+    const activiteit = await prisma.activiteit.findFirst({
+      where: { id, ...activiteitScopeWhere(beheerdeIds) },
     })
 
     if (!activiteit) {
       return NextResponse.json(
         { error: 'Activiteit niet gevonden' },
         { status: 404 }
+      )
+    }
+
+    // Studentaanvragen worden beoordeeld via Aanvragen: daar gebeuren ook de
+    // inschrijving, de mail naar de student en de herberekening van de voortgang.
+    if (
+      activiteit.typeAanvraag === 'student' &&
+      (status === 'goedgekeurd' || status === 'afgekeurd')
+    ) {
+      return NextResponse.json(
+        { error: 'Beoordeel studentaanvragen via Aanvragen' },
+        { status: 400 }
       )
     }
 

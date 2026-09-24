@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, activiteitScopeWhere } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ActiviteitDetails from './ActiviteitDetails'
@@ -7,9 +7,9 @@ export const metadata = {
   title: 'Activiteit Beheren - Admin',
 }
 
-async function getActiviteit(id: string) {
-  return await prisma.activiteit.findUnique({
-    where: { id },
+async function getActiviteit(id: string, beheerdeIds: string[] | null) {
+  return await prisma.activiteit.findFirst({
+    where: { id, ...activiteitScopeWhere(beheerdeIds) },
     include: {
       aangemaaktDoor: {
         include: {
@@ -47,7 +47,7 @@ export default async function ActiviteitDetailPage({
   }
 
   const { id } = await params
-  const activiteit = await getActiviteit(id)
+  const activiteit = await getActiviteit(id, await getBeheerdeOpleidingIds(session.user.id))
 
   if (!activiteit) {
     notFound()

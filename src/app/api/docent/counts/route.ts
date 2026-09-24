@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, opleidingScopeFilter, bewijsScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 export async function GET() {
@@ -10,32 +10,25 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get opleidingen the docent is linked to
-    const docentOpleidingen = await prisma.docentOpleiding.findMany({
-      where: { docentId: session.user.id },
-      select: { opleidingId: true },
-    })
+    // Opleidingen die deze gebruiker beoordeelt: docent gekoppeld, admin beheerd,
+    // superadmin alle (null). Een lege lijst telt niets (nooit terugvallen op alles).
+    const opleidingIds = await getBeheerdeOpleidingIds(session.user.id)
 
-    const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
-
-    // Count pending aanvragen (student activiteiten in_review)
-    const aanvragenCount = await prisma.activiteit.count({
-      where: {
-        typeAanvraag: 'student',
-        status: 'in_review',
-        ...(opleidingIds.length > 0 && { opleidingId: { in: opleidingIds } }),
-      },
-    })
-
-    // Count pending bewijsstukken (ingediend status)
-    const bewijsstukkenCount = await prisma.inschrijving.count({
-      where: {
-        bewijsStatus: 'ingediend',
-        student: {
-          ...(opleidingIds.length > 0 && { opleidingId: { in: opleidingIds } }),
+    const [aanvragenCount, bewijsstukkenCount] = await Promise.all([
+      prisma.activiteit.count({
+        where: {
+          typeAanvraag: 'student',
+          status: 'in_review',
+          opleidingId: opleidingScopeFilter(opleidingIds),
         },
-      },
-    })
+      }),
+      prisma.inschrijving.count({
+        where: {
+          bewijsStatus: 'ingediend',
+          ...bewijsScopeWhere(session.user.id, opleidingIds),
+        },
+      }),
+    ])
 
     return NextResponse.json({
       aanvragen: aanvragenCount,

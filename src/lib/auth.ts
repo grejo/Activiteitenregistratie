@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
@@ -430,6 +430,41 @@ export async function getBeheerdeOpleidingIds(userId: string): Promise<string[] 
   if (user.role === 'docent') return user.docentOpleidingen.map((o) => o.opleidingId)
   if (user.role === 'student') return user.opleidingId ? [user.opleidingId] : []
   return []
+}
+
+// Prisma-filter voor een opleidingId-veld op basis van getBeheerdeOpleidingIds:
+// null (superadmin) → geen filter; lege lijst → matcht niets.
+export function opleidingScopeFilter(ids: string[] | null): { in: string[] } | undefined {
+  return ids === null ? undefined : { in: ids }
+}
+
+// Activiteiten die een admin mag beheren: primaire opleiding of een gekoppelde
+// opleiding (ActiviteitOpleiding) valt onder de beheerde opleidingen.
+export function activiteitScopeWhere(ids: string[] | null): Prisma.ActiviteitWhereInput {
+  if (ids === null) return {}
+  return {
+    OR: [
+      { opleidingId: { in: ids } },
+      { opleidingen: { some: { opleidingId: { in: ids } } } },
+    ],
+  }
+}
+
+// Welke inschrijvingen (bewijsstukken) een gebruiker mag beoordelen:
+// superadmin alles; anders activiteit of student uit een beheerde opleiding,
+// of een activiteit die de gebruiker zelf aanmaakte.
+export function bewijsScopeWhere(
+  userId: string,
+  ids: string[] | null
+): Prisma.InschrijvingWhereInput {
+  if (ids === null) return {}
+  return {
+    OR: [
+      { activiteit: { opleidingId: { in: ids } } },
+      { activiteit: { aangemaaktDoorId: userId } },
+      { student: { opleidingId: { in: ids } } },
+    ],
+  }
 }
 
 // Helper to check if user can access opleiding

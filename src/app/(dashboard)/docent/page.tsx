@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, opleidingScopeFilter } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
@@ -15,7 +15,8 @@ async function getDocentStats(userId: string) {
     include: { opleiding: true },
   })
 
-  const opleidingIds = docentOpleidingen.map((do_) => do_.opleidingId)
+  // Te beoordelen aanvragen: docent gekoppeld, admin beheerd, superadmin alle
+  const beoordeelbareIds = await getBeheerdeOpleidingIds(userId)
 
   const [
     mijnActiviteiten,
@@ -30,7 +31,7 @@ async function getDocentStats(userId: string) {
       where: {
         typeAanvraag: 'student',
         status: 'in_review',
-        opleidingId: { in: opleidingIds },
+        opleidingId: opleidingScopeFilter(beoordeelbareIds),
       },
     }),
     prisma.inschrijving.count({

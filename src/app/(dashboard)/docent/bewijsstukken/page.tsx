@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import BewijsstukkenBeoordelenTable from './BewijsstukkenBeoordelenTable'
@@ -7,30 +7,10 @@ export const metadata = {
   title: 'Bewijsstukken Beoordelen - Docent',
 }
 
-async function getIngediendeBewijsstukken(docentId: string, isAdmin: boolean) {
-  let whereClause: Record<string, unknown> = { bewijsStatus: 'ingediend' }
-
-  if (!isAdmin) {
-    // Haal opleidingen van de docent op
-    const docentOpleidingen = await prisma.docentOpleiding.findMany({
-      where: { docentId },
-      select: { opleidingId: true },
-    })
-    const opleidingIds = docentOpleidingen.map((d) => d.opleidingId)
-
-    if (opleidingIds.length > 0) {
-      // Docent is gekoppeld aan opleidingen: filter op activiteit.opleidingId of student.opleidingId
-      whereClause = {
-        bewijsStatus: 'ingediend',
-        OR: [
-          { activiteit: { opleidingId: { in: opleidingIds } } },
-          { activiteit: { aangemaaktDoorId: docentId } },
-          { student: { opleidingId: { in: opleidingIds } } },
-        ],
-      }
-    }
-    // Als docent geen opleiding-links heeft: toon alle ingediende bewijsstukken
-  }
+async function getIngediendeBewijsstukken(userId: string) {
+  // Docent: gekoppelde opleidingen, admin: beheerde opleidingen, superadmin: alle
+  const opleidingIds = await getBeheerdeOpleidingIds(userId)
+  const whereClause = { bewijsStatus: 'ingediend', ...bewijsScopeWhere(userId, opleidingIds) }
 
   const inschrijvingen = await prisma.inschrijving.findMany({
     where: whereClause,
@@ -87,10 +67,10 @@ export default async function BewijsstukkenPage() {
   const session = await auth()
 
   if (!session?.user || (session.user.role !== 'docent' && session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
-    redirect('/login')
+    redirect('/dashboard')
   }
 
-  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id, (session.user.role === 'admin' || session.user.role === 'superadmin'))
+  const inschrijvingen = await getIngediendeBewijsstukken(session.user.id)
 
   return <BewijsstukkenBeoordelenTable inschrijvingen={inschrijvingen} />
 }

@@ -259,8 +259,21 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
           </div>
         )}
 
+        {/* Studentaanvraag: beoordelen via het Aanvragen-scherm (met alle neveneffecten) */}
+        {activiteit.status === 'in_review' && activiteit.typeAanvraag === 'student' && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="font-semibold mb-3">Aanvraag beoordelen</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Dit is een aanvraag van een student. Keur ze goed of af via het beoordelingsscherm.
+            </p>
+            <Link href={`/docent/aanvragen/${activiteit.id}`} className="btn-primary inline-block">
+              Beoordelen
+            </Link>
+          </div>
+        )}
+
         {/* Quick Actions */}
-        {activiteit.status === 'in_review' && (
+        {activiteit.status === 'in_review' && activiteit.typeAanvraag !== 'student' && (
           <div className="border-t pt-4 mt-4">
             <h3 className="font-semibold mb-3">Status Wijzigen</h3>
 
