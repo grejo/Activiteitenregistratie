@@ -1,11 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 
 export function LoginForm() {
-  // Altijd naar /dashboard sturen — die page stuurt op basis van rol door.
-  const callbackUrl = '/dashboard'
+  // Terug naar de gevraagde pagina (bv. link uit een mail), maar enkel relatieve
+  // paden — anders /dashboard, dat op basis van rol doorstuurt.
+  const gevraagd = useSearchParams().get('callbackUrl')
+  const callbackUrl =
+    gevraagd && gevraagd.startsWith('/') && !gevraagd.startsWith('//') && !gevraagd.startsWith('/\\')
+      ? gevraagd
+      : '/dashboard'
   const [ssoLoading, setSsoLoading] = useState(false)
 
   const handleSsoLogin = async () => {

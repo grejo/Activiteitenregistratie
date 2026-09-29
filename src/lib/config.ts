@@ -44,11 +44,17 @@ export const config: Config = {
   isDev: env === 'development',
   isProd: env === 'production',
 
-  appUrl: {
-    local: 'http://localhost:3000',
-    development: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    production: process.env.NEXTAUTH_URL || 'https://pxl-activiteiten.azurewebsites.net',
-  }[env],
+  // Basis-URL voor links in mails. APP_URL heeft voorrang; NEXTAUTH_URL/AUTH_URL
+  // zijn optioneel (auth werkt via trustHost), dus de fallback moet een bestaand domein zijn.
+  appUrl: (
+    {
+      local: 'http://localhost:3000',
+      development:
+        process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.AUTH_URL || 'http://localhost:3000',
+      production:
+        process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.AUTH_URL || 'https://xfactorapp.pxl.be',
+    }[env]
+  ).replace(/\/+$/, ''),
 
   database: {
     url: process.env.DATABASE_URL || 'file:./dev.db',

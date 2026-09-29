@@ -122,6 +122,10 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
           value: 'https://${appName}-app.azurewebsites.net'
         }
         {
+          name: 'APP_URL'
+          value: 'https://xfactorapp.pxl.be'
+        }
+        {
           name: 'AUTH_SECRET'
           value: nextAuthSecret
         }
