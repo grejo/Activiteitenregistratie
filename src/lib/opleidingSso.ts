@@ -67,7 +67,7 @@ export type SyncResultaat = {
  * de department nog niet ingelogd hebben, worden bij hun volgende login gekoppeld.
  */
 export async function synchroniseerStudentOpleidingen(
-  opties: { dryRun?: boolean } = {}
+  opties: { dryRun?: boolean; extraDepartments?: Map<string, string> } = {}
 ): Promise<SyncResultaat> {
   const mapping = await laadDepartmentMapping()
   const studenten = await prisma.user.findMany({
@@ -81,6 +81,9 @@ export async function synchroniseerStudentOpleidingen(
   const onbekend = new Map<string, number>()
 
   for (const s of studenten) {
+    // Prognose: department die (nog) niet bewaard is maar wel uit het logboek komt
+    const extra = opties.extraDepartments?.get(s.id)
+    if (extra) s.ssoDepartment = extra
     if (!s.ssoDepartment) {
       zonderDepartment++
       continue
@@ -109,4 +112,101 @@ export async function synchroniseerStudentOpleidingen(
       .map(([department, aantal]) => ({ department, aantal }))
       .sort((a, b) => b.aantal - a.aantal),
   }
+}
+
+export type LogboekDepartment = { email: string; department: string; op: Date | null }
+
+const LOGIN_REGEL =
+  /\[AUTH\] resolved email:\s*([^\s|"]+@[^\s|"]+)\s*\|\s*naam:.*?\|\s*department:\s*([^\s|",]+)/
+const TIJDSTIP = /(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/
+
+/**
+ * Haalt per e-mailadres de laatst gelogde department-code uit de serverlogs.
+ * Zoekt naar de regel die auth.ts bij elke SSO-login schrijft:
+ *   [AUTH] resolved email: x@student.pxl.be | naam: … | department: PBBOU
+ * Werkt op ruwe App Service-logs, de log stream en CSV-exports (de regel mag
+ * overal in een lijn staan). Bij meerdere logins telt de recentste.
+ */
+export function leesDepartmentsUitLogboek(tekst: string): LogboekDepartment[] {
+  const perEmail = new Map<string, LogboekDepartment>()
+  for (const lijn of tekst.split(/\r?\n/)) {
+    const m = LOGIN_REGEL.exec(lijn)
+    if (!m) continue
+    const email = m[1].toLowerCase()
+    const department = m[2].trim()
+    if (!department || department === 'undefined' || department === 'null') continue
+
+    const t = TIJDSTIP.exec(lijn)
+    const op = t ? new Date(t[1].replace(' ', 'T')) : null
+    const geldigOp = op && !isNaN(op.getTime()) ? op : null
+
+    const vorige = perEmail.get(email)
+    // Zonder tijdstempels geldt de volgorde in het bestand (laatste regel wint)
+    if (!vorige || !geldigOp || !vorige.op || geldigOp >= vorige.op) {
+      perEmail.set(email, { email, department, op: geldigOp })
+    }
+  }
+  return [...perEmail.values()]
+}
+
+export type LogboekImportResultaat = {
+  gevonden: number
+  bijgewerkt: number
+  alGekend: number
+  onbekendeGebruikers: string[]
+  sync: SyncResultaat
+}
+
+/**
+ * Vult User.ssoDepartment aan met de codes uit het logboek en koppelt daarna
+ * alle studenten aan de juiste opleiding. Een code die al via een recentere
+ * login gekend is, wordt niet overschreven. Met dryRun wordt niets gewijzigd.
+ */
+export async function importeerDepartmentsUitLogboek(
+  regels: LogboekDepartment[],
+  opties: { dryRun?: boolean } = {}
+): Promise<LogboekImportResultaat> {
+  const gebruikers = await prisma.user.findMany({
+    where: { email: { in: regels.map((r) => r.email), mode: 'insensitive' } },
+    select: { id: true, email: true, ssoDepartment: true, ssoDepartmentOp: true },
+  })
+  const perEmail = new Map(gebruikers.map((g) => [g.email.toLowerCase(), g]))
+
+  let bijgewerkt = 0
+  let alGekend = 0
+  const onbekendeGebruikers: string[] = []
+  // Bij een dry run houden we de nieuwe codes in het geheugen bij voor de prognose
+  const prognose = new Map<string, string>()
+
+  for (const r of regels) {
+    const g = perEmail.get(r.email)
+    if (!g) {
+      onbekendeGebruikers.push(r.email)
+      continue
+    }
+    const recenter = g.ssoDepartmentOp && (!r.op || g.ssoDepartmentOp >= r.op)
+    if (g.ssoDepartment && recenter) {
+      alGekend++
+      continue
+    }
+    if (g.ssoDepartment === r.department) {
+      alGekend++
+      continue
+    }
+    bijgewerkt++
+    prognose.set(g.id, r.department)
+    if (!opties.dryRun) {
+      await prisma.user.update({
+        where: { id: g.id },
+        data: { ssoDepartment: r.department, ssoDepartmentOp: r.op },
+      })
+    }
+  }
+
+  const sync = await synchroniseerStudentOpleidingen({
+    dryRun: opties.dryRun,
+    extraDepartments: opties.dryRun ? prognose : undefined,
+  })
+
+  return { gevonden: regels.length, bijgewerkt, alGekend, onbekendeGebruikers, sync }
 }

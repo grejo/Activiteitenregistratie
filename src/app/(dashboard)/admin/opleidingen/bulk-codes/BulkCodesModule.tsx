@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BulkActie, BulkStatus, BulkVoorstel } from '@/lib/opleidingCodesBulk'
 import type { SyncResultaat } from '@/lib/opleidingSso'
+import LogboekImport from './LogboekImport'
 
 type Opleiding = { id: string; naam: string; code: string; codes: { code: string }[] }
 
@@ -326,7 +327,7 @@ export default function BulkCodesModule() {
               <div className="card-flat">
                 <div className="text-sm text-pxl-black-light">Code nog onbekend</div>
                 <div className="text-2xl font-bold text-gray-600">{koppeling.zonderDepartment}</div>
-                <div className="text-xs text-gray-500">nog niet ingelogd sinds deze update</div>
+                <div className="text-xs text-gray-500">niet in login of logboek gevonden</div>
               </div>
             </div>
 
@@ -367,6 +368,13 @@ export default function BulkCodesModule() {
         ) : (
           <p className="text-sm text-gray-500">Overzicht laden…</p>
         )}
+
+        <LogboekImport
+          onKlaar={() => {
+            laadKoppeling()
+            router.refresh()
+          }}
+        />
       </div>
     </div>
   )
