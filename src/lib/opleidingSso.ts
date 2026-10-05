@@ -239,3 +239,28 @@ export async function importeerDepartmentsUitLogboek(
 
   return { gevonden: regels.length, bijgewerkt, alGekend, onbekendeGebruikers, sync }
 }
+
+/**
+ * Leest e-mailadres + department/afdeling uit een sheet (array van rijen), bv.
+ * een export met de kolommen "E-mailadres" en "Afdeling" ("1 - PBABT - GRM").
+ * Zoekt zelf de header-rij. Geeft een lege lijst als de kolommen ontbreken.
+ */
+export function leesDepartmentsUitRijen(rijen: unknown[][]): LogboekDepartment[] {
+  const norm = (c: unknown) => String(c ?? '').trim().toLowerCase()
+  for (let h = 0; h < Math.min(rijen.length, 20); h++) {
+    const headers = (rijen[h] || []).map(norm)
+    const mailKol = headers.findIndex((x) => /^(e-?mail(adres)?|mail|upn)$/.test(x))
+    const depKol = headers.findIndex((x) => /^(afdeling|department|opleidingscode|code)$/.test(x))
+    if (mailKol < 0 || depKol < 0) continue
+
+    const perEmail = new Map<string, LogboekDepartment>()
+    for (const rij of rijen.slice(h + 1)) {
+      const email = norm(rij?.[mailKol])
+      const department = String(rij?.[depKol] ?? '').trim()
+      if (!email.includes('@') || !department) continue
+      perEmail.set(email, { email, department, op: null })
+    }
+    return [...perEmail.values()]
+  }
+  return []
+}

@@ -37,14 +37,16 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
   return (
     <div className="border-t pt-4 space-y-3">
       <div>
-        <h3 className="font-heading font-bold text-lg text-pxl-black">Aanvullen vanuit het logboek</h3>
+        <h3 className="font-heading font-bold text-lg text-pxl-black">Aanvullen vanuit Excel of logboek</h3>
         <p className="text-sm text-pxl-black-light max-w-3xl">
           Bij elke login schrijft de server een regel{' '}
           <code className="text-xs">[AUTH] resolved email: … | department: …</code> weg. Upload de
           serverlogs (Azure Portal → App Service → <em>Advanced Tools (Kudu)</em> →{' '}
           <em>LogFiles</em>, of een export uit Log stream / Application Insights) om de
-          opleidingscode van studenten die vroeger al ingelogd hebben aan te vullen. Je kunt
-          meerdere bestanden tegelijk kiezen (uitgepakte .log/.txt/.csv).
+          opleidingscode van studenten die vroeger al ingelogd hebben aan te vullen. Een Excel met
+          de kolommen <strong>E-mailadres</strong> en <strong>Afdeling</strong> (bv.{' '}
+          <code className="text-xs">1 - PBABT - GRM</code>) kan ook. Je kunt meerdere bestanden
+          tegelijk kiezen.
         </p>
       </div>
 
@@ -52,7 +54,7 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
         <input
           type="file"
           multiple
-          accept=".log,.txt,.csv,text/plain"
+          accept=".xlsx,.xls,.log,.txt,.csv,text/plain"
           onChange={(e) => {
             setBestanden(Array.from(e.target.files ?? []))
             setResultaat(null)
@@ -64,7 +66,7 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
           disabled={bestanden.length === 0 || loading}
           className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading && !resultaat ? 'Bezig met analyseren…' : 'Analyseer logboek'}
+          {loading && !resultaat ? 'Bezig met analyseren…' : 'Analyseer bestanden'}
         </button>
       </div>
 
@@ -76,7 +78,7 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
         <div className="space-y-3 text-sm">
           <p className={resultaat.toegepast ? 'text-green-700 font-medium' : 'text-pxl-black'}>
             {resultaat.toegepast ? 'Toegepast: ' : 'Voorstel: '}
-            {resultaat.gevonden} gebruiker(s) met een opleidingscode in het logboek ·{' '}
+            {resultaat.gevonden} gebruiker(s) met een opleidingscode in de bestanden ·{' '}
             <strong>{resultaat.bijgewerkt}</strong> code(s) {resultaat.toegepast ? 'aangevuld' : 'aan te vullen'} ·{' '}
             {resultaat.alGekend} al gekend · <strong>{resultaat.sync.gewijzigd}</strong> student(en){' '}
             {resultaat.toegepast ? 'gekoppeld' : 'te koppelen'} (waarvan {resultaat.sync.nieuwGekoppeld} zonder
@@ -93,7 +95,7 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
           {resultaat.onbekendeGebruikers.length > 0 && (
             <details>
               <summary className="cursor-pointer text-gray-600">
-                {resultaat.onbekendeGebruikers.length} e-mailadres(sen) uit het logboek niet gevonden in de database
+                {resultaat.onbekendeGebruikers.length} e-mailadres(sen) niet gevonden in de database
               </summary>
               <ul className="mt-2 text-xs text-gray-600 font-mono max-h-40 overflow-y-auto">
                 {resultaat.onbekendeGebruikers.map((e) => <li key={e}>{e}</li>)}
