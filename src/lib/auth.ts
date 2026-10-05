@@ -6,6 +6,7 @@ import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import type { NextAuthConfig } from 'next-auth'
 import { DEMO_OPLEIDING_CODE, DEMO_OPLEIDING_NAAM, readDemoCookie } from '@/lib/demo'
 import { koppelOpleidingslozeAanvragen } from '@/lib/opleidingKoppeling'
+import { beeindigImpersonatie, readImpersonatieCookie } from '@/lib/impersonatie'
 import {
   koppelStudentAanOpleiding,
   laadDepartmentMapping,
@@ -36,6 +37,7 @@ declare module 'next-auth' {
       adminOpleidingIds?: string[]
     }
     isDemo?: boolean
+    isImpersonatie?: boolean
     originalUserId?: string | null
   }
 }
@@ -354,7 +356,40 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // Inloggen als: enkel geldig als de echte (JWT-)gebruiker de superadmin
+      // is die de overname startte. Werkt niet tegelijk met de demo-modus.
+      if (!session.isDemo && session.user && token) {
+        const als = await readImpersonatieCookie()
+        if (als && token.role === 'superadmin' && token.id === als.originalUserId) {
+          const doel = await prisma.user.findUnique({
+            where: { id: als.targetUserId },
+            include: { opleiding: true, adminOpleidingen: true },
+          })
+          if (doel && doel.role !== 'superadmin') {
+            session.user.id = doel.id
+            session.user.email = doel.email
+            session.user.naam = doel.naam
+            session.user.role = doel.role as UserRole
+            session.user.opleidingId = doel.opleidingId
+            session.user.opleidingNaam = doel.opleiding?.naam ?? null
+            session.user.adminOpleidingIds = doel.adminOpleidingen.map((o) => o.opleidingId)
+            session.isImpersonatie = true
+            session.originalUserId = als.originalUserId
+          }
+        }
+      }
+
       return session
+    },
+  },
+  events: {
+    // Uitloggen tijdens "inloggen als" beëindigt ook de overname
+    async signOut() {
+      try {
+        await beeindigImpersonatie()
+      } catch (err) {
+        console.error('[AUTH] Overname beëindigen bij uitloggen mislukt:', err)
+      }
     },
   },
   pages: {

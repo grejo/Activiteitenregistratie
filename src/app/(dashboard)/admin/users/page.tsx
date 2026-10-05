@@ -45,5 +45,16 @@ export default async function UsersPage() {
     }),
   ])
 
-  return <UsersTable users={users} opleidingen={opleidingen} />
+  // Inloggen als: enkel voor een echte superadmin (niet tijdens demo/overname)
+  const magInloggenAls =
+    session.user.role === 'superadmin' && !session.isDemo && !session.isImpersonatie
+
+  return (
+    <UsersTable
+      users={users}
+      opleidingen={opleidingen}
+      magInloggenAls={magInloggenAls}
+      eigenId={session.user.id}
+    />
+  )
 }

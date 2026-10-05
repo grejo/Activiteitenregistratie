@@ -61,10 +61,32 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0
 }
 
-export async function signDemoPayload(payload: DemoPayload): Promise<string> {
+// Generiek: onderteken een JSON-payload als "<body>.<sig>" (HMAC met AUTH_SECRET).
+// Ook gebruikt voor de "inloggen als"-cookie (src/lib/impersonatie.ts).
+export async function signPayload(payload: object): Promise<string> {
   const body = b64urlFromBytes(new TextEncoder().encode(JSON.stringify(payload)))
   const sig = b64urlFromBytes(await hmacSign(body))
   return `${body}.${sig}`
+}
+
+// Generiek: verifieer de handtekening en geef de JSON-payload terug (of null).
+export async function readSignedPayload(raw: string | undefined | null): Promise<unknown | null> {
+  if (!raw) return null
+  const parts = raw.split('.')
+  if (parts.length !== 2) return null
+  const [body, sig] = parts
+  const expected = await hmacSign(body)
+  const provided = b64urlToBytes(sig)
+  if (!constantTimeEqual(provided, expected)) return null
+  try {
+    return JSON.parse(new TextDecoder().decode(b64urlToBytes(body)))
+  } catch {
+    return null
+  }
+}
+
+export async function signDemoPayload(payload: DemoPayload): Promise<string> {
+  return signPayload(payload)
 }
 
 export async function verifyDemoCookie(

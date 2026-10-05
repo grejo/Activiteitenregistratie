@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import InloggenAlsKnop from '@/components/impersonatie/InloggenAlsKnop'
 
 type User = {
   id: string
@@ -37,9 +38,13 @@ const PAGE_SIZE = 10
 export default function UsersTable({
   users,
   opleidingen,
+  magInloggenAls = false,
+  eigenId,
 }: {
   users: User[]
   opleidingen: Opleiding[]
+  magInloggenAls?: boolean
+  eigenId?: string
 }) {
   const [search, setSearch] = useState('')
   const [opleidingFilter, setOpleidingFilter] = useState('all')
@@ -208,6 +213,11 @@ export default function UsersTable({
                     <Link href={`/admin/users/${user.id}`} className="text-pxl-gold hover:text-pxl-gold-dark">
                       Bewerken
                     </Link>
+                    {magInloggenAls && user.role !== 'superadmin' && user.id !== eigenId && (
+                      <span className="ml-4">
+                        <InloggenAlsKnop userId={user.id} naam={user.naam} />
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

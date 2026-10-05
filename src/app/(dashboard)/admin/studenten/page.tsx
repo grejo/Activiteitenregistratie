@@ -83,5 +83,14 @@ export default async function AdminStudentenPage() {
     getOpleidingen(beheerdeIds),
   ])
 
-  return <AdminStudentenTable studenten={studenten} opleidingen={opleidingen} />
+  const magInloggenAls =
+    session.user.role === 'superadmin' && !session.isDemo && !session.isImpersonatie
+
+  return (
+    <AdminStudentenTable
+      studenten={studenten}
+      opleidingen={opleidingen}
+      magInloggenAls={magInloggenAls}
+    />
+  )
 }

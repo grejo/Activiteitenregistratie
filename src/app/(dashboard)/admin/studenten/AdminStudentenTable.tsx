@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
+import InloggenAlsKnop from '@/components/impersonatie/InloggenAlsKnop'
 import { formatPeriode } from '@/lib/utils'
 
 type Inschrijving = {
@@ -43,9 +44,11 @@ type Opleiding = {
 export default function AdminStudentenTable({
   studenten,
   opleidingen,
+  magInloggenAls = false,
 }: {
   studenten: Student[]
   opleidingen: Opleiding[]
+  magInloggenAls?: boolean
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
@@ -404,6 +407,11 @@ export default function AdminStudentenTable({
                       <div className="text-sm text-gray-500 mt-1">{selectedStudent.opleiding.naam}</div>
                     ) : (
                       <div className="text-sm text-orange-600 mt-1">Geen opleiding toegewezen</div>
+                    )}
+                    {magInloggenAls && (
+                      <div className="text-sm mt-2">
+                        <InloggenAlsKnop userId={selectedStudent.id} naam={selectedStudent.naam} />
+                      </div>
                     )}
                   </div>
                   {selectedStudent.gearchiveerdOp ? (
