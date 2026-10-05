@@ -61,9 +61,14 @@ export default async function OpleidingenPage() {
           <p className="text-pxl-black-light mt-4">Beheer alle opleidingen in het systeem</p>
         </div>
         {isSuperadmin && (
-          <Link href="/admin/opleidingen/new" className="btn-primary">
-            + Nieuwe Opleiding
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/admin/opleidingen/bulk-codes" className="btn-secondary">
+              Codes bulk bijwerken
+            </Link>
+            <Link href="/admin/opleidingen/new" className="btn-primary">
+              + Nieuwe Opleiding
+            </Link>
+          </div>
         )}
       </div>
 
