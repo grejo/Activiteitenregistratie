@@ -3,6 +3,7 @@ import { auth, isStaff } from '@/lib/auth'
 import { Navbar } from '@/components/layout/Navbar'
 import DemoBanner from '@/components/demo/DemoBanner'
 import StartDemoButton from '@/components/demo/StartDemoButton'
+import ImpersonatieBanner from '@/components/impersonatie/ImpersonatieBanner'
 
 export default async function DashboardLayout({
   children,
@@ -16,12 +17,20 @@ export default async function DashboardLayout({
   }
 
   const inDemo = session.isDemo === true
+  const alsAnder = session.isImpersonatie === true
   // De start-knop staat in-context van de ECHTE gebruiker, niet van de
   // demo-overlay. Zolang we in demo zitten toont de banner al de acties.
-  const showStartButton = !inDemo && isStaff(session.user.role)
+  const showStartButton = !inDemo && !alsAnder && isStaff(session.user.role)
 
   return (
     <div className="min-h-screen flex flex-col bg-pxl-gray-light">
+      {alsAnder && (
+        <ImpersonatieBanner
+          naam={session.user.naam}
+          email={session.user.email}
+          rol={session.user.role}
+        />
+      )}
       {inDemo && (
         <DemoBanner
           demoNaam={session.user.naam}
