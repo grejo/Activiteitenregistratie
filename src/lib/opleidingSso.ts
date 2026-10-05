@@ -68,10 +68,16 @@ export async function koppelStudentAanOpleiding(
     where: { id: student.id },
     data: { opleidingId: nieuweOpleidingId },
   })
-  if (!student.opleidingId) {
-    await koppelOpleidingslozeAanvragen(student.id, nieuweOpleidingId)
+  // Aanvragen koppelen (incl. mails) en voortgang herberekenen is nevenwerk:
+  // een fout daarin mag de koppeling zelf niet ongedaan maken of tegenhouden.
+  try {
+    if (!student.opleidingId) {
+      await koppelOpleidingslozeAanvragen(student.id, nieuweOpleidingId)
+    }
+    await recalculateStudentVoortgang(student.id)
+  } catch (err) {
+    console.error(`[OPLEIDING] Nevenwerk na koppelen van student ${student.id} mislukt:`, err)
   }
-  await recalculateStudentVoortgang(student.id)
   console.log(
     `[OPLEIDING] Student ${student.id} gekoppeld aan opleiding ${nieuweOpleidingId} (was ${student.opleidingId ?? 'geen'})`
   )
@@ -85,6 +91,7 @@ export type SyncResultaat = {
   zonderOpleiding: number
   zonderDepartment: number
   onbekendeDepartments: { department: string; aantal: number }[]
+  fouten: number
 }
 
 /**
@@ -104,6 +111,7 @@ export async function synchroniseerStudentOpleidingen(
   let gewijzigd = 0
   let nieuwGekoppeld = 0
   let zonderDepartment = 0
+  let fouten = 0
   const onbekend = new Map<string, number>()
 
   for (const s of studenten) {
@@ -122,7 +130,15 @@ export async function synchroniseerStudentOpleidingen(
       continue
     }
     if (doel === s.opleidingId) continue
-    if (!opties.dryRun) await koppelStudentAanOpleiding(s, doel)
+    if (!opties.dryRun) {
+      try {
+        await koppelStudentAanOpleiding(s, doel)
+      } catch (err) {
+        console.error(`[OPLEIDING] Koppelen van student ${s.id} mislukt:`, err)
+        fouten++
+        continue
+      }
+    }
     gewijzigd++
     if (!s.opleidingId) nieuwGekoppeld++
   }
@@ -138,6 +154,7 @@ export async function synchroniseerStudentOpleidingen(
     onbekendeDepartments: [...onbekend.entries()]
       .map(([department, aantal]) => ({ department, aantal }))
       .sort((a, b) => b.aantal - a.aantal),
+    fouten,
   }
 }
 
@@ -163,7 +180,7 @@ export function leesDepartmentsUitLogboek(tekst: string): LogboekDepartment[] {
     if (!m) continue
     const email = m[1].toLowerCase()
     const department = m[2].trim()
-    if (!department || department === 'undefined' || department === 'null') continue
+    if (!department || department === 'undefined' || department === 'null' || /^\d+$/.test(department)) continue
 
     const t = TIJDSTIP.exec(lijn)
     const op = t ? new Date(t[1].replace(' ', 'T')) : null
@@ -200,6 +217,7 @@ export async function importeerDepartmentsUitLogboek(
     select: { id: true, email: true, ssoDepartment: true, ssoDepartmentOp: true },
   })
   const perEmail = new Map(gebruikers.map((g) => [g.email.toLowerCase(), g]))
+  const mapping = await laadDepartmentMapping()
 
   let bijgewerkt = 0
   let alGekend = 0
@@ -213,8 +231,12 @@ export async function importeerDepartmentsUitLogboek(
       onbekendeGebruikers.push(r.email)
       continue
     }
+    // Een bestaande code wint enkel als ze recenter is én naar een opleiding
+    // leidt. Een onbruikbare code (bv. "1" door een vroegere leesfout) wordt
+    // altijd vervangen.
     const recenter = g.ssoDepartmentOp && (!r.op || g.ssoDepartmentOp >= r.op)
-    if (g.ssoDepartment && recenter) {
+    const bruikbaar = !!opleidingVoorDepartment(mapping, g.ssoDepartment)
+    if (g.ssoDepartment && recenter && bruikbaar) {
       alGekend++
       continue
     }

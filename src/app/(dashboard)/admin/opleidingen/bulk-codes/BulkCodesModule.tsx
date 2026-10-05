@@ -361,6 +361,9 @@ export default function BulkCodesModule() {
               {koppelResultaat && (
                 <span className="text-sm text-green-700">
                   {koppelResultaat.gewijzigd} student(en) gekoppeld.
+                  {koppelResultaat.fouten > 0 && (
+                    <span className="text-red-700"> {koppelResultaat.fouten} mislukt.</span>
+                  )}
                 </span>
               )}
             </div>
