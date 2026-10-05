@@ -6,6 +6,11 @@ import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import type { NextAuthConfig } from 'next-auth'
 import { DEMO_OPLEIDING_CODE, DEMO_OPLEIDING_NAAM, readDemoCookie } from '@/lib/demo'
 import { koppelOpleidingslozeAanvragen } from '@/lib/opleidingKoppeling'
+import {
+  koppelStudentAanOpleiding,
+  laadDepartmentMapping,
+  opleidingVoorDepartment,
+} from '@/lib/opleidingSso'
 
 const prisma = new PrismaClient()
 
@@ -172,31 +177,16 @@ export const authConfig: NextAuthConfig = {
         const normalizedEmail = email.toLowerCase()
 
         try {
-          // Zoek opleiding op basis van department-code (indien aanwezig).
-          // Eerst op de primaire code, daarna op de extra OpleidingCode-mappings
+          // Zoek opleiding op basis van department-code (indien aanwezig):
+          // primaire opleidingscode of een extra OpleidingCode-mapping
           // (bv. afstandsstudenten 'pbboa', EMA, management).
-          let opleidingId: string | null = null
+          const opleidingId = opleidingVoorDepartment(await laadDepartmentMapping(), department)
           if (department) {
-            const opleiding = await prisma.opleiding.findFirst({
-              where: { code: { equals: department, mode: 'insensitive' } },
-              select: { id: true },
-            })
-            if (opleiding) {
-              opleidingId = opleiding.id
-              console.log('[AUTH] Opleiding gevonden via primaire code:', department, '→', opleidingId)
-            } else {
-              const extra = await prisma.opleidingCode.findFirst({
-                where: { code: { equals: department, mode: 'insensitive' } },
-                select: { opleidingId: true },
-              })
-              if (extra) {
-                opleidingId = extra.opleidingId
-                console.log('[AUTH] Opleiding gevonden via extra code:', department, '→', opleidingId)
-              } else {
-                console.log('[AUTH] Geen opleiding gevonden voor department:', department)
-              }
-            }
+            console.log('[AUTH] department', department, '→ opleiding', opleidingId ?? 'geen match')
           }
+          const ssoVelden = department
+            ? { ssoDepartment: department, ssoDepartmentOp: new Date() }
+            : {}
 
           // 1. Zoek op email (case-insensitive)
           let existing = await prisma.user.findFirst({
@@ -219,27 +209,32 @@ export const authConfig: NextAuthConfig = {
                 role: 'student',
                 azureAdId: azureAdId ?? null,
                 opleidingId,
+                ...ssoVelden,
               },
             })
             console.log('[AUTH] Nieuw account aangemaakt:', normalizedEmail, '| opleiding:', opleidingId)
           } else {
-            // Update email, azureAdId en opleidingId indien nodig
-            const needsUpdate =
-              existing.email !== normalizedEmail ||
-              (!existing.azureAdId && azureAdId) ||
-              (!existing.opleidingId && opleidingId)
-            if (needsUpdate) {
-              await prisma.user.update({
-                where: { id: existing.id },
-                data: {
-                  email: normalizedEmail,
-                  azureAdId: existing.azureAdId ?? azureAdId ?? undefined,
-                  opleidingId: existing.opleidingId ?? opleidingId ?? undefined,
-                },
-              })
-              if (!existing.opleidingId && opleidingId) {
+            // Update email, azureAdId en laatst gekende SSO-department
+            await prisma.user.update({
+              where: { id: existing.id },
+              data: {
+                email: normalizedEmail,
+                azureAdId: existing.azureAdId ?? azureAdId ?? undefined,
+                ...ssoVelden,
+              },
+            })
+            // Een fout bij het koppelen mag de login niet blokkeren
+            try {
+              if (opleidingId && existing.role === 'student') {
+                // Voor studenten is de SSO de bron van waarheid: (her)koppel aan
+                // de opleiding die bij hun department hoort.
+                await koppelStudentAanOpleiding(existing, opleidingId)
+              } else if (opleidingId && !existing.opleidingId) {
+                await prisma.user.update({ where: { id: existing.id }, data: { opleidingId } })
                 await koppelOpleidingslozeAanvragen(existing.id, opleidingId)
               }
+            } catch (err) {
+              console.error('[AUTH] Koppelen aan opleiding mislukt:', err)
             }
             console.log('[AUTH] Bestaand account ingelogd:', normalizedEmail)
           }

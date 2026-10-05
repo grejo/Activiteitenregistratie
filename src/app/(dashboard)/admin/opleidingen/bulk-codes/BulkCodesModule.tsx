@@ -1,14 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BulkActie, BulkStatus, BulkVoorstel } from '@/lib/opleidingCodesBulk'
+import type { SyncResultaat } from '@/lib/opleidingSso'
 
 type Opleiding = { id: string; naam: string; code: string; codes: { code: string }[] }
 
 type Rij = BulkVoorstel & { oudeCodeBehouden: boolean }
 
-type Resultaat = { primair: number; extra: number; nieuw: number; log: string[] }
+type Resultaat = {
+  primair: number
+  extra: number
+  nieuw: number
+  log: string[]
+  sync: SyncResultaat | null
+}
 
 const STATUS_LABEL: Record<BulkStatus, { tekst: string; klasse: string }> = {
   correct: { tekst: 'Al correct', klasse: 'bg-green-100 text-green-800' },
@@ -32,6 +39,41 @@ export default function BulkCodesModule() {
   const [error, setError] = useState<string | null>(null)
   const [resultaat, setResultaat] = useState<Resultaat | null>(null)
   const [verbergCorrect, setVerbergCorrect] = useState(false)
+
+  // Overzicht studentkoppelingen op basis van de laatst gekende SSO-department
+  const [koppeling, setKoppeling] = useState<SyncResultaat | null>(null)
+  const [koppelResultaat, setKoppelResultaat] = useState<SyncResultaat | null>(null)
+  const [koppelLoading, setKoppelLoading] = useState(false)
+
+  const laadKoppeling = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/opleidingen/sso-sync')
+      if (res.ok) setKoppeling(await res.json())
+    } catch {
+      // overzicht is informatief; stil falen
+    }
+  }, [])
+
+  useEffect(() => {
+    laadKoppeling()
+  }, [laadKoppeling])
+
+  async function koppelNu() {
+    setKoppelLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/opleidingen/sso-sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Koppelen mislukt')
+      setKoppelResultaat(data)
+      await laadKoppeling()
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Er is iets misgegaan')
+    } finally {
+      setKoppelLoading(false)
+    }
+  }
 
   async function analyseer() {
     if (!file) return
@@ -66,6 +108,8 @@ export default function BulkCodesModule() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Toepassen mislukt')
       setResultaat(data)
+      setKoppelResultaat(null)
+      await laadKoppeling()
       setRijen(null)
       setFile(null)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -138,10 +182,13 @@ export default function BulkCodesModule() {
           <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
             {resultaat.log.map((l, i) => <li key={i}>{l}</li>)}
           </ul>
-          <p className="text-sm text-pxl-black-light">
-            Studenten die nog geen opleiding hebben, worden bij hun volgende SSO-login automatisch
-            gekoppeld op basis van de nieuwe codes.
-          </p>
+          {resultaat.sync && (
+            <p className="text-sm text-pxl-black-light">
+              Studenten meteen herkoppeld op basis van hun laatste login:{' '}
+              <strong>{resultaat.sync.gewijzigd}</strong> gewijzigd (waarvan{' '}
+              {resultaat.sync.nieuwGekoppeld} die nog geen opleiding hadden).
+            </p>
+          )}
         </div>
       )}
 
@@ -250,6 +297,77 @@ export default function BulkCodesModule() {
           </div>
         </div>
       )}
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="font-heading font-bold text-xl text-pxl-black">Studenten koppelen</h2>
+          <p className="text-sm text-pxl-black-light mt-1 max-w-3xl">
+            Bij elke SSO-login wordt de opleidingscode (department) van de student bewaard en wordt
+            de student automatisch aan de bijhorende opleiding gekoppeld. Na het aanpassen van codes
+            worden alle studenten met een gekende code meteen opnieuw gekoppeld.
+          </p>
+        </div>
+
+        {koppeling ? (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="card-flat">
+                <div className="text-sm text-pxl-black-light">Studenten</div>
+                <div className="text-2xl font-bold text-pxl-gold">{koppeling.gecontroleerd}</div>
+              </div>
+              <div className="card-flat">
+                <div className="text-sm text-pxl-black-light">Zonder opleiding</div>
+                <div className="text-2xl font-bold text-red-600">{koppeling.zonderOpleiding}</div>
+              </div>
+              <div className="card-flat">
+                <div className="text-sm text-pxl-black-light">Te herkoppelen</div>
+                <div className="text-2xl font-bold text-blue-600">{koppeling.gewijzigd}</div>
+              </div>
+              <div className="card-flat">
+                <div className="text-sm text-pxl-black-light">Code nog onbekend</div>
+                <div className="text-2xl font-bold text-gray-600">{koppeling.zonderDepartment}</div>
+                <div className="text-xs text-gray-500">nog niet ingelogd sinds deze update</div>
+              </div>
+            </div>
+
+            {koppeling.onbekendeDepartments.length > 0 && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <div className="font-medium text-yellow-900 mb-1">
+                  Opleidingscodes uit logins zonder overeenkomstige opleiding
+                </div>
+                <p className="text-yellow-800 mb-2">
+                  Voeg deze codes toe (via de bulk-upload of bij de opleiding zelf) om deze studenten
+                  te kunnen koppelen.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {koppeling.onbekendeDepartments.map((d) => (
+                    <span key={d.department} className="px-2 py-0.5 rounded bg-white border border-yellow-300 font-mono text-xs">
+                      {d.department} · {d.aantal}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={koppelNu}
+                disabled={koppelLoading || koppeling.gewijzigd === 0}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {koppelLoading ? 'Bezig met koppelen…' : `Nu koppelen (${koppeling.gewijzigd})`}
+              </button>
+              {koppelResultaat && (
+                <span className="text-sm text-green-700">
+                  {koppelResultaat.gewijzigd} student(en) gekoppeld.
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">Overzicht laden…</p>
+        )}
+      </div>
     </div>
   )
 }

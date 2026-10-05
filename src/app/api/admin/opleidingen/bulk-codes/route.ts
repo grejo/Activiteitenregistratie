@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { DEMO_OPLEIDING_CODE } from '@/lib/demo'
 import { maakSdgThemas } from '@/lib/sdgs'
+import { synchroniseerStudentOpleidingen } from '@/lib/opleidingSso'
 import {
   leesOpleidingenUitRijen,
   maakVoorstellen,
@@ -175,7 +176,15 @@ export async function PUT(request: Request) {
       return { primair, extra, nieuw, log }
     }, { timeout: 60_000 })
 
-    return NextResponse.json({ success: true, ...resultaat })
+    // Studenten met een gekende SSO-department meteen (her)koppelen aan de nieuwe codes
+    let sync = null
+    try {
+      sync = await synchroniseerStudentOpleidingen()
+    } catch (e) {
+      console.error('SSO-sync na bulk codes mislukt:', e)
+    }
+
+    return NextResponse.json({ success: true, ...resultaat, sync })
   } catch (error) {
     console.error('Bulk codes apply error:', error)
     const msg = error instanceof Error && error.message ? error.message : 'Er is een fout opgetreden'

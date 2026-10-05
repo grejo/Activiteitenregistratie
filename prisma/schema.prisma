@@ -61,6 +61,12 @@ model User {
   naam            String
   actief          Boolean   @default(true)
   gearchiveerdOp  DateTime?
+
+  // Laatst gekende department-code uit de SSO (Graph /me), bijgewerkt bij elke
+  // login. Hiermee kunnen studenten na een wijziging van de opleidingscodes
+  // meteen opnieuw gekoppeld worden, zonder te wachten op een nieuwe login.
+  ssoDepartment   String?
+  ssoDepartmentOp DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
