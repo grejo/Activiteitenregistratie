@@ -18,12 +18,38 @@ export async function laadDepartmentMapping(): Promise<Map<string, string>> {
   return mapping
 }
 
+/**
+ * De SSO-department van een student heeft de vorm "<jaar> - <opleidingscode>
+ * - <afstudeerrichting>", bv. "1 - PBABT - GRM" of "1 - GRHEN". Geeft de
+ * kandidaten terug om op te zoeken, van specifiek naar algemeen:
+ *   "1 - PBABT - GRM" → ["1 - PBABT - GRM", "PBABT - GRM", "PBABT"]
+ * Zo kan een afstudeerrichting desgewenst apart gemapt worden, maar volstaat
+ * de opleidingscode normaal.
+ */
+export function departmentKandidaten(department: string): string[] {
+  const volledig = department.trim()
+  const delen = volledig.split(/\s+-\s+/).map((d) => d.trim()).filter(Boolean)
+  const zonderJaar = /^\d+$/.test(delen[0] ?? '') ? delen.slice(1) : delen
+  const kandidaten = [volledig, zonderJaar.join(' - '), zonderJaar[0] ?? '']
+  return [...new Set(kandidaten.filter(Boolean))]
+}
+
+/** De opleidingscode uit een SSO-department, bv. "1 - PBABT - GRM" → "PBABT". */
+export function opleidingscodeUitDepartment(department: string): string {
+  const k = departmentKandidaten(department)
+  return k[k.length - 1] ?? department.trim()
+}
+
 export function opleidingVoorDepartment(
   mapping: Map<string, string>,
   department: string | null | undefined
 ): string | null {
   if (!department) return null
-  return mapping.get(department.trim().toLowerCase()) ?? null
+  for (const kandidaat of departmentKandidaten(department)) {
+    const id = mapping.get(kandidaat.toLowerCase())
+    if (id) return id
+  }
+  return null
 }
 
 /**
@@ -90,7 +116,8 @@ export async function synchroniseerStudentOpleidingen(
     }
     const doel = opleidingVoorDepartment(mapping, s.ssoDepartment)
     if (!doel) {
-      const key = s.ssoDepartment.trim()
+      // Groepeer op opleidingscode, want die moet de beheerder toevoegen
+      const key = opleidingscodeUitDepartment(s.ssoDepartment)
       onbekend.set(key, (onbekend.get(key) ?? 0) + 1)
       continue
     }
@@ -116,14 +143,16 @@ export async function synchroniseerStudentOpleidingen(
 
 export type LogboekDepartment = { email: string; department: string; op: Date | null }
 
+// department loopt tot het einde van de regel (of tot een " in CSV-exports),
+// want ze bevat spaties: "1 - PBABT - GRM"
 const LOGIN_REGEL =
-  /\[AUTH\] resolved email:\s*([^\s|"]+@[^\s|"]+)\s*\|\s*naam:.*?\|\s*department:\s*([^\s|",]+)/
-const TIJDSTIP = /(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/
+  /\[AUTH\] resolved email:\s*([^\s|"]+@[^\s|"]+)\s*\|\s*naam:.*?\|\s*department:\s*([^|"\r\n]+)/
+const TIJDSTIP = /(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/
 
 /**
  * Haalt per e-mailadres de laatst gelogde department-code uit de serverlogs.
  * Zoekt naar de regel die auth.ts bij elke SSO-login schrijft:
- *   [AUTH] resolved email: x@student.pxl.be | naam: … | department: PBBOU
+ *   [AUTH] resolved email: x@student.pxl.be | naam: … | department: 1 - PBABT - GRM
  * Werkt op ruwe App Service-logs, de log stream en CSV-exports (de regel mag
  * overal in een lijn staan). Bij meerdere logins telt de recentste.
  */
@@ -209,4 +238,29 @@ export async function importeerDepartmentsUitLogboek(
   })
 
   return { gevonden: regels.length, bijgewerkt, alGekend, onbekendeGebruikers, sync }
+}
+
+/**
+ * Leest e-mailadres + department/afdeling uit een sheet (array van rijen), bv.
+ * een export met de kolommen "E-mailadres" en "Afdeling" ("1 - PBABT - GRM").
+ * Zoekt zelf de header-rij. Geeft een lege lijst als de kolommen ontbreken.
+ */
+export function leesDepartmentsUitRijen(rijen: unknown[][]): LogboekDepartment[] {
+  const norm = (c: unknown) => String(c ?? '').trim().toLowerCase()
+  for (let h = 0; h < Math.min(rijen.length, 20); h++) {
+    const headers = (rijen[h] || []).map(norm)
+    const mailKol = headers.findIndex((x) => /^(e-?mail(adres)?|mail|upn)$/.test(x))
+    const depKol = headers.findIndex((x) => /^(afdeling|department|opleidingscode|code)$/.test(x))
+    if (mailKol < 0 || depKol < 0) continue
+
+    const perEmail = new Map<string, LogboekDepartment>()
+    for (const rij of rijen.slice(h + 1)) {
+      const email = norm(rij?.[mailKol])
+      const department = String(rij?.[depKol] ?? '').trim()
+      if (!email.includes('@') || !department) continue
+      perEmail.set(email, { email, department, op: null })
+    }
+    return [...perEmail.values()]
+  }
+  return []
 }
