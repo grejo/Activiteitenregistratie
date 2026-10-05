@@ -85,6 +85,13 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
             opleiding).
           </p>
 
+          {resultaat.sync.fouten > 0 && (
+            <p className="text-red-700">
+              Bij {resultaat.sync.fouten} student(en) mislukte het koppelen. Probeer opnieuw of
+              bekijk de serverlogs ([OPLEIDING]-regels).
+            </p>
+          )}
+
           {resultaat.sync.onbekendeDepartments.length > 0 && (
             <p className="text-yellow-800">
               Codes zonder opleiding:{' '}
@@ -106,10 +113,10 @@ export default function LogboekImport({ onKlaar }: { onKlaar: () => void }) {
           {!resultaat.toegepast && (
             <button
               onClick={() => verstuur(true)}
-              disabled={loading || resultaat.bijgewerkt === 0}
+              disabled={loading || (resultaat.bijgewerkt === 0 && resultaat.sync.gewijzigd === 0)}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Bezig…' : `Aanvullen en koppelen (${resultaat.bijgewerkt})`}
+              {loading ? 'Bezig…' : 'Aanvullen en koppelen'}
             </button>
           )}
         </div>
