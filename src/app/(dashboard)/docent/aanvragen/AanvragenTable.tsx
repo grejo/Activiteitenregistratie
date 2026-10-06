@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
 import { formatPeriode } from '@/lib/utils'
+import HistoriekAccordion, { type HistoriekItem } from './HistoriekAccordion'
 
 type Bewijsstuk = {
   id: string
@@ -44,7 +45,13 @@ type Aanvraag = {
   } | null
 }
 
-export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] }) {
+export default function AanvragenTable({
+  aanvragen,
+  historiek,
+}: {
+  aanvragen: Aanvraag[]
+  historiek: HistoriekItem[]
+}) {
   const router = useRouter()
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -251,6 +258,9 @@ export default function AanvragenTable({ aanvragen }: { aanvragen: Aanvraag[] })
           </p>
         </div>
       )}
+
+      {/* Historiek van eigen beoordelingen */}
+      <HistoriekAccordion historiek={historiek} />
 
       {/* Modal */}
       {selectedAanvraag && (

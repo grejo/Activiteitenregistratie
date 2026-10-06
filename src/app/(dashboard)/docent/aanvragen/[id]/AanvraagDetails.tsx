@@ -47,12 +47,14 @@ type Aanvraag = {
 const statusLabels: Record<string, string> = {
   in_review: 'In behandeling',
   goedgekeurd: 'Goedgekeurd',
+  gepubliceerd: 'Goedgekeurd (gepubliceerd)',
   afgekeurd: 'Afgekeurd',
 }
 
 const statusColors: Record<string, string> = {
   in_review: 'bg-yellow-100 text-yellow-800',
   goedgekeurd: 'bg-green-100 text-green-800',
+  gepubliceerd: 'bg-green-100 text-green-800',
   afgekeurd: 'bg-red-100 text-red-800',
 }
 
@@ -353,7 +355,7 @@ export default function AanvraagDetails({ aanvraag }: { aanvraag: Aanvraag }) {
               Status
             </h3>
             <p className="text-gray-600">
-              Deze aanvraag is al {aanvraag.status === 'goedgekeurd' ? 'goedgekeurd' : 'afgekeurd'}.
+              Deze aanvraag is al {aanvraag.status === 'afgekeurd' ? 'afgekeurd' : 'goedgekeurd'}.
             </p>
           </div>
         )}
