@@ -41,6 +41,37 @@ async function getAanvragen(opleidingIds: string[] | null) {
   }))
 }
 
+// Historiek: aanvragen die deze gebruiker zelf goed- of afkeurde, recentste eerst
+async function getHistoriek(userId: string) {
+  const historiek = await prisma.activiteit.findMany({
+    where: {
+      typeAanvraag: 'student',
+      beoordeeldDoorId: userId,
+      status: { in: ['goedgekeurd', 'gepubliceerd', 'afgekeurd'] },
+    },
+    select: {
+      id: true,
+      titel: true,
+      status: true,
+      datum: true,
+      einddatum: true,
+      opmerkingen: true,
+      beoordeeldOp: true,
+      aangemaaktDoor: { select: { naam: true, email: true } },
+      opleiding: { select: { naam: true } },
+    },
+    orderBy: { beoordeeldOp: 'desc' },
+    take: 500,
+  })
+
+  return historiek.map((h) => ({
+    ...h,
+    datum: h.datum.toISOString(),
+    einddatum: h.einddatum?.toISOString() || null,
+    beoordeeldOp: h.beoordeeldOp?.toISOString() || null,
+  }))
+}
+
 export default async function AanvragenPage() {
   const session = await auth()
 
@@ -65,7 +96,10 @@ export default async function AanvragenPage() {
     )
   }
 
-  const aanvragen = await getAanvragen(opleidingIds)
+  const [aanvragen, historiek] = await Promise.all([
+    getAanvragen(opleidingIds),
+    getHistoriek(session.user.id),
+  ])
 
-  return <AanvragenTable aanvragen={aanvragen} />
+  return <AanvragenTable aanvragen={aanvragen} historiek={historiek} />
 }

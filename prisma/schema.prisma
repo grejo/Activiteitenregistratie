@@ -83,6 +83,8 @@ model User {
   impersonationsAsTarget ImpersonationLog[] @relation("TargetImpersonations")
 
   niveauWijzigingen NiveauWijzigingLog[]
+
+  beoordeeldeAanvragen Activiteit[] @relation("AanvraagBeoordeeldDoor")
 }
 
 model DocentOpleiding {
@@ -208,6 +210,11 @@ model Activiteit {
   typeAanvraag       String
   afgekeurdBekekenOp DateTime?
 
+  // Wie een studentaanvraag goed- of afkeurde en wanneer (historiek op Aanvragen)
+  beoordeeldDoorId String?
+  beoordeeldDoor   User?     @relation("AanvraagBeoordeeldDoor", fields: [beoordeeldDoorId], references: [id])
+  beoordeeldOp     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -223,6 +230,7 @@ model Activiteit {
   sjablonen         ActiviteitSjabloon[]
 
   @@index([opleidingId, status, openVoorMedestudenten])
+  @@index([beoordeeldDoorId, beoordeeldOp])
 }
 
 // Koppelt een activiteit aan één of meer opleidingen (cross-opleiding zichtbaarheid).

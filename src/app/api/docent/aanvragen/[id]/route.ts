@@ -61,6 +61,9 @@ export async function PATCH(
       opmerkingen: opmerkingen || null,
       // Mailgoedkeuring enkel zinvol bij publicatie op het prikbord
       verwittigPerMail: finaleStatus === 'gepubliceerd' ? verstuurMail : false,
+      // Historiek: wie heeft beoordeeld en wanneer
+      beoordeeldDoorId: session.user.id,
+      beoordeeldOp: new Date(),
     }
 
     if (beentje !== undefined) {
