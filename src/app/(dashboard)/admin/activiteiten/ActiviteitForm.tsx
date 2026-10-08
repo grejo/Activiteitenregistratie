@@ -2,10 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import XFactorVelden from '@/components/activiteiten/XFactorVelden'
+import BewijsVelden, { type SjabloonOptie } from '@/components/activiteiten/BewijsVelden'
 
 type Opleiding = {
   id: string
   naam: string
+  niveau1Beschrijving?: string | null
+  niveau2Beschrijving?: string | null
+  niveau3Beschrijving?: string | null
+  niveau4Beschrijving?: string | null
 }
 
 type Activiteit = {
@@ -27,6 +33,10 @@ type Activiteit = {
   bewijslink: string | null
   verplichtProfiel: string | null
   maxPlaatsen: number | null
+  beentje?: string | null
+  niveau?: number | null
+  bewijsInstructie?: string | null
+  sjablonen?: { sjabloonId: string }[]
   status: string
   typeAanvraag: string
   opleidingId: string | null
@@ -39,9 +49,11 @@ type Activiteit = {
 export default function ActiviteitForm({
   activiteit,
   opleidingen,
+  sjablonen = [],
 }: {
   activiteit?: Activiteit
   opleidingen: Opleiding[]
+  sjablonen?: SjabloonOptie[]
 }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -76,6 +88,9 @@ export default function ActiviteitForm({
     maxPlaatsen: activiteit?.maxPlaatsen || null,
     status: activiteit?.status || 'gepubliceerd',
     opleidingId: activiteit?.opleidingId || '',
+    beentje: activiteit?.beentje || '',
+    niveau: activiteit?.niveau?.toString() || '',
+    bewijsInstructie: activiteit?.bewijsInstructie || '',
     aftekenlijstVereist: activiteit?.aftekenlijstVereist ?? false,
     verplicht: activiteit?.verplicht ?? false,
   })
@@ -91,6 +106,10 @@ export default function ActiviteitForm({
       .map((o) => o.opleidingId)
       .filter((id) => id !== activiteit?.opleidingId)
   )
+  const [sjabloonIds, setSjabloonIds] = useState<string[]>(
+    (activiteit?.sjablonen || []).map((s) => s.sjabloonId)
+  )
+
   const toggleExtraOpleiding = (id: string) =>
     setExtraOpleidingIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -120,7 +139,9 @@ export default function ActiviteitForm({
           ),
           einddatum: formData.einddatum || null,
           aantalUren: formData.aantalUren || null,
+          niveau: formData.niveau ? Number(formData.niveau) : null,
           verwittigPerMail,
+          sjabloonIds,
         }),
       })
 
@@ -444,6 +465,14 @@ export default function ActiviteitForm({
         </div>
       </div>
 
+      {/* X-factor: beentje & niveau */}
+      <XFactorVelden
+        beentje={formData.beentje}
+        niveau={formData.niveau}
+        opleiding={opleidingen.find((o) => o.id === formData.opleidingId)}
+        onChange={(veld, waarde) => setFormData((prev) => ({ ...prev, [veld]: waarde }))}
+      />
+
       {/* Status */}
       <div>
         <label htmlFor="status" className="block text-sm font-medium text-gray-700">
@@ -500,6 +529,18 @@ export default function ActiviteitForm({
           </div>
         </label>
       </div>
+
+      {/* Gevraagd bewijs + sjabloon */}
+      <BewijsVelden
+        bewijsInstructie={formData.bewijsInstructie}
+        onInstructieChange={(waarde) =>
+          setFormData((prev) => ({ ...prev, bewijsInstructie: waarde }))
+        }
+        sjablonen={sjablonen}
+        opleidingIds={[formData.opleidingId, ...extraOpleidingIds].filter(Boolean)}
+        sjabloonIds={sjabloonIds}
+        onSjabloonIdsChange={setSjabloonIds}
+      />
 
       {/* Mail-verwittiging */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">

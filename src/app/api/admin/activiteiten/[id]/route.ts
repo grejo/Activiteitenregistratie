@@ -3,6 +3,9 @@ import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie, notifyActiviteitWijziging } from '@/lib/mail'
 import { parsePeriodeEnUren } from '@/lib/utils'
+import { parseBeentjeNiveau } from '@/lib/beentjes'
+import { syncActiviteitSjablonen } from '@/lib/activiteitSjablonen'
+import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 
 // Bepaal welke voor studenten relevante velden gewijzigd zijn
 function bepaalWijzigingen(
@@ -71,6 +74,11 @@ export async function PATCH(
       )
     }
 
+    const xfactor = parseBeentjeNiveau(body.beentje, body.niveau)
+    if ('error' in xfactor) {
+      return NextResponse.json({ error: xfactor.error }, { status: 400 })
+    }
+
     for (const opId of opleidingIds) {
       if (!(await canAccessOpleiding(session.user.id, opId))) {
         return NextResponse.json(
@@ -121,6 +129,11 @@ export async function PATCH(
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
+        beentje: xfactor.beentje,
+        niveau: xfactor.niveau,
+        ...(typeof body.bewijsInstructie === 'string' && {
+          bewijsInstructie: body.bewijsInstructie.trim() || null,
+        }),
         status: status || existingActiviteit.status,
         opleidingId: opleidingId || null,
         aftekenlijstVereist: aftekenlijstVereist === true,
@@ -132,6 +145,31 @@ export async function PATCH(
         },
       },
     })
+
+    await syncActiviteitSjablonen(id, body.sjabloonIds, opleidingIds)
+
+    // Niveau/beentje gewijzigd: loggen (niveau) en voortgang van ingeschrevenen herberekenen
+    const niveauGewijzigd = xfactor.niveau !== existingActiviteit.niveau
+    if (niveauGewijzigd) {
+      await prisma.niveauWijzigingLog.create({
+        data: {
+          activiteitId: id,
+          gewijzigdDoorId: session.user.id,
+          vanNiveau: existingActiviteit.niveau,
+          naarNiveau: xfactor.niveau,
+          reden: null,
+        },
+      })
+    }
+    if (niveauGewijzigd || xfactor.beentje !== existingActiviteit.beentje) {
+      const inschrijvingen = await prisma.inschrijving.findMany({
+        where: { activiteitId: id },
+        select: { studentId: true },
+      })
+      for (const sid of Array.from(new Set(inschrijvingen.map((i) => i.studentId)))) {
+        await recalculateStudentVoortgang(sid)
+      }
+    }
 
     // Idempotent: mailt enkel als de vlag aan staat en nog niet verstuurd is.
     if (activiteit.status === 'gepubliceerd') {

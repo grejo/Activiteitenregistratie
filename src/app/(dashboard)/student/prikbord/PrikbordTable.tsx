@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPeriode, formatUren } from '@/lib/utils'
+import GevraagdBewijs from '@/components/activiteiten/GevraagdBewijs'
 
 type Activiteit = {
   id: string
@@ -18,6 +19,7 @@ type Activiteit = {
   typeActiviteit: string
   typeAanvraag: string
   maxPlaatsen: number | null
+  bewijsInstructie?: string | null
   opleiding: {
     naam: string
   } | null
@@ -447,6 +449,8 @@ export default function PrikbordTable({
                   </p>
                 </div>
               )}
+
+              <GevraagdBewijs bewijsInstructie={selectedActiviteit.bewijsInstructie} />
 
               {/* Links */}
               {selectedActiviteit.weblink && (

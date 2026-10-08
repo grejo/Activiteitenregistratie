@@ -184,6 +184,7 @@ export function buildPrikbordEmail(data: {
   locatie?: string | null
   omschrijving?: string | null
   weblink?: string | null
+  bewijsInstructie?: string | null
   opleidingNamen: string[]
   prikbordUrl: string
 }): { subject: string; html: string } {
@@ -193,7 +194,10 @@ export function buildPrikbordEmail(data: {
     eyebrow: 'Nieuwe activiteit op het prikbord',
     heading: data.titel,
     intro: 'Beste student,\nEr staat een nieuwe activiteit klaar voor jouw opleiding. Hieronder vind je de details.',
-    detailRows: activiteitDetailRows(data, data.opleidingNamen),
+    detailRows: [
+      ...activiteitDetailRows(data, data.opleidingNamen),
+      ...(data.bewijsInstructie ? [{ label: 'Gevraagd bewijs', waarde: data.bewijsInstructie }] : []),
+    ],
     feedback: data.omschrijving || null,
     ctaLabel: 'Bekijk op het prikbord',
     ctaUrl: data.prikbordUrl,

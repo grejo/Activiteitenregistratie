@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { activiteitEinde, formatPeriode } from '@/lib/utils'
+import XFactorVelden from '@/components/activiteiten/XFactorVelden'
+import BewijsVelden, { type SjabloonOptie } from '@/components/activiteiten/BewijsVelden'
 
 type Activiteit = {
   id: string
@@ -14,6 +16,7 @@ type Activiteit = {
   status: string
   typeActiviteit: string
   maxPlaatsen: number | null
+  beentje: string | null
   opleiding: {
     naam: string
   } | null
@@ -29,6 +32,10 @@ type Activiteit = {
 type Opleiding = {
   id: string
   naam: string
+  niveau1Beschrijving?: string | null
+  niveau2Beschrijving?: string | null
+  niveau3Beschrijving?: string | null
+  niveau4Beschrijving?: string | null
 }
 
 type DuurzaamheidsThema = {
@@ -74,6 +81,8 @@ const initialFormData = {
   status: 'gepubliceerd',
   opleidingId: '',
   niveau: '',
+  beentje: '',
+  bewijsInstructie: '',
   duurzaamheidId: '',
 }
 
@@ -81,10 +90,12 @@ export default function DocentActiviteitenTable({
   activiteiten,
   opleidingen,
   duurzaamheidsThemas = [],
+  sjablonen = [],
 }: {
   activiteiten: Activiteit[]
   opleidingen: Opleiding[]
   duurzaamheidsThemas?: DuurzaamheidsThema[]
+  sjablonen?: SjabloonOptie[]
 }) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -97,6 +108,7 @@ export default function DocentActiviteitenTable({
   const [formData, setFormData] = useState(initialFormData)
   // Extra opleidingen waarvoor de activiteit ook zichtbaar is (cross-opleiding).
   const [extraOpleidingIds, setExtraOpleidingIds] = useState<string[]>([])
+  const [sjabloonIds, setSjabloonIds] = useState<string[]>([])
   const toggleExtraOpleiding = (id: string) =>
     setExtraOpleidingIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -156,6 +168,7 @@ export default function DocentActiviteitenTable({
     setShowModal(false)
     setFormData(initialFormData)
     setExtraOpleidingIds([])
+    setSjabloonIds([])
     setError(null)
   }
 
@@ -196,6 +209,7 @@ export default function DocentActiviteitenTable({
             new Set([formData.opleidingId, ...extraOpleidingIds].filter(Boolean))
           ),
           niveau: formData.niveau || null,
+          sjabloonIds,
           duurzaamheidId: formData.duurzaamheidId || null,
           einddatum: formData.einddatum || null,
           aantalUren: formData.aantalUren || null,
@@ -342,7 +356,17 @@ export default function DocentActiviteitenTable({
                       {formatPeriode(activiteit.datum, activiteit.einddatum)}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="font-medium text-gray-900">{activiteit.titel}</div>
+                      <div className="font-medium text-gray-900">
+                        {activiteit.titel}
+                        {!activiteit.beentje && (
+                          <span
+                            className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 whitespace-nowrap"
+                            title="Zonder X-factor beentje telt deze activiteit niet mee op de scorekaart. Klik op Bewerken om het aan te vullen."
+                          >
+                            Geen beentje
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-gray-500 truncate max-w-xs">
                         {activiteit.omschrijving}
                       </div>
@@ -694,16 +718,17 @@ export default function DocentActiviteitenTable({
                     htmlFor="opleidingId"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Opleiding
+                    Opleiding *
                   </label>
                   <select
                     id="opleidingId"
                     name="opleidingId"
+                    required
                     value={formData.opleidingId}
                     onChange={handleChange}
                     className="input-field mt-1 w-full"
                   >
-                    <option value="">Alle opleidingen</option>
+                    <option value="" disabled>— Kies een opleiding —</option>
                     {opleidingen.map((opleiding) => (
                       <option key={opleiding.id} value={opleiding.id}>
                         {opleiding.naam}
@@ -757,28 +782,16 @@ export default function DocentActiviteitenTable({
                 </div>
               </div>
 
-              {/* Niveau & Duurzaamheid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="niveau" className="block text-sm font-medium text-gray-700">
-                    Niveau
-                  </label>
-                  <select
-                    id="niveau"
-                    name="niveau"
-                    value={formData.niveau}
-                    onChange={handleChange}
-                    className="input-field mt-1 w-full"
-                  >
-                    <option value="">Selecteer niveau</option>
-                    <option value="1">Niveau 1 - Orienteren</option>
-                    <option value="2">Niveau 2 - Kennen</option>
-                    <option value="3">Niveau 3 - Toepassen</option>
-                    <option value="4">Niveau 4 - Integreren</option>
-                    <option value="5">Niveau 5 - Creëren</option>
-                  </select>
-                </div>
+              {/* X-factor: beentje & niveau */}
+              <XFactorVelden
+                beentje={formData.beentje}
+                niveau={formData.niveau}
+                opleiding={opleidingen.find((o) => o.id === formData.opleidingId)}
+                onChange={(veld, waarde) => setFormData((prev) => ({ ...prev, [veld]: waarde }))}
+              />
 
+              {/* Duurzaamheid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label
                     htmlFor="duurzaamheidId"
@@ -806,6 +819,18 @@ export default function DocentActiviteitenTable({
                   )}
                 </div>
               </div>
+
+              {/* Gevraagd bewijs + sjabloon */}
+              <BewijsVelden
+                bewijsInstructie={formData.bewijsInstructie}
+                onInstructieChange={(waarde) =>
+                  setFormData((prev) => ({ ...prev, bewijsInstructie: waarde }))
+                }
+                sjablonen={sjablonen}
+                opleidingIds={[formData.opleidingId, ...extraOpleidingIds].filter(Boolean)}
+                sjabloonIds={sjabloonIds}
+                onSjabloonIdsChange={setSjabloonIds}
+              />
 
               {/* Status */}
               <div>

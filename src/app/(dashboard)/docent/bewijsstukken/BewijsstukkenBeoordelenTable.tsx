@@ -28,6 +28,7 @@ type Inschrijving = {
     einduur: string
     locatie: string | null
     niveau: number | null
+    bewijsInstructie?: string | null
   }
   student: {
     id: string
@@ -286,6 +287,15 @@ export default function BewijsstukkenBeoordelenTable({
                   )}
                 </div>
               </div>
+
+              {selectedInschrijving.activiteit.bewijsInstructie && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-gray-900 mb-1">Gevraagd bewijs</h4>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">
+                    {selectedInschrijving.activiteit.bewijsInstructie}
+                  </p>
+                </div>
+              )}
 
               {/* Bewijsstukken */}
               <div className="border-t pt-4">

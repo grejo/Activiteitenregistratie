@@ -249,6 +249,7 @@ export async function notifyPublicatie(activiteitId: string): Promise<void> {
       locatie: activiteit.locatie,
       omschrijving: activiteit.omschrijving,
       weblink: activiteit.weblink,
+      bewijsInstructie: activiteit.bewijsInstructie,
       opleidingNamen,
       prikbordUrl: `${config.appUrl}/student/prikbord`,
     })
@@ -337,15 +338,24 @@ export async function notifyNieuweAanvraag(activiteitId: string): Promise<void> 
     })
     if (!a) return
 
-    // Beoordelaars: docenten + admins gekoppeld aan de opleiding, plus alle superadmins
+    // Beoordelaars: docenten + admins gekoppeld aan de opleiding, plus alle superadmins.
+    // Respecteert de mailvoorkeuren: hoofdschakelaar op User en per opleiding op de koppeling.
     const beoordelaars = await prisma.user.findMany({
       where: {
         actief: true,
+        gearchiveerdOp: null,
+        ontvangtMail: true,
         OR: [
           ...(a.opleidingId
             ? [
-                { role: 'docent', docentOpleidingen: { some: { opleidingId: a.opleidingId } } },
-                { role: 'admin', adminOpleidingen: { some: { opleidingId: a.opleidingId } } },
+                {
+                  role: 'docent',
+                  docentOpleidingen: { some: { opleidingId: a.opleidingId, ontvangtMail: true } },
+                },
+                {
+                  role: 'admin',
+                  adminOpleidingen: { some: { opleidingId: a.opleidingId, ontvangtMail: true } },
+                },
               ]
             : []),
           { role: 'superadmin' },

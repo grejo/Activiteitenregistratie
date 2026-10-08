@@ -3,6 +3,8 @@ import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie } from '@/lib/mail'
 import { parsePeriodeEnUren } from '@/lib/utils'
+import { parseBeentjeNiveau } from '@/lib/beentjes'
+import { syncActiviteitSjablonen } from '@/lib/activiteitSjablonen'
 
 export async function GET() {
   try {
@@ -86,6 +88,11 @@ export async function POST(request: Request) {
       )
     }
 
+    const xfactor = parseBeentjeNiveau(body.beentje, niveau)
+    if ('error' in xfactor) {
+      return NextResponse.json({ error: xfactor.error }, { status: 400 })
+    }
+
     // Controleer toegang tot élke gekozen opleiding (docent: gekoppeld; admin: eigen; superadmin: alle)
     for (const opId of opleidingIds) {
       if (!(await canAccessOpleiding(session.user.id, opId))) {
@@ -138,7 +145,12 @@ export async function POST(request: Request) {
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
-        niveau: niveau ? parseInt(niveau) : null,
+        beentje: xfactor.beentje,
+        niveau: xfactor.niveau,
+        bewijsInstructie:
+          typeof body.bewijsInstructie === 'string' && body.bewijsInstructie.trim()
+            ? body.bewijsInstructie.trim()
+            : null,
         status: status || 'gepubliceerd',
         verwittigPerMail,
         typeAanvraag: 'docent',
@@ -160,6 +172,8 @@ export async function POST(request: Request) {
         }),
       },
     })
+
+    await syncActiviteitSjablonen(activiteit.id, body.sjabloonIds, opleidingIds)
 
     // Verwittig studenten bij directe publicatie
     if (activiteit.status === 'gepubliceerd') {

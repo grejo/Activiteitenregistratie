@@ -99,13 +99,18 @@ export async function PATCH(
       updateData.passwordHash = await bcrypt.hash(password, 10)
     }
 
-    // Admin↔opleiding koppelingen synchroniseren: bestaande vervangen door de nieuwe set.
-    // Bij een niet-admin rol worden alle koppelingen verwijderd.
+    // Admin↔opleiding koppelingen synchroniseren met de nieuwe set. Bestaande koppelingen
+    // blijven staan (zodat hun mailvoorkeur bewaard blijft); enkel weggevallen worden
+    // verwijderd en nieuwe aangemaakt. Bij een niet-admin rol verdwijnen alle koppelingen.
+    const gewensteAdminIds = role === 'admin' ? adminOpleidingIds : []
+    const bestaandeAdminIds = (
+      await prisma.adminOpleiding.findMany({ where: { adminId: id }, select: { opleidingId: true } })
+    ).map((r) => r.opleidingId)
     updateData.adminOpleidingen = {
-      deleteMany: {},
-      ...(role === 'admin'
-        ? { create: adminOpleidingIds.map((opId: string) => ({ opleidingId: opId })) }
-        : {}),
+      deleteMany: { opleidingId: { notIn: gewensteAdminIds } },
+      create: gewensteAdminIds
+        .filter((opId: string) => !bestaandeAdminIds.includes(opId))
+        .map((opId: string) => ({ opleidingId: opId })),
     }
 
     const user = await prisma.user.update({

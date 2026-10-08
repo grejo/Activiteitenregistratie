@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import DocentActiviteitForm from '../DocentActiviteitForm'
+import { getSjabloonOpties } from '@/lib/activiteitSjablonen'
 
 export const metadata = {
   title: 'Nieuwe Activiteit - Docent',
@@ -33,6 +34,7 @@ export default async function NewActiviteitPage() {
   }
 
   const opleidingen = await getOpleidingen(session.user.id)
+  const sjablonen = await getSjabloonOpties(opleidingen.map((o) => o.id))
 
   return (
     <div className="space-y-8">
@@ -54,7 +56,7 @@ export default async function NewActiviteitPage() {
 
       {/* Form */}
       <div className="card max-w-3xl">
-        <DocentActiviteitForm opleidingen={opleidingen} />
+        <DocentActiviteitForm opleidingen={opleidingen} sjablonen={sjablonen} />
       </div>
     </div>
   )

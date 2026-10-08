@@ -3,6 +3,8 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import EditUserForm from './EditUserForm'
+import { getMailVoorkeuren } from '@/lib/mailVoorkeuren'
+import MailVoorkeurenForm from '@/components/mail/MailVoorkeurenForm'
 
 export const metadata = {
   title: 'Gebruiker Bewerken - Admin',
@@ -68,6 +70,13 @@ export default async function EditUserPage({
     user.role === 'admin' ? getAdminOpleidingIds(user.id) : Promise.resolve([]),
   ])
   const canAssignSuperadmin = session.user.role === 'superadmin'
+  // Mailvoorkeuren enkel voor staff; een opleidingsadmin enkel voor gebruikers in zijn opleidingen
+  const mailVoorkeuren =
+    user.role !== 'student' ? await getMailVoorkeuren(user.id) : null
+  const toonMailVoorkeuren =
+    !!mailVoorkeuren &&
+    (beheerdeIds === null ||
+      mailVoorkeuren.opleidingen.some((o) => beheerdeIds.includes(o.opleidingId)))
 
   return (
     <div className="space-y-8">
@@ -107,6 +116,17 @@ export default async function EditUserPage({
           canAssignSuperadmin={canAssignSuperadmin}
         />
       </div>
+
+      {toonMailVoorkeuren && mailVoorkeuren && (
+        <div className="card max-w-2xl">
+          <h2 className="font-heading font-bold text-xl text-pxl-black mb-4">Mailmeldingen</h2>
+          <MailVoorkeurenForm
+            initieel={mailVoorkeuren}
+            endpoint={`/api/admin/users/${user.id}/mailvoorkeuren`}
+            eigen={false}
+          />
+        </div>
+      )}
     </div>
   )
 }

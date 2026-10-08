@@ -2,6 +2,7 @@ import { auth, getBeheerdeOpleidingIds } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import ActiviteitForm from '../ActiviteitForm'
+import { getSjabloonOpties } from '@/lib/activiteitSjablonen'
 
 export const metadata = {
   title: 'Nieuwe Activiteit - Admin',
@@ -26,6 +27,7 @@ export default async function NewActiviteitPage() {
 
   const beheerdeIds = await getBeheerdeOpleidingIds(session.user.id)
   const opleidingen = await getOpleidingen(beheerdeIds)
+  const sjablonen = await getSjabloonOpties(opleidingen.map((o) => o.id))
 
   return (
     <div className="space-y-8">
@@ -40,7 +42,7 @@ export default async function NewActiviteitPage() {
       </div>
 
       <div className="card max-w-3xl">
-        <ActiviteitForm opleidingen={opleidingen} />
+        <ActiviteitForm opleidingen={opleidingen} sjablonen={sjablonen} />
       </div>
     </div>
   )

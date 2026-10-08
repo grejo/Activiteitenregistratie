@@ -56,3 +56,21 @@ export const BEENTJE_VEREIST_VELD: Record<string, string> = {
 
 /** De 4 beentjes met niveau-uitsplitsing (Reflectie heeft geen niveaus) */
 export const BEENTJES_MET_NIVEAU = ['PASSIE', 'ONDERNEMEND', 'SAMENWERKING', 'MULTIDISCIPLINAIR'] as const
+
+/**
+ * Valideert beentje + niveau uit een request-body. Beide zijn verplicht: zonder
+ * beentje telt een activiteit niet mee op de scorekaart (zie recalculateStudentVoortgang).
+ */
+export function parseBeentjeNiveau(
+  beentje: unknown,
+  niveau: unknown
+): { beentje: BeentjeType; niveau: NiveauType } | { error: string } {
+  if (typeof beentje !== 'string' || !(BEENTJES as readonly string[]).includes(beentje)) {
+    return { error: 'Kies voor welk X-factor beentje deze activiteit telt' }
+  }
+  const n = typeof niveau === 'number' ? niveau : parseInt(String(niveau ?? ''), 10)
+  if (!(NIVEAUS as readonly number[]).includes(n)) {
+    return { error: 'Niveau moet 1, 2, 3 of 4 zijn' }
+  }
+  return { beentje: beentje as BeentjeType, niveau: n as NiveauType }
+}
