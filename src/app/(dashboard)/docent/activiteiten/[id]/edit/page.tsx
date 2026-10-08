@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import Link from 'next/link'
 import DocentActiviteitForm from '../../DocentActiviteitForm'
+import { getSjabloonOpties } from '@/lib/activiteitSjablonen'
 
 export const metadata = {
   title: 'Activiteit Bewerken - Docent',
@@ -16,6 +17,7 @@ async function getActiviteit(id: string, userId: string) {
     },
     include: {
       opleidingen: { select: { opleidingId: true } },
+      sjablonen: { select: { sjabloonId: true } },
     },
   })
 }
@@ -58,6 +60,8 @@ export default async function EditActiviteitPage({
     notFound()
   }
 
+  const sjablonen = await getSjabloonOpties(opleidingen.map((o) => o.id))
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -78,7 +82,7 @@ export default async function EditActiviteitPage({
 
       {/* Form */}
       <div className="card max-w-3xl">
-        <DocentActiviteitForm activiteit={activiteit} opleidingen={opleidingen} />
+        <DocentActiviteitForm activiteit={activiteit} opleidingen={opleidingen} sjablonen={sjablonen} />
       </div>
     </div>
   )

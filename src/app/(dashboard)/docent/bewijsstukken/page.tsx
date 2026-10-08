@@ -29,6 +29,7 @@ async function getIngediendeBewijsstukken(userId: string) {
           einduur: true,
           locatie: true,
           niveau: true,
+          bewijsInstructie: true,
         },
       },
       student: {

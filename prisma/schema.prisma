@@ -67,6 +67,9 @@ model User {
   // meteen opnieuw gekoppeld worden, zonder te wachten op een nieuwe login.
   ssoDepartment   String?
   ssoDepartmentOp DateTime?
+  // Hoofdschakelaar voor systeemmails aan staff (docent/admin/superadmin).
+  // Per opleiding kan het verder verfijnd worden via DocentOpleiding/AdminOpleiding.ontvangtMail.
+  ontvangtMail    Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -90,6 +93,7 @@ model User {
 model DocentOpleiding {
   id            String   @id @default(uuid())
   isCoordinator Boolean  @default(false)
+  ontvangtMail  Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   docentId    String
@@ -113,8 +117,9 @@ model OpleidingCode {
 }
 
 model AdminOpleiding {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  ontvangtMail Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   adminId     String
   admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
@@ -186,6 +191,9 @@ model Activiteit {
   organisatorExtern String?
   bewijslink        String?
   verplichtProfiel  String?
+  // Vrije instructie voor de student wanneer ander/extra bewijs gevraagd wordt
+  // dan het standaard aanwezigheidsattest (bv. foto, reflectieverslag, certificaat).
+  bewijsInstructie  String?
   maxPlaatsen       Int?
   aantalIngeschreven Int     @default(0)
 

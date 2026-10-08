@@ -3,6 +3,8 @@ import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { notifyPublicatie } from '@/lib/mail'
 import { parsePeriodeEnUren } from '@/lib/utils'
+import { parseBeentjeNiveau } from '@/lib/beentjes'
+import { syncActiviteitSjablonen } from '@/lib/activiteitSjablonen'
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +54,11 @@ export async function POST(request: Request) {
       )
     }
 
+    const xfactor = parseBeentjeNiveau(body.beentje, body.niveau)
+    if ('error' in xfactor) {
+      return NextResponse.json({ error: xfactor.error }, { status: 400 })
+    }
+
     // Opleidingsadmin mag enkel eigen opleiding(en) koppelen; superadmin alles
     for (const opId of opleidingIds) {
       if (!(await canAccessOpleiding(session.user.id, opId))) {
@@ -90,6 +97,12 @@ export async function POST(request: Request) {
         bewijslink: bewijslink || null,
         verplichtProfiel: verplichtProfiel || null,
         maxPlaatsen: maxPlaatsen || null,
+        beentje: xfactor.beentje,
+        niveau: xfactor.niveau,
+        bewijsInstructie:
+          typeof body.bewijsInstructie === 'string' && body.bewijsInstructie.trim()
+            ? body.bewijsInstructie.trim()
+            : null,
         status: status || 'gepubliceerd',
         typeAanvraag: 'docent', // Admin creates as docent type
         aangemaaktDoorId: session.user.id,
@@ -102,6 +115,8 @@ export async function POST(request: Request) {
         },
       },
     })
+
+    await syncActiviteitSjablonen(activiteit.id, body.sjabloonIds, opleidingIds)
 
     if (activiteit.status === 'gepubliceerd') {
       await notifyPublicatie(activiteit.id)

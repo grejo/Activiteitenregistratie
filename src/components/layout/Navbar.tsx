@@ -222,6 +222,15 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
                     : role.charAt(0).toUpperCase() + role.slice(1)}
                 </span>
               </div>
+              {role !== 'student' && (
+                <Link
+                  href="/mailmeldingen"
+                  title="Kies welke systeemmails je ontvangt"
+                  className={`nav-link ${isActive('/mailmeldingen') ? 'nav-link-active' : 'nav-link-inactive'}`}
+                >
+                  Mailmeldingen
+                </Link>
+              )}
               <button
                 onClick={handleSignOut}
                 className="nav-link nav-link-inactive"
@@ -299,6 +308,15 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
                     Ingelogd als {naam}
                   </div>
                 </div>
+                {role !== 'student' && (
+                  <Link
+                    href="/mailmeldingen"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-800 hover:text-pxl-gold"
+                  >
+                    Mailmeldingen
+                  </Link>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-800 hover:text-pxl-gold"

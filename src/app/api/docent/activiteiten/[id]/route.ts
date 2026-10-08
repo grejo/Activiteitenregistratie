@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma'
 import { notifyPublicatie, notifyActiviteitWijziging } from '@/lib/mail'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 import { parsePeriodeEnUren } from '@/lib/utils'
+import { parseBeentjeNiveau } from '@/lib/beentjes'
+import { syncActiviteitSjablonen } from '@/lib/activiteitSjablonen'
 
 // Bepaal welke voor studenten relevante velden gewijzigd zijn
 function bepaalWijzigingen(
@@ -142,8 +144,13 @@ export async function PATCH(
       }
     }
 
-    const nieuwNiveau = niveau ? parseInt(niveau) : null
+    const xfactor = parseBeentjeNiveau(body.beentje, niveau)
+    if ('error' in xfactor) {
+      return NextResponse.json({ error: xfactor.error }, { status: 400 })
+    }
+    const nieuwNiveau: number = xfactor.niveau
     const niveauGewijzigd = nieuwNiveau !== existingActiviteit.niveau
+    const beentjeGewijzigd = xfactor.beentje !== existingActiviteit.beentje
 
     let periodeEnUren
     try {
@@ -176,6 +183,10 @@ export async function PATCH(
         status,
         opleidingId: opleidingId || null,
         niveau: nieuwNiveau,
+        beentje: xfactor.beentje,
+        ...(typeof body.bewijsInstructie === 'string' && {
+          bewijsInstructie: body.bewijsInstructie.trim() || null,
+        }),
         aftekenlijstVereist: aftekenlijstVereist === true,
         verplicht: verplicht === true,
         verwittigPerMail,
@@ -186,11 +197,12 @@ export async function PATCH(
       },
     })
 
-    // Niveauwijziging loggen (consistent met de admin-flow) en de voortgang van
-    // elke ingeschreven student herberekenen. Loggen kan enkel naar een concreet
-    // niveau: NiveauWijzigingLog.naarNiveau is verplicht.
-    if (niveauGewijzigd) {
-      if (nieuwNiveau !== null) {
+    // Niveauwijziging loggen (consistent met de admin-flow) en bij een gewijzigd
+    // niveau of beentje de voortgang van elke ingeschreven student herberekenen.
+    await syncActiviteitSjablonen(id, body.sjabloonIds, opleidingIds)
+
+    if (niveauGewijzigd || beentjeGewijzigd) {
+      if (niveauGewijzigd) {
         await prisma.niveauWijzigingLog.create({
           data: {
             activiteitId: id,

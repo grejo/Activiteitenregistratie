@@ -48,6 +48,10 @@ export default async function StudentBewijsstukkenPage() {
           locatie: true,
           typeAanvraag: true,
           aftekenlijstVereist: true,
+          bewijsInstructie: true,
+          sjablonen: {
+            select: { sjabloon: { select: { id: true, naam: true, bestandsnaam: true } } },
+          },
         },
       },
       bewijsstukken: {

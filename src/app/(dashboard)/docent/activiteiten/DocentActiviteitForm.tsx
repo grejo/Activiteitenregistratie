@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { NIVEAUS, NIVEAU_LABELS } from '@/lib/beentjes'
+import XFactorVelden from '@/components/activiteiten/XFactorVelden'
+import BewijsVelden, { type SjabloonOptie } from '@/components/activiteiten/BewijsVelden'
 
 type Opleiding = {
   id: string
@@ -35,6 +36,9 @@ type Activiteit = {
   verplichtProfiel: string | null
   maxPlaatsen: number | null
   niveau: number | null
+  beentje?: string | null
+  bewijsInstructie?: string | null
+  sjablonen?: { sjabloonId: string }[]
   status: string
   typeAanvraag: string
   opleidingId: string | null
@@ -45,9 +49,11 @@ type Activiteit = {
 export default function DocentActiviteitForm({
   activiteit,
   opleidingen,
+  sjablonen = [],
 }: {
   activiteit?: Activiteit
   opleidingen: Opleiding[]
+  sjablonen?: SjabloonOptie[]
 }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -83,6 +89,8 @@ export default function DocentActiviteitForm({
     status: activiteit?.status || 'gepubliceerd',
     opleidingId: activiteit?.opleidingId || '',
     niveau: activiteit?.niveau?.toString() || '',
+    beentje: activiteit?.beentje || '',
+    bewijsInstructie: activiteit?.bewijsInstructie || '',
     aftekenlijstVereist: activiteit?.aftekenlijstVereist ?? false,
     verplicht: activiteit?.verplicht ?? false,
   })
@@ -98,6 +106,10 @@ export default function DocentActiviteitForm({
       .map((o) => o.opleidingId)
       .filter((id) => id !== activiteit?.opleidingId)
   )
+  const [sjabloonIds, setSjabloonIds] = useState<string[]>(
+    (activiteit?.sjablonen || []).map((s) => s.sjabloonId)
+  )
+
   const toggleExtraOpleiding = (id: string) =>
     setExtraOpleidingIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -129,6 +141,7 @@ export default function DocentActiviteitForm({
           einddatum: formData.einddatum || null,
           aantalUren: formData.aantalUren || null,
           verwittigPerMail,
+          sjabloonIds,
         }),
       })
 
@@ -382,8 +395,8 @@ export default function DocentActiviteitForm({
         />
       </div>
 
-      {/* Opleiding & Niveau */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Opleiding */}
+      <div>
         <div>
           <label
             htmlFor="opleidingId"
@@ -434,56 +447,15 @@ export default function DocentActiviteitForm({
             </div>
           )}
         </div>
-
-        <div>
-          {(() => {
-            const gekozenOpleiding = opleidingen.find((o) => o.id === formData.opleidingId)
-            const niveauNr = formData.niveau ? Number(formData.niveau) : null
-            const veld = niveauNr
-              ? (`niveau${niveauNr}Beschrijving` as keyof Opleiding)
-              : null
-            const beschrijving =
-              gekozenOpleiding && veld ? (gekozenOpleiding[veld] as string | null) : null
-            return (
-              <>
-                <label
-                  htmlFor="niveau"
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700"
-                >
-                  Niveau *
-                  {beschrijving && (
-                    <span
-                      title={beschrijving}
-                      className="cursor-help text-gray-400"
-                      aria-label="Opleidingsspecifieke omschrijving van dit niveau"
-                    >
-                      ⓘ
-                    </span>
-                  )}
-                </label>
-                <select
-                  id="niveau"
-                  name="niveau"
-                  required
-                  value={formData.niveau}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                >
-                  <option value="" disabled>— Kies een niveau —</option>
-                  {NIVEAUS.map((n) => (
-                    <option key={n} value={n}>
-                      {NIVEAU_LABELS[n]}
-                    </option>
-                  ))}
-                </select>
-                {beschrijving && (
-                  <p className="mt-1 text-xs text-gray-500">{beschrijving}</p>
-                )}
-              </>
-            )
-          })()}
-        </div>
       </div>
+
+      {/* X-factor: beentje & niveau */}
+      <XFactorVelden
+        beentje={formData.beentje}
+        niveau={formData.niveau}
+        opleiding={opleidingen.find((o) => o.id === formData.opleidingId)}
+        onChange={(veld, waarde) => setFormData((prev) => ({ ...prev, [veld]: waarde }))}
+      />
 
       {/* Max Plaatsen */}
       <div>
@@ -558,6 +530,18 @@ export default function DocentActiviteitForm({
           </div>
         </label>
       </div>
+
+      {/* Gevraagd bewijs + sjabloon */}
+      <BewijsVelden
+        bewijsInstructie={formData.bewijsInstructie}
+        onInstructieChange={(waarde) =>
+          setFormData((prev) => ({ ...prev, bewijsInstructie: waarde }))
+        }
+        sjablonen={sjablonen}
+        opleidingIds={[formData.opleidingId, ...extraOpleidingIds].filter(Boolean)}
+        sjabloonIds={sjabloonIds}
+        onSjabloonIdsChange={setSjabloonIds}
+      />
 
       {/* Mail-verwittiging */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AftekendocumentButton } from '@/components/AftekendocumentButton'
 import { formatPeriode, formatUren } from '@/lib/utils'
+import { BEENTJE_LABELS } from '@/lib/beentjes'
 
 type Activiteit = {
   id: string
@@ -31,6 +32,7 @@ type Activiteit = {
   typeAanvraag: string
   beentje: string | null
   niveau: number | null
+  bewijsInstructie?: string | null
   aftekenlijstVereist: boolean
   verplicht: boolean
   aangemaaktDoor: {
@@ -228,10 +230,28 @@ export default function ActiviteitDetails({ activiteit }: { activiteit: Activite
           </div>
         )}
 
+        {activiteit.bewijsInstructie && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="font-semibold mb-2">Gevraagd bewijs</h3>
+            <p className="text-sm text-gray-700 whitespace-pre-line">{activiteit.bewijsInstructie}</p>
+          </div>
+        )}
+
+        {!activiteit.beentje && (
+          <div className="border-t pt-4 mt-4">
+            <p className="text-sm rounded bg-orange-50 border border-orange-200 text-orange-800 px-3 py-2">
+              Deze activiteit heeft nog geen X-factor beentje en telt daardoor niet mee op de
+              scorekaart. Vul beentje en niveau aan via <strong>Bewerken</strong>.
+            </p>
+          </div>
+        )}
+
         {/* Niveau-aanpassing (met audit) */}
         {activiteit.beentje && (
           <div className="border-t pt-4 mt-4">
-            <h3 className="font-semibold mb-2">Toegekend niveau</h3>
+            <h3 className="font-semibold mb-2">
+              Toegekend niveau — {BEENTJE_LABELS[activiteit.beentje] ?? activiteit.beentje}
+            </h3>
             <p className="text-xs text-gray-500 mb-2">
               Wijzigingen worden gelogd (wie, wanneer, van welk niveau naar welk niveau, en waarom).
             </p>

@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import DocentActiviteitenTable from './DocentActiviteitenTable'
+import { getSjabloonOpties } from '@/lib/activiteitSjablonen'
 
 export const metadata = {
   title: 'Mijn Activiteiten - Docent',
@@ -86,12 +87,14 @@ export default async function DocentActiviteitenPage() {
     getOpleidingen(session.user.id),
     getDuurzaamheidsThemas(session.user.id),
   ])
+  const sjablonen = await getSjabloonOpties(opleidingen.map((o) => o.id))
 
   return (
     <DocentActiviteitenTable
       activiteiten={activiteiten}
       opleidingen={opleidingen}
       duurzaamheidsThemas={duurzaamheidsThemas}
+      sjablonen={sjablonen}
     />
   )
 }

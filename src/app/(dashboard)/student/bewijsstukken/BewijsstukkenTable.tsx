@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
 import { AftekendocumentButton } from '@/components/AftekendocumentButton'
+import GevraagdBewijs, { type GekoppeldSjabloon } from '@/components/activiteiten/GevraagdBewijs'
 
 type Bewijsstuk = {
   id: string
@@ -24,6 +25,8 @@ type Activiteit = {
   locatie: string | null
   typeAanvraag: string
   aftekenlijstVereist?: boolean
+  bewijsInstructie?: string | null
+  sjablonen?: GekoppeldSjabloon[]
 }
 
 type Inschrijving = {
@@ -277,6 +280,13 @@ export default function BewijsstukkenTable({ inschrijvingen }: BewijsstukkenTabl
                               />
                             </div>
                           )}
+
+                          {/* Gevraagd bewijs (instructie + sjablonen van docent/admin) */}
+                          <GevraagdBewijs
+                            className="mb-4"
+                            bewijsInstructie={inschrijving.activiteit.bewijsInstructie}
+                            sjablonen={inschrijving.activiteit.sjablonen}
+                          />
 
                           {/* Upload component */}
                           <BewijsstukkenUpload

@@ -13,6 +13,7 @@ type Activiteit = {
   status: string
   typeActiviteit: string
   maxPlaatsen: number | null
+  beentje: string | null
   aangemaaktDoor: {
     naam: string
     email: string
@@ -282,7 +283,17 @@ export default function ActiviteitenTable({
                     {formatPeriode(activiteit.datum, activiteit.einddatum)}
                   </td>
                   <td className="px-4 py-4">
-                    <div className="font-medium text-gray-900">{activiteit.titel}</div>
+                    <div className="font-medium text-gray-900">
+                      {activiteit.titel}
+                      {!activiteit.beentje && (
+                        <span
+                          className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 whitespace-nowrap"
+                          title="Zonder X-factor beentje telt deze activiteit niet mee op de scorekaart."
+                        >
+                          Geen beentje
+                        </span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">{activiteit.omschrijving}</div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
