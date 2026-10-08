@@ -1,15 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
+import StartDemoMenuItems from '@/components/demo/StartDemoMenuItems'
 
 interface NavLink {
   href: string
   label: string
   badgeKey?: 'aanvragen' | 'bewijsstukken'
 }
+
+interface NavGroup {
+  label: string
+  children: NavLink[]
+}
+
+type NavItem = NavLink | NavGroup
+
+const isGroup = (item: NavItem): item is NavGroup => 'children' in item
 
 interface PendingCounts {
   aanvragen: number
@@ -26,12 +36,17 @@ interface NavbarProps {
   role: string
   naam: string
   isDemo?: boolean
+  /** Toont de demo-startknoppen in het gebruikersmenu (enkel echte staff, niet in demo/impersonatie) */
+  canStartDemo?: boolean
 }
 
-export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
+export function Navbar({ role, naam, isDemo = false, canStartDemo = false }: NavbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  // Welke desktop-dropdown open staat: een groepslabel of 'user'
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const navRef = useRef<HTMLElement>(null)
   const [pendingCounts, setPendingCounts] = useState<PendingCounts>({
     aanvragen: 0,
     bewijsstukken: 0,
@@ -82,30 +97,28 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
     return () => window.removeEventListener('refresh-counts', handleRefreshCounts)
   }, [fetchPendingCounts])
 
-  const getNavLinks = (): NavLink[] => {
+  const getNavItems = (): NavItem[] => {
     if (!role) return []
 
     switch (role) {
       case 'superadmin':
-        return [
-          { href: '/admin', label: 'Dashboard' },
-          { href: '/admin/users', label: 'Gebruikers' },
-          { href: '/admin/studenten', label: 'Studenten' },
-          { href: '/admin/opleidingen', label: 'Opleidingen' },
-          { href: '/admin/activiteiten', label: 'Activiteiten' },
-          { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
-          { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
-          { href: '/admin/instellingen', label: 'Instellingen' },
-        ]
       case 'admin':
         return [
           { href: '/admin', label: 'Dashboard' },
-          { href: '/admin/users', label: 'Gebruikers' },
-          { href: '/admin/studenten', label: 'Studenten' },
-          { href: '/admin/opleidingen', label: 'Opleidingen' },
-          { href: '/admin/activiteiten', label: 'Activiteiten' },
           { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
           { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
+          {
+            label: 'Beheer',
+            children: [
+              { href: '/admin/users', label: 'Gebruikers' },
+              { href: '/admin/studenten', label: 'Studenten' },
+              { href: '/admin/opleidingen', label: 'Opleidingen' },
+              { href: '/admin/activiteiten', label: 'Activiteiten' },
+              ...(role === 'superadmin'
+                ? [{ href: '/admin/instellingen', label: 'Instellingen' }]
+                : []),
+            ],
+          },
         ]
       case 'docent':
         return [
@@ -127,7 +140,7 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
     }
   }
 
-  const navLinks = getNavLinks()
+  const navItems = getNavItems()
 
   const isActive = (href: string) => {
     if (href === '/admin' || href === '/docent' || href === '/student') {
@@ -135,6 +148,70 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
     }
     return pathname.startsWith(href)
   }
+
+  const isGroupActive = (group: NavGroup) => group.children.some((c) => isActive(c.href))
+
+  // Dropdowns sluiten bij navigatie, klik erbuiten of Escape
+  useEffect(() => {
+    setOpenMenu(null)
+    setMobileMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!openMenu) return
+    const onClick = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenMenu(null)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenu(null)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [openMenu])
+
+  const roleLabel =
+    role === 'superadmin' ? 'Superadmin' : role.charAt(0).toUpperCase() + role.slice(1)
+
+  const initials = naam
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
+  const renderBadge = (count: number, mobile = false) =>
+    count > 0 && (
+      <span
+        className={
+          mobile
+            ? 'min-w-[20px] h-[20px] flex items-center justify-center px-1.5 text-xs font-bold text-white bg-red-500 rounded-full'
+            : 'ml-1.5 min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full'
+        }
+      >
+        {count > 99 ? '99+' : count}
+      </span>
+    )
+
+  const chevron = (open: boolean) => (
+    <svg
+      className={`w-4 h-4 ml-1 transition-transform ${open ? 'rotate-180' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  )
+
+  const dropdownItemClass = (active: boolean) =>
+    `block px-4 py-2 text-sm transition-colors ${
+      active ? 'bg-pxl-gold text-pxl-black font-semibold' : 'text-gray-200 hover:bg-gray-800 hover:text-pxl-gold'
+    }`
 
   const handleSignOut = async () => {
     // Tijdens een demo mag "Uitloggen" de echte SSO-sessie niet beëindigen:
@@ -171,77 +248,136 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
   }
 
   return (
-    <nav className="bg-pxl-black text-pxl-white sticky top-0 z-40 shadow-lg">
+    <nav ref={navRef} className="bg-pxl-black text-pxl-white sticky top-0 z-40 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-6">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link
-              href={role ? (role === 'superadmin' ? '/admin' : `/${role}`) : '/'}
-              className="font-heading font-black text-xl hover:text-pxl-gold transition-colors"
-            >
-              Xfactorapp
-            </Link>
-          </div>
+          <Link
+            href={role ? (role === 'superadmin' ? '/admin' : `/${role}`) : '/'}
+            className="font-heading font-black text-xl hover:text-pxl-gold transition-colors shrink-0"
+          >
+            Xfactorapp
+          </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => {
-              const badgeCount = link.badgeKey ? pendingCounts[link.badgeKey] : 0
+          <div className="hidden lg:flex items-center gap-1 flex-1">
+            {navItems.map((item) => {
+              if (isGroup(item)) {
+                const open = openMenu === item.label
+                return (
+                  <div key={item.label} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenu(open ? null : item.label)}
+                      aria-expanded={open}
+                      aria-haspopup="menu"
+                      className={`nav-link inline-flex items-center ${
+                        isGroupActive(item) ? 'nav-link-active' : 'nav-link-inactive'
+                      }`}
+                    >
+                      {item.label}
+                      {chevron(open)}
+                    </button>
+                    {open && (
+                      <div
+                        role="menu"
+                        className="absolute left-0 mt-2 w-52 py-1 bg-pxl-black border border-gray-700 rounded-md shadow-xl"
+                      >
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            role="menuitem"
+                            className={dropdownItemClass(isActive(child.href))}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              const badgeCount = item.badgeKey ? pendingCounts[item.badgeKey] : 0
               return (
                 <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`nav-link relative ${
-                    isActive(link.href) ? 'nav-link-active' : 'nav-link-inactive'
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-link inline-flex items-center ${
+                    isActive(item.href) ? 'nav-link-active' : 'nav-link-inactive'
                   }`}
                 >
-                  {link.label}
-                  {badgeCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
-                      {badgeCount > 99 ? '99+' : badgeCount}
-                    </span>
-                  )}
+                  {item.label}
+                  {renderBadge(badgeCount)}
                 </Link>
               )
             })}
           </div>
 
-          {/* User info & Logout */}
+          {/* Gebruikersmenu */}
           {role && (
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-300">
-                  {naam}
-                </span>
-                <span
-                  className={`px-2 py-0.5 text-xs font-semibold rounded ${getRoleBadgeColor()}`}
-                >
-                  {role === 'superadmin'
-                    ? 'Superadmin'
-                    : role.charAt(0).toUpperCase() + role.slice(1)}
-                </span>
-              </div>
-              {role !== 'student' && (
-                <Link
-                  href="/mailmeldingen"
-                  title="Kies welke systeemmails je ontvangt"
-                  className={`nav-link ${isActive('/mailmeldingen') ? 'nav-link-active' : 'nav-link-inactive'}`}
-                >
-                  Mailmeldingen
-                </Link>
-              )}
+            <div className="hidden lg:block relative shrink-0">
               <button
-                onClick={handleSignOut}
-                className="nav-link nav-link-inactive"
+                type="button"
+                onClick={() => setOpenMenu(openMenu === 'user' ? null : 'user')}
+                aria-expanded={openMenu === 'user'}
+                aria-haspopup="menu"
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-gray-800 transition-colors"
               >
-                Uitloggen
+                <span
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getRoleBadgeColor()}`}
+                >
+                  {initials || '?'}
+                </span>
+                <span className="text-sm text-gray-200 max-w-[10rem] truncate">{naam}</span>
+                {chevron(openMenu === 'user')}
               </button>
+              {openMenu === 'user' && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-60 py-1 bg-pxl-black border border-gray-700 rounded-md shadow-xl"
+                >
+                  <div className="px-4 py-3 border-b border-gray-800">
+                    <div className="text-sm font-semibold truncate">{naam}</div>
+                    <span
+                      className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded ${getRoleBadgeColor()}`}
+                    >
+                      {roleLabel}
+                    </span>
+                  </div>
+                  {role !== 'student' && (
+                    <Link
+                      href="/mailmeldingen"
+                      role="menuitem"
+                      title="Kies welke systeemmails je ontvangt"
+                      className={dropdownItemClass(isActive('/mailmeldingen'))}
+                    >
+                      Mailmeldingen
+                    </Link>
+                  )}
+                  {canStartDemo && (
+                    <div className="border-t border-gray-800 mt-1 pt-1">
+                      <StartDemoMenuItems
+                        headingClassName="px-4 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        itemClassName={dropdownItemClass(false)}
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleSignOut}
+                    className={`w-full text-left border-t border-gray-800 mt-1 ${dropdownItemClass(false)}`}
+                  >
+                    Uitloggen
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-md hover:bg-gray-800 transition-colors"
@@ -276,36 +412,49 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-pxl-black border-t border-gray-800">
+        <div className="lg:hidden bg-pxl-black border-t border-gray-800">
           <div className="px-2 pt-2 pb-3 space-y-1">
-            {navLinks.map((link) => {
-              const badgeCount = link.badgeKey ? pendingCounts[link.badgeKey] : 0
+            {navItems.map((item) => {
+              const links = isGroup(item) ? item.children : [item]
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center justify-between px-3 py-2 rounded-md text-base font-medium ${
-                    isActive(link.href)
-                      ? 'bg-pxl-gold text-pxl-black'
-                      : 'hover:bg-gray-800 hover:text-pxl-gold'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {link.label}
-                  {badgeCount > 0 && (
-                    <span className="min-w-[20px] h-[20px] flex items-center justify-center px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
-                      {badgeCount > 99 ? '99+' : badgeCount}
-                    </span>
+                <div key={isGroup(item) ? item.label : item.href}>
+                  {isGroup(item) && (
+                    <div className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {item.label}
+                    </div>
                   )}
-                </Link>
+                  {links.map((link) => {
+                    const badgeCount = link.badgeKey ? pendingCounts[link.badgeKey] : 0
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md text-base font-medium ${
+                          isActive(link.href)
+                            ? 'bg-pxl-gold text-pxl-black'
+                            : 'hover:bg-gray-800 hover:text-pxl-gold'
+                        }`}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {link.label}
+                        {renderBadge(badgeCount, true)}
+                      </Link>
+                    )
+                  })}
+                </div>
               )
             })}
 
             {role && (
               <>
                 <div className="border-t border-gray-800 mt-2 pt-2">
-                  <div className="px-3 py-2 text-sm text-gray-400">
+                  <div className="px-3 py-2 text-sm text-gray-400 flex items-center gap-2">
                     Ingelogd als {naam}
+                    <span
+                      className={`px-2 py-0.5 text-xs font-semibold rounded text-white ${getRoleBadgeColor()}`}
+                    >
+                      {roleLabel}
+                    </span>
                   </div>
                 </div>
                 {role !== 'student' && (
@@ -316,6 +465,12 @@ export function Navbar({ role, naam, isDemo = false }: NavbarProps) {
                   >
                     Mailmeldingen
                   </Link>
+                )}
+                {canStartDemo && (
+                  <StartDemoMenuItems
+                    headingClassName="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                    itemClassName="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-800 hover:text-pxl-gold"
+                  />
                 )}
                 <button
                   onClick={handleSignOut}
