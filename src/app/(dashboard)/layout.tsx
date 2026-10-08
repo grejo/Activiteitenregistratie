@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { auth, isStaff } from '@/lib/auth'
 import { Navbar } from '@/components/layout/Navbar'
 import DemoBanner from '@/components/demo/DemoBanner'
-import StartDemoButton from '@/components/demo/StartDemoButton'
 import ImpersonatieBanner from '@/components/impersonatie/ImpersonatieBanner'
 
 export default async function DashboardLayout({
@@ -39,14 +38,12 @@ export default async function DashboardLayout({
       )}
       {/* Rol/naam komen van de server-sessie (incl. demo-overlay) i.p.v. uit
           useSession(): die client-cache loopt achter na start/stop van een demo. */}
-      <Navbar role={session.user.role} naam={session.user.naam} isDemo={inDemo} />
-      {showStartButton && (
-        <div className="border-b border-gray-200 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-end">
-            <StartDemoButton />
-          </div>
-        </div>
-      )}
+      <Navbar
+        role={session.user.role}
+        naam={session.user.naam}
+        isDemo={inDemo}
+        canStartDemo={showStartButton}
+      />
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
