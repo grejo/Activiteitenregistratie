@@ -10,25 +10,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_BACKUP_URL }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING_BACKUP }}
+        run: |
+          missing=0
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Secret DATABASE_BACKUP_URL ontbreekt of is leeg"
+            missing=1
+          fi
+          if [ -z "$AZURE_STORAGE_CONNECTION_STRING" ]; then
+            echo "::error::Secret AZURE_STORAGE_CONNECTION_STRING_BACKUP ontbreekt of is leeg"
+            missing=1
+          fi
+          exit $missing
+
+      # Recentste pg_dump via de PGDG-repository: een nieuwere client kan oudere
+      # servers dumpen, maar niet omgekeerd.
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18
+          pg_dump --version
 
       - name: Create database backup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_BACKUP_URL }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BACKUP_FILE="activiteiten-xfactor_backup_${TIMESTAMP}.sql.gz"
           pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
-          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
-          echo "Backup created: $BACKUP_FILE"
+
+          # Een lege dump comprimeert tot enkele tientallen bytes
+          SIZE=$(stat -c %s "$BACKUP_FILE")
+          if [ "$SIZE" -lt 1024 ]; then
+            echo "::error::Back-up is verdacht klein ($SIZE bytes)"
+            exit 1
+          fi
+
+          echo "BACKUP_FILE=$BACKUP_FILE" >> "$GITHUB_ENV"
+          echo "Backup created: $BACKUP_FILE ($SIZE bytes)"
 
       - name: Upload to Azure Blob Storage
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING_BACKUP }}
         run: |
+          set -euo pipefail
           which az || (curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash)
           az storage blob upload \
             --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
@@ -40,4 +71,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: rm -f "$BACKUP_FILE"
+        run: rm -f activiteiten-xfactor_backup_*.sql.gz
