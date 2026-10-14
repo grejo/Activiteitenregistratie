@@ -34,5 +34,11 @@ export default async function ActiviteitenPage() {
     }),
   ])
 
-  return <ActiviteitenTable activiteiten={activiteiten} opleidingen={opleidingen} />
+  return (
+    <ActiviteitenTable
+      activiteiten={activiteiten}
+      opleidingen={opleidingen}
+      currentUserId={session.user.id}
+    />
+  )
 }

@@ -14,6 +14,7 @@ type Activiteit = {
   typeActiviteit: string
   maxPlaatsen: number | null
   beentje: string | null
+  aangemaaktDoorId: string
   aangemaaktDoor: {
     naam: string
     email: string
@@ -30,18 +31,31 @@ type Opleiding = {
   naam: string
 }
 
-const statusLabels = {
-  draft: 'Concept',
+const statusLabels: Record<string, string> = {
+  concept: 'Concept',
+  gepubliceerd: 'Gepubliceerd',
   in_review: 'In behandeling',
-  approved: 'Goedgekeurd',
-  rejected: 'Afgekeurd',
+  goedgekeurd: 'Goedgekeurd',
+  afgekeurd: 'Afgekeurd',
+  afgerond: 'Afgerond',
 }
 
-const statusColors = {
-  draft: 'bg-gray-100 text-gray-800',
+const statusColors: Record<string, string> = {
+  concept: 'bg-gray-100 text-gray-800',
+  gepubliceerd: 'bg-blue-100 text-blue-800',
   in_review: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
+  goedgekeurd: 'bg-green-100 text-green-800',
+  afgekeurd: 'bg-red-100 text-red-800',
+  afgerond: 'bg-purple-100 text-purple-800',
+}
+
+// Filter "Door": 'mij' = door de ingelogde gebruiker, 'admin' omvat ook superadmins
+function matchtAanmaker(a: Activiteit, filter: string, currentUserId: string) {
+  if (filter === 'all') return true
+  if (filter === 'mij') return a.aangemaaktDoorId === currentUserId
+  const role = a.aangemaaktDoor.role || 'student'
+  if (filter === 'admin') return role === 'admin' || role === 'superadmin'
+  return role === filter
 }
 
 const PAGE_SIZE = 10
@@ -49,13 +63,15 @@ const PAGE_SIZE = 10
 export default function ActiviteitenTable({
   activiteiten,
   opleidingen,
+  currentUserId,
 }: {
   activiteiten: Activiteit[]
   opleidingen: Opleiding[]
+  currentUserId: string
 }) {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('in_review')
-  const [typeAanvraagFilter, setTypeAanvraagFilter] = useState<string>('student')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [typeAanvraagFilter, setTypeAanvraagFilter] = useState<string>('all')
   const [opleidingFilter, setOpleidingFilter] = useState<string>('all')
   const [beginDatum, setBeginDatum] = useState('')
   const [eindDatum, setEindDatum] = useState('')
@@ -69,7 +85,7 @@ export default function ActiviteitenTable({
     }
 
     if (typeAanvraagFilter !== 'all') {
-      result = result.filter((a) => (a.aangemaaktDoor.role || 'student') === typeAanvraagFilter)
+      result = result.filter((a) => matchtAanmaker(a, typeAanvraagFilter, currentUserId))
     }
 
     if (opleidingFilter !== 'all') {
@@ -102,15 +118,15 @@ export default function ActiviteitenTable({
     }
 
     return result
-  }, [activiteiten, statusFilter, typeAanvraagFilter, opleidingFilter, beginDatum, eindDatum, search])
+  }, [activiteiten, currentUserId, statusFilter, typeAanvraagFilter, opleidingFilter, beginDatum, eindDatum, search])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const hasFilters =
-    statusFilter !== 'in_review' ||
-    typeAanvraagFilter !== 'student' ||
+    statusFilter !== 'all' ||
+    typeAanvraagFilter !== 'all' ||
     opleidingFilter !== 'all' ||
     beginDatum ||
     eindDatum ||
@@ -118,8 +134,8 @@ export default function ActiviteitenTable({
 
   function resetFilters() {
     setSearch('')
-    setStatusFilter('in_review')
-    setTypeAanvraagFilter('student')
+    setStatusFilter('all')
+    setTypeAanvraagFilter('all')
     setOpleidingFilter('all')
     setBeginDatum('')
     setEindDatum('')
@@ -154,15 +170,15 @@ export default function ActiviteitenTable({
           </div>
         </div>
         <div className="card-flat">
-          <div className="text-sm text-pxl-black-light">Goedgekeurd</div>
-          <div className="text-2xl font-bold text-green-600">
-            {activiteiten.filter((a) => a.status === 'approved').length}
+          <div className="text-sm text-pxl-black-light">Gepubliceerd</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {activiteiten.filter((a) => a.status === 'gepubliceerd').length}
           </div>
         </div>
         <div className="card-flat">
-          <div className="text-sm text-pxl-black-light">Afgekeurd</div>
-          <div className="text-2xl font-bold text-red-600">
-            {activiteiten.filter((a) => a.status === 'rejected').length}
+          <div className="text-sm text-pxl-black-light">Door mij aangemaakt</div>
+          <div className="text-2xl font-bold text-pxl-black">
+            {activiteiten.filter((a) => a.aangemaaktDoorId === currentUserId).length}
           </div>
         </div>
       </div>
@@ -190,8 +206,10 @@ export default function ActiviteitenTable({
               className="input-field w-36"
             >
               <option value="all">Iedereen</option>
+              <option value="mij">Door mij</option>
               <option value="student">Student</option>
               <option value="docent">Docent</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
 
@@ -204,10 +222,9 @@ export default function ActiviteitenTable({
               className="input-field w-44"
             >
               <option value="all">Alle statussen</option>
-              <option value="draft">Concept</option>
-              <option value="in_review">In behandeling</option>
-              <option value="approved">Goedgekeurd</option>
-              <option value="rejected">Afgekeurd</option>
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
           </div>
 
@@ -273,6 +290,7 @@ export default function ActiviteitenTable({
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aangemaakt door</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opleiding</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inschrijvingen</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acties</th>
               </tr>
             </thead>
@@ -305,12 +323,16 @@ export default function ActiviteitenTable({
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     {activiteit.status ? (
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[activiteit.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}`}>
-                        {statusLabels[activiteit.status as keyof typeof statusLabels] || activiteit.status}
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[activiteit.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {statusLabels[activiteit.status] || activiteit.status}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400">Geen status</span>
                     )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {activiteit.inschrijvingen.filter((i) => i.inschrijvingsstatus !== 'uitgeschreven').length}
+                    {activiteit.maxPlaatsen ? ` / ${activiteit.maxPlaatsen}` : ''}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
@@ -332,7 +354,7 @@ export default function ActiviteitenTable({
               ))}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                     Geen activiteiten gevonden
                   </td>
                 </tr>
