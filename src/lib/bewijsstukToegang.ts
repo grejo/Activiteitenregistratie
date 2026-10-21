@@ -12,7 +12,7 @@ const STAFF_ROLLEN = ['docent', 'admin', 'superadmin']
 // - admin: activiteit (primair of via ActiviteitOpleiding) of student uit een
 //   beheerde opleiding (AdminOpleiding)
 // - docent: idem voor gekoppelde opleidingen (DocentOpleiding)
-// - admin/docent: ook activiteiten die hij zelf aanmaakte of als aanvraag beoordeelde
+// - admin/docent: ook activiteiten die hij zelf aanmaakte
 // Geeft null terug voor rollen zonder staff-toegang (student).
 export async function bewijsToegangWhere(
   user: SessieGebruiker
