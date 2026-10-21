@@ -349,7 +349,7 @@ export default function BewijsstukkenBeoordelenTable({
                           {isImage(bewijsstuk.bestandsnaam) ? (
                             <div className="relative w-full" style={{ minHeight: '200px' }}>
                               <Image
-                                src={bewijsstuk.bestandspad}
+                                src={`/api/bewijsstukken/${bewijsstuk.id}/bestand`}
                                 alt={bewijsstuk.bestandsnaam}
                                 width={800}
                                 height={600}
@@ -359,7 +359,7 @@ export default function BewijsstukkenBeoordelenTable({
                             </div>
                           ) : isPdf(bewijsstuk.bestandsnaam) ? (
                             <iframe
-                              src={bewijsstuk.bestandspad}
+                              src={`/api/bewijsstukken/${bewijsstuk.id}/bestand`}
                               className="w-full"
                               style={{ height: '60vh' }}
                               title={bewijsstuk.bestandsnaam}
@@ -369,7 +369,7 @@ export default function BewijsstukkenBeoordelenTable({
                               <div className="text-4xl mb-2">📎</div>
                               <p className="text-sm">Geen preview beschikbaar</p>
                               <a
-                                href={bewijsstuk.bestandspad}
+                                href={`/api/bewijsstukken/${bewijsstuk.id}/bestand`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="mt-2 inline-block text-blue-400 underline text-sm"
