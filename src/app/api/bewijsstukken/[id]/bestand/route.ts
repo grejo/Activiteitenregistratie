@@ -3,6 +3,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { magBewijsstukkenVan } from '@/lib/bewijsstukToegang'
 
 const UPLOADS_ROOT = path.join(process.cwd(), 'public', 'uploads')
 
@@ -37,10 +38,7 @@ export async function GET(
     return NextResponse.json({ error: 'Bewijsstuk niet gevonden' }, { status: 404 })
   }
 
-  const isOwner = bewijsstuk.inschrijving.studentId === session.user.id
-  const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-  const isDocent = session.user.role === 'docent'
-  if (!isOwner && !isAdmin && !isDocent) {
+  if (!(await magBewijsstukkenVan(session.user, bewijsstuk.inschrijving))) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { magBewijsstukkenVan } from '@/lib/bewijsstukToegang'
 import { unlink } from 'fs/promises'
 import path from 'path'
 
@@ -30,10 +31,7 @@ export async function DELETE(
     }
 
     // Check permissions
-    const isOwner = bewijsstuk.inschrijving.studentId === session.user.id
-    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-
-    if (!isOwner && !isAdmin) {
+    if (!(await magBewijsstukkenVan(session.user, bewijsstuk.inschrijving, { alleenAdmin: true }))) {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 
@@ -86,11 +84,7 @@ export async function GET(
     }
 
     // Check permissions
-    const isOwner = bewijsstuk.inschrijving.studentId === session.user.id
-    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-    const isDocent = session.user.role === 'docent'
-
-    if (!isOwner && !isAdmin && !isDocent) {
+    if (!(await magBewijsstukkenVan(session.user, bewijsstuk.inschrijving))) {
       return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
     }
 
