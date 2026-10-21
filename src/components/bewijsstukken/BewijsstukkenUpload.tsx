@@ -254,7 +254,7 @@ export default function BewijsstukkenUpload({
                   <div className="min-w-0">
                     {bewijsstuk.bestandspad ? (
                       <a
-                        href={bewijsstuk.bestandspad}
+                        href={`/api/bewijsstukken/${bewijsstuk.id}/bestand`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
@@ -285,7 +285,7 @@ export default function BewijsstukkenUpload({
                 <div className="flex items-center gap-2 ml-2">
                   {bewijsstuk.bestandspad && (
                     <a
-                      href={bewijsstuk.bestandspad}
+                      href={`/api/bewijsstukken/${bewijsstuk.id}/bestand`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
