@@ -9,8 +9,9 @@ const STAFF_ROLLEN = ['docent', 'admin', 'superadmin']
 // Prisma-filter op inschrijvingen waarvan een docent/admin de bewijsstukken mag zien.
 // Zelfde scope als de docent-bewijsstukkenpagina (bewijsScopeWhere):
 // - superadmin: alles
-// - admin: activiteit of student uit een beheerde opleiding (AdminOpleiding)
-// - docent: activiteit of student uit een gekoppelde opleiding (DocentOpleiding)
+// - admin: activiteit (primair of via ActiviteitOpleiding) of student uit een
+//   beheerde opleiding (AdminOpleiding)
+// - docent: idem voor gekoppelde opleidingen (DocentOpleiding)
 // - admin/docent: ook activiteiten die hij zelf aanmaakte
 // Geeft null terug voor rollen zonder staff-toegang (student).
 export async function bewijsToegangWhere(
