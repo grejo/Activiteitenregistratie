@@ -481,8 +481,11 @@ export function activiteitScopeWhere(ids: string[] | null): Prisma.ActiviteitWhe
 }
 
 // Welke inschrijvingen (bewijsstukken) een gebruiker mag beoordelen:
-// superadmin alles; anders activiteit of student uit een beheerde opleiding,
-// of een activiteit die de gebruiker zelf aanmaakte.
+// superadmin alles; anders activiteit (primaire of gekoppelde opleiding via
+// ActiviteitOpleiding) of student uit een beheerde opleiding, of een activiteit
+// die de gebruiker zelf aanmaakte. Wie een aanvraag beoordeelde, ziet de bewijsstukken
+// zolang hij aan die opleiding gekoppeld is (beoordelen vereist die koppeling al);
+// beoordeeldDoorId alleen geeft bewust geen blijvende toegang.
 export function bewijsScopeWhere(
   userId: string,
   ids: string[] | null
@@ -491,6 +494,7 @@ export function bewijsScopeWhere(
   return {
     OR: [
       { activiteit: { opleidingId: { in: ids } } },
+      { activiteit: { opleidingen: { some: { opleidingId: { in: ids } } } } },
       { activiteit: { aangemaaktDoorId: userId } },
       { student: { opleidingId: { in: ids } } },
     ],

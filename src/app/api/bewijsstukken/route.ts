@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { bewijsToegangWhere, magBewijsstukkenVan } from '@/lib/bewijsstukToegang'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -168,31 +169,27 @@ export async function GET(request: Request) {
       // Verify access to this inschrijving
       const inschrijving = await prisma.inschrijving.findUnique({
         where: { id: inschrijvingId },
-        include: { activiteit: true },
       })
 
       if (!inschrijving) {
         return NextResponse.json({ error: 'Inschrijving niet gevonden' }, { status: 404 })
       }
 
-      // Check if user has access
-      const isOwner = inschrijving.studentId === session.user.id
-      const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-      const isDocent = session.user.role === 'docent'
-
-      if (!isOwner && !isAdmin && !isDocent) {
+      if (!(await magBewijsstukkenVan(session.user, inschrijving))) {
         return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
       }
 
       whereClause = { inschrijvingId }
     } else if (activiteitId) {
-      const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-      const isDocent = session.user.role === 'docent'
+      const scope = await bewijsToegangWhere(session.user)
 
-      if (isAdmin || isDocent) {
-        // Admins and docenten can see all bewijsstukken for an activiteit
+      if (scope) {
+        // Docenten/admins zien de bewijsstukken binnen hun opleiding(en), plus hun eigen
         const inschrijvingen = await prisma.inschrijving.findMany({
-          where: { activiteitId },
+          where: {
+            activiteitId,
+            OR: [scope, { studentId: session.user.id }],
+          },
           select: { id: true },
         })
 
