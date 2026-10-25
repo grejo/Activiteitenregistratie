@@ -110,17 +110,19 @@ runMigrations().then(() => {
   nextApp.prepare().then(() => {
     createServer(async (req, res) => {
       const startTime = Date.now()
+      // Alleen het pad loggen: de query kan o.a. OAuth-autorisatiecodes bevatten
+      const logPath = (req.url || '').split('?')[0]
       try {
-        console.log(`→ ${req.method} ${req.url}`)
+        console.log(`→ ${req.method} ${logPath}`)
         const originalEnd = res.end
         res.end = function(...args) {
-          console.log(`← ${req.method} ${req.url} ${res.statusCode} (${Date.now() - startTime}ms)`)
+          console.log(`← ${req.method} ${logPath} ${res.statusCode} (${Date.now() - startTime}ms)`)
           return originalEnd.apply(res, args)
         }
         const parsedUrl = parse(req.url, true)
         await requestHandler(req, res, parsedUrl)
       } catch (err) {
-        console.error(`Request handler error for ${req.method} ${req.url}:`, err)
+        console.error(`Request handler error for ${req.method} ${logPath}:`, err)
         res.statusCode = 500
         res.end('Internal server error')
       }

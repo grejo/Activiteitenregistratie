@@ -6,6 +6,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import sharp from 'sharp'
+import { herkenBestandstype } from '@/lib/bestandstype'
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +40,17 @@ export async function POST(request: Request) {
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: 'Bestand is te groot. Maximum is 10MB' },
+        { status: 400 }
+      )
+    }
+
+    // Echte type controleren op de inhoud: file.type komt van de client.
+    // Voorkomt dat bv. een SVG of HTML als afbeelding/PDF binnenkomt.
+    const inputBuffer = Buffer.from(await file.arrayBuffer())
+    const bestandstype = herkenBestandstype(inputBuffer)
+    if (!bestandstype) {
+      return NextResponse.json(
+        { error: 'Ongeldig bestandstype. Toegestaan: JPG, PNG, GIF, WEBP, PDF' },
         { status: 400 }
       )
     }
@@ -106,15 +118,11 @@ export async function POST(request: Request) {
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'bewijsstukken')
     await mkdir(uploadDir, { recursive: true })
 
-    const bytes = await file.arrayBuffer()
-    const inputBuffer = Buffer.from(bytes)
-
     // Compress images, save PDFs as-is
-    const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
     let outputBuffer: Buffer
     let uniqueFilename: string
 
-    if (isImage) {
+    if (bestandstype.isAfbeelding) {
       // Convert all images to webp for maximum compression
       uniqueFilename = `${uuidv4()}.webp`
       outputBuffer = await sharp(inputBuffer)
@@ -122,8 +130,8 @@ export async function POST(request: Request) {
         .webp({ quality: 82 })
         .toBuffer()
     } else {
-      const fileExtension = path.extname(file.name)
-      uniqueFilename = `${uuidv4()}${fileExtension}`
+      // Extensie volgt het herkende type, niet de bestandsnaam van de gebruiker
+      uniqueFilename = `${uuidv4()}${bestandstype.extensie}`
       outputBuffer = inputBuffer
     }
 
