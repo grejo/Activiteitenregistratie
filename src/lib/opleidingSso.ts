@@ -344,8 +344,8 @@ export async function departmentOverzicht(): Promise<DepartmentOverzichtRij[]> {
 }
 
 /**
- * Welke van de opgegeven codes zouden studenten wegtrekken die nu via de SSO
- * aan een ándere opleiding gekoppeld worden? Een opleidingsadmin mag dat niet
+ * Welke van de opgegeven codes zouden studenten wegtrekken die via de SSO aan
+ * een ándere opleiding gekoppeld worden (nu of bij hun eerste login)? Een opleidingsadmin mag dat niet
  * zelf doen (bv. "PBABT - BIO" toevoegen terwijl "PBABT" van een andere opleiding is).
  */
 export async function codesDieStudentenOvernemen(
@@ -365,6 +365,15 @@ export async function codesDieStudentenOvernemen(
   ])
 
   const conflicten = new Set<string>()
+  // Op basis van de mapping: een specifiekere variant van een code die al bij een
+  // andere opleiding hoort (ook voor studenten die nog nooit inlogden)
+  for (const code of codes) {
+    const algemener = departmentKandidaten(code).slice(1)
+    if (algemener.some((k) => { const id = mapping.get(k.toLowerCase()); return id && id !== opleidingId })) {
+      conflicten.add(code.trim())
+    }
+  }
+  // Op basis van gekende studenten
   for (const { ssoDepartment } of departments) {
     const huidig = opleidingVoorDepartment(mapping, ssoDepartment)
     if (!huidig || huidig === opleidingId) continue
