@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { synchroniseerStudentOpleidingen } from '@/lib/opleidingSso'
+import { codesDieStudentenOvernemen, synchroniseerStudentOpleidingen } from '@/lib/opleidingSso'
 
 export async function PATCH(
   request: Request,
@@ -99,6 +99,25 @@ export async function PATCH(
       }
     }
 
+    // Nieuwe codes van een opleidingsadmin mogen geen studenten wegtrekken die nu
+    // aan een andere opleiding gekoppeld worden; dat beslist een superadmin.
+    const isSuperadmin = session.user.role === 'superadmin'
+    if (!isSuperadmin) {
+      const bestaand = new Set(
+        [existingOpleiding.code, ...existingOpleiding.codes.map((c) => c.code)].map((c) => c.toLowerCase())
+      )
+      const nieuw = [code, ...normCodes.map((c) => c.code)].filter((c) => !bestaand.has(c.toLowerCase()))
+      const conflicten = await codesDieStudentenOvernemen(nieuw, id)
+      if (conflicten.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Code ${conflicten.map((c) => `"${c}"`).join(', ')} koppelt nu studenten aan een andere opleiding. Vraag een superadmin om dit aan te passen.`,
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     const link = typeof infoLink === 'string' ? infoLink.trim() : ''
     if (link && !/^https?:\/\//i.test(link)) {
       return NextResponse.json(
@@ -129,13 +148,14 @@ export async function PATCH(
       },
     })
 
-    // Gewijzigde SSO-codes: studenten meteen (her)koppelen in plaats van te
-    // wachten tot hun volgende login. Mag het opslaan zelf niet doen mislukken.
+    // Gewijzigde SSO-codes (door een superadmin): studenten meteen (her)koppelen
+    // in plaats van te wachten tot hun volgende login. Mag het opslaan zelf niet
+    // doen mislukken.
     const sleutel = (lijst: string[]) => lijst.map((c) => c.toLowerCase()).sort().join('|')
     const codesGewijzigd =
       code !== existingOpleiding.code ||
       sleutel(existingOpleiding.codes.map((c) => c.code)) !== sleutel(normCodes.map((c) => c.code))
-    if (codesGewijzigd) {
+    if (codesGewijzigd && isSuperadmin) {
       try {
         const sync = await synchroniseerStudentOpleidingen()
         console.log(`[OPLEIDING] Codes van ${id} gewijzigd → ${sync.gewijzigd} student(en) opnieuw gekoppeld`)

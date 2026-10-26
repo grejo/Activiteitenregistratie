@@ -342,3 +342,35 @@ export async function departmentOverzicht(): Promise<DepartmentOverzichtRij[]> {
 
   return [...perDepartment.values()].sort((a, b) => a.department.localeCompare(b.department, 'nl'))
 }
+
+/**
+ * Welke van de opgegeven codes zouden studenten wegtrekken die nu via de SSO
+ * aan een ándere opleiding gekoppeld worden? Een opleidingsadmin mag dat niet
+ * zelf doen (bv. "PBABT - BIO" toevoegen terwijl "PBABT" van een andere opleiding is).
+ */
+export async function codesDieStudentenOvernemen(
+  codes: string[],
+  opleidingId: string
+): Promise<string[]> {
+  const gezocht = new Set(codes.map((c) => c.trim().toLowerCase()).filter(Boolean))
+  if (gezocht.size === 0) return []
+
+  const [mapping, departments] = await Promise.all([
+    laadDepartmentMapping(),
+    prisma.user.findMany({
+      where: { role: 'student', gearchiveerdOp: null, ssoDepartment: { not: null } },
+      select: { ssoDepartment: true },
+      distinct: ['ssoDepartment'],
+    }),
+  ])
+
+  const conflicten = new Set<string>()
+  for (const { ssoDepartment } of departments) {
+    const huidig = opleidingVoorDepartment(mapping, ssoDepartment)
+    if (!huidig || huidig === opleidingId) continue
+    for (const kandidaat of departmentKandidaten(ssoDepartment!)) {
+      if (gezocht.has(kandidaat.toLowerCase())) conflicten.add(kandidaat)
+    }
+  }
+  return [...conflicten]
+}

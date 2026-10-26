@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere } from '@/lib/auth'
+import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere, activiteitScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import type { Beentje } from '@prisma/client'
 import { BEENTJES } from '@/lib/beentjes'
@@ -96,6 +96,19 @@ export async function PATCH(
     }
     const activiteitGewijzigd = Object.keys(activiteitData).length > 0
     if (activiteitGewijzigd) {
+      // Bewijs beoordelen mag ook voor een student uit de eigen opleiding bij een
+      // activiteit van een andere opleiding; de activiteit zelf aanpassen niet.
+      const magActiviteitAanpassen =
+        inschrijving.activiteit.aangemaaktDoorId === session.user.id ||
+        (await prisma.activiteit.count({
+          where: { id: inschrijving.activiteitId, ...activiteitScopeWhere(opleidingIds) },
+        })) > 0
+      if (!magActiviteitAanpassen) {
+        return NextResponse.json(
+          { error: 'Beentje en niveau kun je alleen aanpassen bij activiteiten van je eigen opleiding(en).' },
+          { status: 403 }
+        )
+      }
       await prisma.activiteit.update({
         where: { id: inschrijving.activiteitId },
         data: activiteitData,
