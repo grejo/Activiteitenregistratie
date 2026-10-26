@@ -6,6 +6,17 @@ import { DEMO_OPLEIDING_CODE } from '@/lib/demo'
 
 export const metadata = { title: 'Info opleiding' }
 
+// Enkel http(s)-links renderen, ook als er via een andere weg iets anders in de databank staat
+function veiligeLink(link: string | null): string | null {
+  if (!link) return null
+  try {
+    const url = new URL(link)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
 // Algemene info over het OLOD, per opleiding ingevuld door de opleidingsadmin.
 // Student: eigen opleiding. Docent/admin: gekoppelde opleidingen. Superadmin: alle.
 export default async function InfoOpleidingPage() {
@@ -52,7 +63,9 @@ export default async function InfoOpleidingPage() {
             : 'Er is nog geen info beschikbaar voor jouw opleiding(en).'}
         </div>
       ) : (
-        opleidingen.map((o) => (
+        opleidingen.map((o) => {
+          const link = veiligeLink(o.infoLink)
+          return (
           <section key={o.id} className="card max-w-3xl space-y-4">
             <div className="flex items-start justify-between gap-4">
               <h2 className="font-heading font-bold text-xl text-pxl-black">{o.naam}</h2>
@@ -72,9 +85,9 @@ export default async function InfoOpleidingPage() {
               <p className="text-gray-500 italic">Nog geen info beschikbaar.</p>
             )}
 
-            {o.infoLink && (
+            {link && (
               <a
-                href={o.infoLink}
+                href={link}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-4 py-2 bg-pxl-gold text-white rounded hover:bg-pxl-gold-hover font-medium transition-colors"
@@ -83,7 +96,8 @@ export default async function InfoOpleidingPage() {
               </a>
             )}
           </section>
-        ))
+          )
+        })
       )}
     </div>
   )
