@@ -2,6 +2,8 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import BulkCodesModule from './BulkCodesModule'
+import DepartmentOverzicht from './DepartmentOverzicht'
+import { departmentOverzicht } from '@/lib/opleidingSso'
 
 export const metadata = {
   title: 'Opleidingscodes bulk bijwerken - Admin',
@@ -13,6 +15,8 @@ export default async function BulkCodesPage() {
   if (session?.user.role !== 'superadmin') {
     redirect('/dashboard')
   }
+
+  const departments = await departmentOverzicht()
 
   return (
     <div className="space-y-8">
@@ -31,6 +35,8 @@ export default async function BulkCodesPage() {
           wanneer je op <em>Wijzigingen toepassen</em> klikt.
         </p>
       </div>
+
+      <DepartmentOverzicht rijen={departments} />
 
       <BulkCodesModule />
     </div>
