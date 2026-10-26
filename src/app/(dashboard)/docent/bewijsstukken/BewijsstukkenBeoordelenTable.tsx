@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { formatPeriode } from '@/lib/utils'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, NIVEAU_LABELS } from '@/lib/beentjes'
 
 type Bewijsstuk = {
   id: string
@@ -27,6 +28,7 @@ type Inschrijving = {
     startuur: string
     einduur: string
     locatie: string | null
+    beentje: string | null
     niveau: number | null
     bewijsInstructie?: string | null
   }
@@ -60,6 +62,7 @@ export default function BewijsstukkenBeoordelenTable({
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
   const [niveau, setNiveau] = useState('')
+  const [beentje, setBeentje] = useState('')
   const [previewBewijsstuk, setPreviewBewijsstuk] = useState<Bewijsstuk | null>(null)
 
   const handleAction = async (actie: 'goedkeuren' | 'afkeuren') => {
@@ -77,7 +80,12 @@ export default function BewijsstukkenBeoordelenTable({
       const response = await fetch(`/api/docent/bewijsstukken/${selectedInschrijving.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actie, feedback: feedback.trim() || null, niveau: niveau || null }),
+        body: JSON.stringify({
+          actie,
+          feedback: feedback.trim() || null,
+          niveau: niveau || null,
+          beentje: beentje || null,
+        }),
       })
 
       const data = await response.json()
@@ -91,6 +99,7 @@ export default function BewijsstukkenBeoordelenTable({
       setPreviewBewijsstuk(null)
       setFeedback('')
       setNiveau('')
+      setBeentje('')
       setProcessingAction(null)
 
       // Trigger event om navbar counts te refreshen
@@ -202,6 +211,7 @@ export default function BewijsstukkenBeoordelenTable({
                           setSelectedInschrijving(inschrijving)
                           setFeedback('')
                           setNiveau(inschrijving.activiteit.niveau?.toString() || '')
+                          setBeentje(inschrijving.activiteit.beentje || '')
                           setError(null)
                           setPreviewBewijsstuk(null)
                         }}
@@ -385,28 +395,51 @@ export default function BewijsstukkenBeoordelenTable({
                 </div>
               </div>
 
-              {/* Niveau aanpassen */}
-              <div className="border-t pt-4">
-                <label htmlFor="niveau" className="block text-sm font-medium text-gray-700 mb-1">
-                  Niveau aanpassen
-                </label>
-                <select
-                  id="niveau"
-                  value={niveau}
-                  onChange={(e) => setNiveau(e.target.value)}
-                  className="input-field w-full"
-                >
-                  <option value="">— Ongewijzigd —</option>
-                  <option value="1">Niveau 1</option>
-                  <option value="2">Niveau 2</option>
-                  <option value="3">Niveau 3</option>
-                  <option value="4">Niveau 4</option>
-                </select>
-                {selectedInschrijving.activiteit.niveau && (
+              {/* X-beentje & niveau aanpassen */}
+              <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="beentje" className="block text-sm font-medium text-gray-700 mb-1">
+                    X-beentje
+                  </label>
+                  <select
+                    id="beentje"
+                    value={beentje}
+                    onChange={(e) => setBeentje(e.target.value)}
+                    className="input-field w-full"
+                  >
+                    <option value="">— niet ingesteld —</option>
+                    {BEENTJES.map((b) => (
+                      <option key={b} value={b}>{BEENTJE_LABELS[b]}</option>
+                    ))}
+                  </select>
                   <p className="text-xs text-gray-400 mt-1">
-                    Huidig niveau: {selectedInschrijving.activiteit.niveau}
+                    Huidig: {selectedInschrijving.activiteit.beentje
+                      ? BEENTJE_LABELS[selectedInschrijving.activiteit.beentje] ?? selectedInschrijving.activiteit.beentje
+                      : '—'}
                   </p>
-                )}
+                </div>
+                <div>
+                  <label htmlFor="niveau" className="block text-sm font-medium text-gray-700 mb-1">
+                    Niveau
+                  </label>
+                  <select
+                    id="niveau"
+                    value={niveau}
+                    onChange={(e) => setNiveau(e.target.value)}
+                    className="input-field w-full"
+                  >
+                    <option value="">— niet ingesteld —</option>
+                    {NIVEAUS.map((n) => (
+                      <option key={n} value={n}>{NIVEAU_LABELS[n]}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Huidig: {selectedInschrijving.activiteit.niveau ? `Niveau ${selectedInschrijving.activiteit.niveau}` : '—'}
+                  </p>
+                </div>
+                <p className="sm:col-span-2 text-xs text-gray-500">
+                  Een wijziging geldt voor de activiteit, dus voor alle deelnemers.
+                </p>
               </div>
 
               {/* Feedback */}

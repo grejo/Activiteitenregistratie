@@ -39,6 +39,7 @@ type Aanvraag = {
   status: string
   opmerkingen: string | null
   bewijslink: string | null
+  beentje: string | null
   niveau: number | null
   openVoorMedestudenten: boolean
   organisator: string | null
@@ -586,6 +587,14 @@ export default function AanvragenTable({
                     </div>
                   )}
                   <div>
+                    <div className="text-sm text-gray-500">X-beentje</div>
+                    <div className="font-medium">
+                      {selectedAanvraag.beentje
+                        ? BEENTJE_LABELS[selectedAanvraag.beentje] ?? selectedAanvraag.beentje
+                        : '—'}
+                    </div>
+                  </div>
+                  <div>
                     <div className="text-sm text-gray-500">Niveau</div>
                     {(selectedAanvraag.status === 'concept' || selectedAanvraag.status === 'in_review') ? (
                       <div className="flex items-center gap-2">
@@ -679,6 +688,16 @@ export default function AanvragenTable({
                   </div>
                 )}
               </div>
+
+              {/* Bewijsstukken kunnen pas na goedkeuring opgeladen worden */}
+              {(selectedAanvraag.status === 'concept' || selectedAanvraag.status === 'in_review') && (
+                <div className="border-t pt-6">
+                  <h4 className="font-heading font-bold text-lg text-pxl-black mb-2">Bewijsstukken</h4>
+                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
+                    Zodra je aanvraag goedgekeurd is, kun je hier je bewijsstukken opladen en indienen.
+                  </p>
+                </div>
+              )}
 
               {/* Bewijsstukken Section */}
               {selectedAanvraag.status === 'goedgekeurd' && (
@@ -1162,6 +1181,11 @@ export default function AanvragenTable({
                   </div>
                 </label>
               </div>
+
+              <p className="text-xs text-gray-500 bg-gray-50 rounded p-3 mt-4">
+                Bewijsstukken (attest, foto, …) laad je op nadat je aanvraag goedgekeurd is, via de detailweergave
+                van de aanvraag of de pagina Bewijsstukken.
+              </p>
 
               {/* Modal Footer */}
               <div className="sticky bottom-0 bg-white border-t -mx-6 px-6 py-4 flex justify-end gap-3 mt-6">

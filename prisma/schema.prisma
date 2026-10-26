@@ -33,6 +33,10 @@ model Opleiding {
   niveau3Beschrijving String?
   niveau4Beschrijving String?
 
+  // Algemene info over het OLOD, getoond aan studenten en docenten op "Info opleiding"
+  infoTekst String?
+  infoLink  String?
+
   createdAt                          DateTime @default(now())
   updatedAt                          DateTime @updatedAt
 

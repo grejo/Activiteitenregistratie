@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth, canAccessOpleiding } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { synchroniseerStudentOpleidingen } from '@/lib/opleidingSso'
 
 export async function PATCH(
   request: Request,
@@ -32,6 +33,8 @@ export async function PATCH(
       niveau2Beschrijving,
       niveau3Beschrijving,
       niveau4Beschrijving,
+      infoTekst,
+      infoLink,
       targets,
       schooljaar,
     } = body
@@ -50,6 +53,7 @@ export async function PATCH(
     // Check if opleiding exists
     const existingOpleiding = await prisma.opleiding.findUnique({
       where: { id },
+      include: { codes: { select: { code: true } } },
     })
 
     if (!existingOpleiding) {
@@ -95,6 +99,14 @@ export async function PATCH(
       }
     }
 
+    const link = typeof infoLink === 'string' ? infoLink.trim() : ''
+    if (link && !/^https?:\/\//i.test(link)) {
+      return NextResponse.json(
+        { error: 'De infolink moet beginnen met http:// of https://' },
+        { status: 400 }
+      )
+    }
+
     // Update opleiding + synchroniseer extra codes (vervang de set)
     const opleiding = await prisma.opleiding.update({
       where: { id },
@@ -108,12 +120,29 @@ export async function PATCH(
         niveau2Beschrijving: niveau2Beschrijving || null,
         niveau3Beschrijving: niveau3Beschrijving || null,
         niveau4Beschrijving: niveau4Beschrijving || null,
+        infoTekst: typeof infoTekst === 'string' && infoTekst.trim() ? infoTekst.trim() : null,
+        infoLink: link || null,
         codes: {
           deleteMany: {},
           create: normCodes.map((c) => ({ code: c.code, omschrijving: c.omschrijving })),
         },
       },
     })
+
+    // Gewijzigde SSO-codes: studenten meteen (her)koppelen in plaats van te
+    // wachten tot hun volgende login. Mag het opslaan zelf niet doen mislukken.
+    const sleutel = (lijst: string[]) => lijst.map((c) => c.toLowerCase()).sort().join('|')
+    const codesGewijzigd =
+      code !== existingOpleiding.code ||
+      sleutel(existingOpleiding.codes.map((c) => c.code)) !== sleutel(normCodes.map((c) => c.code))
+    if (codesGewijzigd) {
+      try {
+        const sync = await synchroniseerStudentOpleidingen()
+        console.log(`[OPLEIDING] Codes van ${id} gewijzigd → ${sync.gewijzigd} student(en) opnieuw gekoppeld`)
+      } catch (err) {
+        console.error('[OPLEIDING] Herkoppelen na codewijziging mislukt:', err)
+      }
+    }
 
     // Update beentje/niveau targets if provided
     if (targets && schooljaar) {

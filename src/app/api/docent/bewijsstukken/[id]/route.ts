@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth, getBeheerdeOpleidingIds, bewijsScopeWhere } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import type { Beentje } from '@prisma/client'
+import { BEENTJES } from '@/lib/beentjes'
 import { recalculateStudentVoortgang } from '@/lib/recalculateStudentVoortgang'
 import { notifyBewijsBeoordeeld } from '@/lib/mail'
 
@@ -21,7 +23,7 @@ export async function PATCH(
     }
 
     const { id: inschrijvingId } = await params
-    const { actie, feedback, niveau } = await request.json()
+    const { actie, feedback, niveau, beentje } = await request.json()
 
     if (!actie || !['goedkeuren', 'afkeuren'].includes(actie)) {
       return NextResponse.json(
@@ -78,15 +80,26 @@ export async function PATCH(
       updateData.effectieveDeelname = true
     }
 
-    // Pas niveau aan op de activiteit als opgegeven
+    // Pas beentje/niveau aan op de activiteit als opgegeven en gewijzigd
+    const activiteitData: { niveau?: number; beentje?: Beentje } = {}
     if (niveau) {
       const parsedNiveau = parseInt(niveau)
-      if ([1, 2, 3, 4].includes(parsedNiveau)) {
-        await prisma.activiteit.update({
-          where: { id: inschrijving.activiteitId },
-          data: { niveau: parsedNiveau },
-        })
+      if ([1, 2, 3, 4].includes(parsedNiveau) && parsedNiveau !== inschrijving.activiteit.niveau) {
+        activiteitData.niveau = parsedNiveau
       }
+    }
+    if (beentje) {
+      if (!(BEENTJES as readonly string[]).includes(beentje)) {
+        return NextResponse.json({ error: 'Ongeldig beentje' }, { status: 400 })
+      }
+      if (beentje !== inschrijving.activiteit.beentje) activiteitData.beentje = beentje as Beentje
+    }
+    const activiteitGewijzigd = Object.keys(activiteitData).length > 0
+    if (activiteitGewijzigd) {
+      await prisma.activiteit.update({
+        where: { id: inschrijving.activiteitId },
+        data: activiteitData,
+      })
     }
 
     const updatedInschrijving = await prisma.inschrijving.update({
@@ -99,8 +112,17 @@ export async function PATCH(
       },
     })
 
-    // Bij goedkeuring: herbereken student voortgang
-    if (actie === 'goedkeuren') {
+    // Een gewijzigd beentje/niveau telt voor alle deelnemers van de activiteit;
+    // anders volstaat het bij goedkeuring om deze student te herberekenen.
+    if (activiteitGewijzigd) {
+      const deelnemers = await prisma.inschrijving.findMany({
+        where: { activiteitId: inschrijving.activiteitId },
+        select: { studentId: true },
+      })
+      for (const d of deelnemers) {
+        await recalculateStudentVoortgang(d.studentId)
+      }
+    } else if (actie === 'goedkeuren') {
       await recalculateStudentVoortgang(inschrijving.studentId)
     }
 

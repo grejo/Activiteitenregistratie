@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BewijsstukkenUpload from '@/components/bewijsstukken/BewijsstukkenUpload'
 import { formatPeriode } from '@/lib/utils'
+import { BEENTJES, BEENTJE_LABELS, NIVEAUS, NIVEAU_LABELS } from '@/lib/beentjes'
 import HistoriekAccordion, { type HistoriekItem } from './HistoriekAccordion'
 
 type Bewijsstuk = {
@@ -31,6 +32,8 @@ type Aanvraag = {
   organisatorPxl?: string | null
   organisatorExtern?: string | null
   bewijslink: string | null
+  beentje: string | null
+  niveau: number | null
   openVoorMedestudenten: boolean
   aangemaaktDoor: {
     id: string
@@ -58,6 +61,9 @@ export default function AanvragenTable({
   const [selectedAanvraag, setSelectedAanvraag] = useState<Aanvraag | null>(null)
   const [opmerkingen, setOpmerkingen] = useState('')
   const [verstuurMail, setVerstuurMail] = useState(false)
+  // Beentje en niveau zoals de student ze koos; de beoordelaar kan ze bijsturen
+  const [beentjeKeuze, setBeentjeKeuze] = useState('')
+  const [niveauKeuze, setNiveauKeuze] = useState('')
   const [bewijsstukken, setBewijsstukken] = useState<Bewijsstuk[]>([])
   const [loadingBewijsstukken, setLoadingBewijsstukken] = useState(false)
 
@@ -94,10 +100,15 @@ export default function AanvragenTable({
     try {
       const newStatus = action === 'goedkeuren' ? 'goedgekeurd' : 'afgekeurd'
 
+      // Enkel meesturen wat de beoordelaar effectief wijzigde
+      const aanpassingen: { beentje?: string; niveau?: number } = {}
+      if (beentjeKeuze && beentjeKeuze !== selectedAanvraag?.beentje) aanpassingen.beentje = beentjeKeuze
+      if (niveauKeuze && parseInt(niveauKeuze) !== selectedAanvraag?.niveau) aanpassingen.niveau = parseInt(niveauKeuze)
+
       const response = await fetch(`/api/docent/aanvragen/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, opmerkingen, verstuurMail }),
+        body: JSON.stringify({ status: newStatus, opmerkingen, verstuurMail, ...aanpassingen }),
       })
 
       if (!response.ok) {
@@ -124,6 +135,8 @@ export default function AanvragenTable({
     setSelectedAanvraag(aanvraag)
     setOpmerkingen('')
     setVerstuurMail(false)
+    setBeentjeKeuze(aanvraag.beentje ?? '')
+    setNiveauKeuze(aanvraag.niveau?.toString() ?? '')
     setError(null)
   }
 
@@ -337,6 +350,45 @@ export default function AanvragenTable({
                   )}
                 </div>
 
+                {/* X-beentje & niveau: door de student gekozen, aanpasbaar bij beoordeling */}
+                <div className="grid grid-cols-2 gap-4 mb-4 rounded-lg border border-pxl-gold/40 bg-pxl-gold/5 p-3">
+                  <div>
+                    <label htmlFor="aanvraag-beentje" className="block text-sm text-gray-500 mb-1">
+                      X-beentje
+                    </label>
+                    <select
+                      id="aanvraag-beentje"
+                      value={beentjeKeuze}
+                      onChange={(e) => setBeentjeKeuze(e.target.value)}
+                      className="input-field w-full text-sm"
+                    >
+                      <option value="">— niet gekozen —</option>
+                      {BEENTJES.map((b) => (
+                        <option key={b} value={b}>{BEENTJE_LABELS[b]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="aanvraag-niveau" className="block text-sm text-gray-500 mb-1">
+                      Niveau
+                    </label>
+                    <select
+                      id="aanvraag-niveau"
+                      value={niveauKeuze}
+                      onChange={(e) => setNiveauKeuze(e.target.value)}
+                      className="input-field w-full text-sm"
+                    >
+                      <option value="">— niet gekozen —</option>
+                      {NIVEAUS.map((n) => (
+                        <option key={n} value={n}>{NIVEAU_LABELS[n]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="col-span-2 text-xs text-gray-500">
+                    Gekozen door de student. Pas aan indien nodig; de wijziging wordt bewaard bij goed- of afkeuren.
+                  </p>
+                </div>
+
                 {selectedAanvraag.omschrijving && (
                   <div className="mb-4">
                     <div className="text-sm text-gray-500 mb-1">Omschrijving</div>
@@ -405,8 +457,10 @@ export default function AanvragenTable({
                   />
                 ) : (
                   <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
-                    <div className="text-2xl mb-2">📁</div>
-                    <p className="text-sm">De student heeft nog geen bewijsstukken geüpload</p>
+                    <p className="text-sm">
+                      De student kan bewijsstukken opladen nadat de aanvraag goedgekeurd is. Je beoordeelt ze
+                      daarna onder Bewijsstukken.
+                    </p>
                   </div>
                 )}
               </div>

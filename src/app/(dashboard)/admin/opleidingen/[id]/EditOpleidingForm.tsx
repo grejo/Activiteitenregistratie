@@ -33,6 +33,8 @@ type Opleiding = {
   niveau2Beschrijving: string | null
   niveau3Beschrijving: string | null
   niveau4Beschrijving: string | null
+  infoTekst: string | null
+  infoLink: string | null
   codes: OpleidingCode[]
   targets: OpleidingTargets | null
   _count: {
@@ -64,6 +66,8 @@ export default function EditOpleidingForm({
     niveau2Beschrijving: opleiding.niveau2Beschrijving || '',
     niveau3Beschrijving: opleiding.niveau3Beschrijving || '',
     niveau4Beschrijving: opleiding.niveau4Beschrijving || '',
+    infoTekst: opleiding.infoTekst || '',
+    infoLink: opleiding.infoLink || '',
   })
 
   // Extra SSO-codes (afstandsstudenten, EMA, management, …)
@@ -290,6 +294,45 @@ export default function EditOpleidingForm({
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* Algemene info over het OLOD */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Info over dit OLOD</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Algemene info voor studenten en docenten van deze opleiding (afspraken, deadlines,
+          contactpersoon, …). Verschijnt op de pagina &quot;Info opleiding&quot; in het menu.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="infoTekst" className="block text-sm font-medium text-gray-700">
+              Infotekst
+            </label>
+            <textarea
+              id="infoTekst"
+              name="infoTekst"
+              value={formData.infoTekst}
+              onChange={handleChange}
+              className="input-field mt-1"
+              rows={8}
+              placeholder="Bv. hoe het OLOD werkt, wat er verwacht wordt, deadlines, contactpersoon…"
+            />
+          </div>
+          <div>
+            <label htmlFor="infoLink" className="block text-sm font-medium text-gray-700">
+              Link met meer info (optioneel)
+            </label>
+            <input
+              type="url"
+              id="infoLink"
+              name="infoLink"
+              value={formData.infoLink}
+              onChange={handleChange}
+              className="input-field mt-1"
+              placeholder="https://…"
+            />
+          </div>
         </div>
       </div>
 

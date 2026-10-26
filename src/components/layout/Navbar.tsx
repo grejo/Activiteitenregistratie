@@ -107,6 +107,7 @@ export function Navbar({ role, naam, isDemo = false, canStartDemo = false }: Nav
           { href: '/admin', label: 'Dashboard' },
           { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
           { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
+          { href: '/info', label: 'Info opleiding' },
           {
             label: 'Beheer',
             children: [
@@ -127,6 +128,7 @@ export function Navbar({ role, naam, isDemo = false, canStartDemo = false }: Nav
           { href: '/docent/aanvragen', label: 'Aanvragen', badgeKey: 'aanvragen' },
           { href: '/docent/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
           { href: '/docent/studenten', label: 'Studenten' },
+          { href: '/info', label: 'Info opleiding' },
         ]
       case 'student':
       default:
@@ -136,6 +138,7 @@ export function Navbar({ role, naam, isDemo = false, canStartDemo = false }: Nav
           { href: '/student/inschrijvingen', label: 'Mijn Inschrijvingen' },
           { href: '/student/aanvragen', label: 'Mijn Aanvragen', badgeKey: 'aanvragen' },
           { href: '/student/bewijsstukken', label: 'Bewijsstukken', badgeKey: 'bewijsstukken' },
+          { href: '/info', label: 'Info opleiding' },
         ]
     }
   }

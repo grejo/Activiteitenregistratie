@@ -28,6 +28,7 @@ async function getIngediendeBewijsstukken(userId: string) {
           startuur: true,
           einduur: true,
           locatie: true,
+          beentje: true,
           niveau: true,
           bewijsInstructie: true,
         },

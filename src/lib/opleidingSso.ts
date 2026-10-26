@@ -286,3 +286,59 @@ export function leesDepartmentsUitRijen(rijen: unknown[][]): LogboekDepartment[]
   }
   return []
 }
+
+export type DepartmentOverzichtRij = {
+  department: string
+  aantal: number
+  /** De code (kandidaat) waarop de mapping matchte, bv. "PBABT - GRM" of "PBABT" */
+  gematchteCode: string | null
+  doelOpleiding: { id: string; naam: string } | null
+  /** Waar de studenten met deze department nu effectief aan gekoppeld zijn */
+  huidig: { opleidingId: string | null; naam: string | null; aantal: number }[]
+}
+
+/**
+ * Overzicht van alle SSO-departments van (niet-gearchiveerde) studenten: hoeveel
+ * studenten, naar welke opleiding de mapping wijst (en via welke code), en aan
+ * welke opleiding ze nu gekoppeld zijn. Zo ziet de beheerder meteen welke
+ * afstudeerrichting een eigen code nodig heeft.
+ */
+export async function departmentOverzicht(): Promise<DepartmentOverzichtRij[]> {
+  const [mapping, opleidingen, groepen] = await Promise.all([
+    laadDepartmentMapping(),
+    prisma.opleiding.findMany({ select: { id: true, naam: true } }),
+    prisma.user.groupBy({
+      by: ['ssoDepartment', 'opleidingId'],
+      where: { role: 'student', gearchiveerdOp: null, ssoDepartment: { not: null } },
+      _count: { _all: true },
+    }),
+  ])
+  const naamVan = new Map(opleidingen.map((o) => [o.id, o.naam]))
+
+  const perDepartment = new Map<string, DepartmentOverzichtRij>()
+  for (const g of groepen) {
+    const department = g.ssoDepartment!.trim()
+    let rij = perDepartment.get(department)
+    if (!rij) {
+      const gematchteCode =
+        departmentKandidaten(department).find((k) => mapping.has(k.toLowerCase())) ?? null
+      const doelId = gematchteCode ? mapping.get(gematchteCode.toLowerCase())! : null
+      rij = {
+        department,
+        aantal: 0,
+        gematchteCode,
+        doelOpleiding: doelId ? { id: doelId, naam: naamVan.get(doelId) ?? doelId } : null,
+        huidig: [],
+      }
+      perDepartment.set(department, rij)
+    }
+    rij.aantal += g._count._all
+    rij.huidig.push({
+      opleidingId: g.opleidingId,
+      naam: g.opleidingId ? naamVan.get(g.opleidingId) ?? null : null,
+      aantal: g._count._all,
+    })
+  }
+
+  return [...perDepartment.values()].sort((a, b) => a.department.localeCompare(b.department, 'nl'))
+}
